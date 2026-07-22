@@ -12,101 +12,102 @@ How `web.sameview.app` is deployed to Netcup Webhosting (Plesk Node.js). Complem
 - **Package Manager: `npm`** — Plesk's Node.js panel only offers `npm` or `yarn`; `pnpm` is not selectable there. This
   only affects how dependencies are installed *on the server* — development, CI install, lint, typecheck and build
   continue to use pnpm (see [Deployment artifact](#deployment-artifact) below).
-- **Application Startup File: `server.mjs`** (relative to the Application Root)
+- **Application Startup File: `app.js`** (relative to the Application Root)
 
-The Startup File was originally set to `app.js`, which never existed in this project. It was then corrected to
-`dist/server/entry.mjs` — Astro's own real HTTP entry point in `@astrojs/node`'s `standalone` mode — which loaded
-successfully but reproducibly caused **502 Bad Gateway** under this Plesk/Passenger setup (see
-[Why the Astro standalone entrypoint is not used directly](#why-the-astro-standalone-entrypoint-is-not-used-directly)
-for the confirmed root cause). The final, working Startup File is the versioned `server.mjs` at the repository root.
+Startup File history: it was originally set to `app.js`, which at the time didn't exist as a real entrypoint in this
+project (Plesk suggests that filename by default). It was then pointed at `dist/server/entry.mjs` — Astro's own real
+HTTP entry point in `@astrojs/node`'s `standalone` mode — which loaded successfully but reproducibly caused **502 Bad
+Gateway** (see [Why `standalone` mode is not used](#why-standalone-mode-is-not-used)). It was then pointed at a
+versioned `server.mjs`, which instead produced **"Web application could not be started"** with no logs and no
+diagnostic output at all — see
+[Confirmed root cause](#confirmed-root-cause-passenger-cannot-load-an-es-module-as-the-startup-file) below. `app.js`
+is now a real, plain CommonJS entrypoint — no wrapper, no import chain — and is the Startup File going forward.
 
-The deployment uploads `dist/`, `package.json`, `package-lock.json` and `server.mjs` directly into the Application
-Root (see [Deployment artifact](#deployment-artifact) below) — no `releases/`/`shared/` structure is used (see
+The deployment uploads `dist/`, `package.json`, `package-lock.json` and `app.js` directly into the Application Root
+(see [Deployment artifact](#deployment-artifact) below) — no `releases/`/`shared/` structure is used (see
 [Why direct deployment, not a releases/shared layout](#why-direct-deployment-not-a-releasesshared-layout)).
 
-## Why the Astro standalone entrypoint is not used directly
+## Confirmed root cause: Passenger cannot load an ES module as the Startup File
 
-Confirmed root cause, after a real Plesk test isolated it precisely: `@astrojs/node`'s `standalone` mode
-(`astro.config.mjs` previously had `adapter: node({ mode: "standalone" })`) makes `dist/server/entry.mjs` start its
-**own** internal HTTP server purely as an *import side effect* — as soon as the module is loaded, it calls its own
-internal `listen()` deep inside the adapter's bundled code, before any of our own code runs. A minimal test file
-(`http.createServer(...).listen(process.env.PORT)`, created directly and synchronously at the top of its own module)
-worked correctly as the Startup File under the same Plesk/Passenger setup, proving Plesk/Passenger, Node 26, nginx/
-Apache/SSL, `process.env.PORT`, and `npm`/`node_modules` were never the problem. The one structural difference between
-the two: the working test calls `http.createServer().listen()` directly, synchronously, at the top level of the
-Startup File itself; the standalone entrypoint's actual TCP `.listen()` call happens indirectly, nested inside the
-adapter's own internal module — which this Plesk/Passenger setup does not reliably detect as "the app is now
-listening".
+"Web application could not be started" with `runtime-diagnostic.log` never created meant the process never reached a
+single line of the app's own code — the failure happened while Passenger was still loading the Startup File itself.
 
-Checked before choosing a fix: `@astrojs/node@11.0.2`'s bundled `server.js` does export a reusable `handler` even in
-`standalone` mode, but using it safely would require suppressing the module's own autostart side effect first (via
-`ASTRO_NODE_AUTOSTART=disabled`, before import — awkward with static ESM imports) and the actual `.listen()` call
-would *still* happen inside the adapter's own nested code either way, not at the top level of the Startup File. That
-would not structurally differ from what already fails today.
+Confirmed against
+[Plesk's own knowledge base article on this exact error](https://support.plesk.com/hc/en-us/articles/12389037025431-A-Node-js-app-hosted-in-Plesk-is-not-working-require-of-ES-Module-is-not-supported)
+and Node's own documented module behavior: **Phusion Passenger's Node loader always loads the configured Startup File
+with CommonJS `require()`**, never with ESM `import()`. Node's `require()` can never load a native ES module — not a
+`.mjs` file, not a `.js` file under a `"type": "module"` package.json — this is a hard rule in Node itself (it throws
+`ERR_REQUIRE_ESM`), independent of Passenger or Plesk version. `server.mjs` — and the `passenger.cjs` / `app.js`
+wrapper variants tried before this fix, which all still ultimately `require()`d or statically `import`ed that same ESM
+file — could therefore never have worked as a Passenger Startup File, regardless of `astro.config.mjs`'s adapter mode,
+`PORT`, or anything else in the request-handling code.
 
-Fix: `astro.config.mjs` now configures the Node adapter with **`mode: "middleware"`** instead. In this mode, building
+This was checked against every other Node.js app already running successfully on this Netcup account, not assumed in
+the abstract:
+
+| | [ffg_monitor](https://github.com/FFGruenwald/ffg_monitor) | [ffg_einsatzzusammenfassung_chart](https://github.com/FFGruenwald/ffg_einsatzzusammenfassung_chart) | kalendory | sameview-web (before this fix) | sameview-web (after this fix) |
+|---|---|---|---|---|---|
+| Hosting | Netcup Plesk (Passenger), FTP deploy | Netcup Plesk (Passenger), FTP deploy | VPS + PM2 (**not** Plesk/Passenger — see note below) | Netcup Plesk (Passenger) | Netcup Plesk (Passenger) |
+| `package.json` `"type"` | not set (CommonJS default) | not set (CommonJS default) | `"module"` at root, but the built server ships its own `dist-cjs/package.json` with `"type": "commonjs"` | `"module"` | not set (CommonJS default) |
+| Startup file | `app.js` | `server.js` (via `"main"`) | `app.cjs` (generated; `require()`s the compiled, CommonJS `dist-cjs/server/index.js`) | `server.mjs` | `app.js` |
+| Startup file module format | CommonJS (`require`) | CommonJS (`require`) | CommonJS (`require`) | native ESM (`import`) | CommonJS (`require`) |
+| Where `.listen()` is called | top level of the startup file, guarded by `NODE_ENV !== 'test'` (explicit comment: *"WICHTIG für Passenger: immer lauschen"*) | top level of the startup file, unconditional | top level, inside the compiled server, unconditional | top level of `server.mjs` | top level of `app.js`, guarded by `require.main === module` |
+
+Note on kalendory: its actual production host is a VPS managed with PM2 over SSH, not Plesk/Passenger, even though its
+tooling has "netcup" in some script names — this table entry does **not** independently confirm Passenger's
+`require()`-only loading, since PM2 has no such restriction. What it does still confirm is the same simpler pattern
+the other two projects show directly: the real startup file is a plain CommonJS entrypoint that calls `.listen()` at
+its own top level, never an ESM file, and never a thin wrapper importing another file that does the real work.
+
+Fix applied: `package.json` no longer sets `"type": "module"`, so plain `.js` files default to CommonJS again; `app.js`
+is written as CommonJS and is the real entrypoint (not a wrapper). Astro's own build output (`dist/server/entry.mjs`)
+is unavoidably a native ES module regardless of this project's `package.json` — Astro always emits it with a `.mjs`
+extension — so `app.js` loads it with a dynamic `import()`, the standard, documented way for a CommonJS module to load
+an ES module. Everything else `app.js` needs (`node:http`, `node:fs`, `node:path`) is loaded with plain `require()`.
+
+## Why `standalone` mode is not used
+
+Separately from the ESM/CommonJS problem above, `@astrojs/node`'s `standalone` mode was tried and reproducibly caused
+**502 Bad Gateway**, for an independent reason confirmed by a real Plesk test: `standalone` mode's
+`dist/server/entry.mjs` starts its **own** internal HTTP server as an *import side effect* — as soon as the module is
+loaded, it calls its own internal `listen()` deep inside the adapter's bundled code, before any of this project's own
+code runs. A minimal test file (`http.createServer(...).listen(process.env.PORT)`, created directly and synchronously
+at the top of its own module) worked correctly as the Startup File under the same Plesk/Passenger setup, proving
+Plesk/Passenger, Node 26, nginx/Apache/SSL, `process.env.PORT`, and `npm`/`node_modules` were never the problem. The
+one structural difference: the working test calls `.listen()` directly, synchronously, at the top level of the
+Startup File itself; `standalone` mode's actual TCP `.listen()` call happens indirectly, nested inside the adapter's
+own internal module — which this Plesk/Passenger setup does not reliably detect as "the app is now listening".
+
+`astro.config.mjs` therefore configures the Node adapter with **`mode: "middleware"`** instead. In this mode, building
 produces a `handler` export (`dist/server/entry.mjs`) with no autostart side effect at all — verified by inspecting
-the actual built output. [`server.mjs`](../server.mjs) (versioned, at the repository root) is the new Startup File: it
-imports that `handler` and creates and starts its own plain `http.createServer(...).listen(process.env.PORT)` — no
-host argument, exactly mirroring the pattern already proven to work under this exact Plesk/Passenger setup.
+the actual built output. [`app.js`](../app.js) creates and starts its own plain
+`http.createServer(...).listen(process.env.PORT)` (no host argument) at its own top level — no other module, own or
+third-party, calls `.listen()` anywhere — exactly mirroring the pattern proven to work under this Plesk/Passenger
+setup, and matching every reference project above.
 
 One consequence of `mode: "middleware"`: unlike `standalone` mode, the middleware handler only renders pages — it does
 not also serve `dist/client`'s static assets (verified locally: without extra handling, `/favicon.ico` and the built
-JS bundle both 404 even though `/` renders fine). `server.mjs` therefore also serves `dist/client` directly using only
+JS bundle both 404 even though `/` renders fine). `app.js` therefore also serves `dist/client` directly using only
 `node:fs`/`node:path` — no Express, no extra dependency — falling back to Astro's handler for anything that isn't a
 static file on disk.
 
-## Diagnosing the homepage hang (temporary production diagnostic)
+## Request handling safety
 
-A second, more specific production symptom was found after switching to `server.mjs` + `mode: "middleware"`:
-`/favicon.ico` answers immediately, but `/` does not answer at all — Plesk logs "End of script output before
-headers" / "upstream prematurely closed connection while reading response header from upstream". The database is
-confirmed not to be the cause (the same behavior persisted with `.env` fully renamed away before a restart).
+`app.js` wraps every call into the Astro handler defensively (regression tests in
+[`test/app.test.mjs`](../test/app.test.mjs)):
 
-Found while investigating (reading `node_modules/@astrojs/node/dist/middleware.js`, `serve-app.js` and
-`node_modules/@astrojs/node/dist/types.d.ts`'s official `RequestHandler` type): the previous `server.mjs` called
-`astroHandler(req, res)` without awaiting or catching its result at all, and had no per-request timeout. The
-official type is `(req, res, next?, locals?) => void | Promise<void>` — calling it with just `(req, res)` is a valid,
-documented invocation, but the returned value can be a `Promise` that needs handling. `@astrojs/node`'s own
-middleware handler does catch its own rendering errors internally, but only within the directly-awaited call chain —
-it would not catch a genuinely detached/unhandled rejection elsewhere in the rendering pipeline, and there was no
-fallback at all if the returned promise simply never settled.
+- A synchronous throw and a rejected handler promise are both caught and turned into a safe HTTP 500 instead of
+  crashing the process or hanging the connection.
+- A 15-second per-request timeout sends a safe HTTP 500 if the handler never finishes the response at all.
+- `uncaughtException` and `unhandledRejection` are logged and then `process.exit(1)` — per Node's own guidance the
+  process may be in an inconsistent state afterwards; Plesk/Passenger is responsible for restarting it. `app.js` does
+  not loop or retry itself.
 
-Fixed in `server-runtime.mjs` (the testable core of the request handling — see
-[`test/server-runtime.test.mjs`](../test/server-runtime.test.mjs)):
-
-- `createRequestListener` now explicitly wraps the handler call in a synchronous try/catch, an explicit
-  `.then()/.catch()` on the returned promise, and a 15-second per-request timeout — all three send a safe HTTP 500
-  (or destroy the connection if headers were already sent) instead of leaving the request open indefinitely.
-- `uncaughtException` and `unhandledRejection` (in `server.mjs`) no longer just log and keep running: per Node's own
-  guidance, the process may be in an inconsistent state afterwards, so both now log (safely, synchronously) and then
-  `process.exit(1)` — Plesk/Passenger is responsible for restarting the process; `server.mjs` does not loop or retry
-  itself.
-
-Since Plesk currently exposes no visible Node/Passenger stdout/stderr logs, `server.mjs` temporarily also writes
-plain-text lifecycle markers to `runtime-diagnostic.log` in the Application Root — never `DATABASE_URL`, other env
-values, headers, cookies, `Authorization`, query parameters, full URLs, or stack traces; only an error's name, a
-truncated/sanitized message, and the marker name itself. This block is clearly delimited in `server.mjs` (search for
-`TEMPORARY PRODUCTION DIAGNOSTIC`) and must be removed once the "/" hang is confirmed fixed on the actual server —
-verified locally (including an isolated `npm ci --omit=dev` runtime test) and by automated tests, but not yet
-re-confirmed against the real Plesk/Passenger setup, since that requires an actual deploy.
-
-### One-time production diagnostic run
-
-1. Deploy this version as usual (tag + push, or `workflow_dispatch`) and install dependencies on the server.
-2. Confirm the Startup File is still `server.mjs`, then "Restart App".
-3. Request `https://web.sameview.app/` once (it may still hang or return 500 — either is fine for this step).
-4. Retrieve `runtime-diagnostic.log` from the Application Root (e.g. via FTP) and check the sequence of markers.
-   Expected healthy sequence: `request-root-received` → `static-handling-skipped` → `astro-handler-invoked` →
-   `astro-handler-completed` → `response-finish` → `response-close`.
-5. Whichever marker is the *last* one written (or its absence entirely) identifies where the chain actually stops —
-   e.g. `astro-handler-invoked` with nothing after it points at something inside Astro's own render never settling;
-   `request-timeout` confirms the new timeout fired instead of hanging forever; `uncaughtException`/
-   `unhandledRejection` right after points at a process-level crash rather than a per-request hang.
-6. Delete `runtime-diagnostic.log` from the server afterwards — it is git-ignored and never uploaded, but it does
-   accumulate on disk between requests.
-7. Once the cause is confirmed fixed, remove the temporary diagnostic block from `server.mjs` entirely (both
-   `TEMPORARY PRODUCTION DIAGNOSTIC` comment markers and everything between them) in a follow-up commit.
+No file-based diagnostic logging is used any more — the root cause above was confirmed structurally (Passenger
+requiring an ES module can never work, regardless of what the code does at runtime), so the temporary
+`runtime-diagnostic.log` mechanism previously used to debug the earlier "`/` hangs" symptom has been removed entirely
+along with `server.mjs`/`server-runtime.mjs`. Process-level errors are logged with `console.error`/`console.log`,
+visible in Plesk's own Node.js log panel.
 
 ## GitHub Environment: `production`
 
@@ -147,8 +148,8 @@ This triggers the workflow:
 [Rollback](#rollback)).
 
 `pnpm test` runs Node's built-in test runner (`node --test`, no extra dependency) against
-[`test/server-runtime.test.mjs`](../test/server-runtime.test.mjs) — regression tests for the request-handling bug
-described in [Diagnosing the homepage hang](#diagnosing-the-homepage-hang-temporary-production-diagnostic).
+[`test/app.test.mjs`](../test/app.test.mjs) — regression tests for the request-handling logic described in
+[Request handling safety](#request-handling-safety).
 
 ## Deployment artifact
 
@@ -159,8 +160,7 @@ release/
 ├── dist/                 (full Astro build output — client assets + server entry/handler)
 ├── package.json
 ├── package-lock.json     (generated in CI, npm-only, production dependencies only)
-├── server.mjs            (versioned Plesk/Passenger-compatible Startup File)
-└── server-runtime.mjs    (request-handling logic imported by server.mjs)
+└── app.js                (versioned Plesk/Passenger-compatible Startup File)
 ```
 
 Verified locally: the built entry module fails at startup with `Cannot find package 'react'` when `node_modules` is
@@ -392,8 +392,9 @@ The workflow never restarts the app itself. After every successful deploy:
 1. Open the Netcup/Plesk dashboard.
 2. If dependencies changed, install them first — see
    [Installing dependencies on the server](#installing-dependencies-on-the-server).
-3. Confirm the Application Startup File is set to `server.mjs` (not `dist/server/entry.mjs` or `app.js` — see
-   [Why the Astro standalone entrypoint is not used directly](#why-the-astro-standalone-entrypoint-is-not-used-directly)).
+3. Confirm the Application Startup File is set to `app.js` (not `dist/server/entry.mjs` or the old `server.mjs` — see
+   [Confirmed root cause](#confirmed-root-cause-passenger-cannot-load-an-es-module-as-the-startup-file) and
+   [Why `standalone` mode is not used](#why-standalone-mode-is-not-used)).
 4. Click "Restart App".
 5. Manually check `https://web.sameview.app` against the
    [expected smoke test output](#smoke-test-homepage).

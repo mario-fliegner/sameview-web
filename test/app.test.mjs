@@ -1,15 +1,19 @@
 // Regression tests for the request-handling bug behind the Plesk "/" hang:
-// server.mjs previously called `astroHandler(req, res)` without awaiting or
-// catching its result at all. These tests reproduce exactly the failure
-// modes that could cause "End of script output before headers" — a
-// synchronous throw, a rejected promise, and a handler that never finishes
-// the response — using a fake astroHandler instead of the real, built Astro
-// app, plus the request-abort and already-responded cases.
+// app.js's request handling previously called `astroHandler(req, res)`
+// without awaiting or catching its result at all. These tests reproduce
+// exactly the failure modes that could cause "End of script output before
+// headers" — a synchronous throw, a rejected promise, and a handler that
+// never finishes the response — using a fake astroHandler instead of the
+// real, built Astro app, plus the request-abort and already-responded cases.
+//
+// app.js is a CommonJS module (Passenger's Node loader requires that — see
+// docs/deployment.md); Node's ESM loader can still import its named exports
+// directly, as done here.
 
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { describe, test } from "node:test";
-import { createRequestListener } from "../server-runtime.mjs";
+import { createRequestListener } from "../app.js";
 
 const neverMatchesStaticAsset = () => false;
 
@@ -18,7 +22,6 @@ function startServer(astroHandler, options = {}) {
 		astroHandler,
 		tryServeStaticAsset: options.tryServeStaticAsset ?? neverMatchesStaticAsset,
 		requestTimeoutMs: options.requestTimeoutMs ?? 15_000,
-		diag: options.diag,
 	});
 	const server = createServer(listener);
 	return new Promise((resolve) => {
