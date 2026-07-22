@@ -94,6 +94,29 @@ Fix applied: the `require.main === module` guard is removed entirely. `app.js`'s
 guard is always true in production; it only turns false in this project's own test run (see
 [Testing without starting a real server](#testing-without-starting-a-real-server) below).
 
+## `app.js` rebuilt line-for-line after the reference apps
+
+After both fixes above, `app.js` was rebuilt from scratch to follow `ffg_monitor/app.js`'s structure directly —
+requires, "require the application", create the server object, read `PORT`, define helpers, wire request handling
+onto the server, conditionally `.listen()`, `module.exports` — rather than continuing to patch the previous version.
+Every remaining difference from the reference apps is listed here explicitly, with the reason it was kept:
+
+| | Reference (`ffg_monitor`/`ffg_einsatzzusammenfassung_chart`) | `app.js` before this rebuild | `app.js` now | Why |
+|---|---|---|---|---|
+| `PORT` fallback | `process.env.PORT \|\| 3000` | threw if `PORT` unset | `process.env.PORT \|\| 3000` | No reason to differ — adopted exactly. |
+| `module.exports` | `module.exports = app;` (the real, fully-wired instance), at the very end of the file | a grab-bag of pure helper functions, positioned *before* the startup block | `module.exports = { server, ...pure helpers }`, at the very end, after the startup block | The real `server` instance is exported exactly like `module.exports = app`. It's a superset, not a deviation: the pure helper functions are additionally exported because `test/app.test.mjs` exercises specific error/timeout edge cases against a *fake* `astroHandler` — something neither reference app needs, since they have no async SSR render step to fail or hang. |
+| Env-file loading (`dotenv`) | Loaded at the top of the startup file | not present | still not present | SameView's env loading already happens where it's actually needed, inside the Astro SSR code (`src/db/client.ts`, via `process.loadEnvFile(".env")`) — `process.env` is shared process-wide, so loading it a second time here would be redundant, not incorrect. |
+| Loading "the application" (routes / Astro) | Synchronous `require("./routes/...")` | dynamic `import()`, previously placed inside the `NODE_ENV` guard | dynamic `import()`, now unconditional, in the same position a route `require()` would sit | Astro always emits `dist/server/entry.mjs` as a native ES module regardless of this project's `package.json` — confirmed by inspecting the actual built output. Node's `require()` can never load an ES module (this file's first confirmed root cause). A dynamic `import()` is the standard, documented replacement; forced by Astro's output format, not a stylistic choice. |
+| Async request-handling safety net (`handleWithAstro`'s try/catch, promise handling, 15s timeout) | Not present — synchronous Express apps have no async render step to fail or hang | present | present | Fixes a separate, already-diagnosed SameView-specific defect (the "/" request hanging indefinitely — see [Request handling safety](#request-handling-safety)), not the Passenger-startup problem. Neither reference app can have this specific bug, since neither has an async SSR render step at all. Covered by `test/app.test.mjs`. |
+| `process.on("uncaughtException"/"unhandledRejection", ...)` | Not present | present | present | Same reasoning as the row above — defense-in-depth for the same separately-diagnosed defect. |
+| `process.on("SIGTERM"/"SIGINT", ...)` graceful shutdown | Not present | present | **removed** | Not tied to any diagnosed bug and not present in either reference app; Node's own default disposition for both signals already terminates the process with no handler registered, so removing this doesn't change actual shutdown behavior under Passenger. Kept it would have been an unjustified deviation. |
+
+Everything else — the overall shape of the file, where `PORT` is read relative to server creation, defining helpers
+before their first use, wiring the request handler onto the server object after creating it (`server.on("request",
+...)` mirrors `app.use(...)`/`app.get(...)` being mounted onto `app` after `const app = express()`, rather than
+handing a single, fully-assembled listener straight to `createServer()`), and the conditional `.listen()` as the very
+last executable step before `module.exports` — is adopted directly from `ffg_monitor/app.js`, unchanged.
+
 ## Why `standalone` mode is not used
 
 Separately from the ESM/CommonJS problem above, `@astrojs/node`'s `standalone` mode was tried and reproducibly caused
