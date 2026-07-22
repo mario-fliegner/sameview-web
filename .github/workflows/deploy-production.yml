@@ -90,7 +90,7 @@ jobs:
           path: release
 
       - name: Deploy via FTP/FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ vars.NETCUP_FTP_HOST }}
           port: ${{ vars.NETCUP_FTP_PORT }}
