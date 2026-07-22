@@ -44,9 +44,8 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      # Intentionally no "test" step: package.json currently defines no test
-      # script. Add one here once a real test setup exists — do not invent
-      # one before that.
+      - name: Test
+        run: pnpm test
 
       - name: Build
         run: pnpm build
@@ -59,6 +58,7 @@ jobs:
           cp -r dist release/dist
           cp package.json release/package.json
           cp server.mjs release/server.mjs
+          cp server-runtime.mjs release/server-runtime.mjs
 
       - name: Generate npm runtime lockfile for the artifact
         # Netcup/Plesk's Node.js panel only offers npm or yarn as the package

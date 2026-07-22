@@ -13,6 +13,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# temporary production diagnostic (server.mjs) — never committed
+runtime-diagnostic.log
+
 
 # environment variables
 .env

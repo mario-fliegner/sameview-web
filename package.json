@@ -15,6 +15,7 @@
     "astro": "astro",
     "typecheck": "astro check",
     "lint": "biome check .",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

@@ -56,6 +56,58 @@ JS bundle both 404 even though `/` renders fine). `server.mjs` therefore also se
 `node:fs`/`node:path` — no Express, no extra dependency — falling back to Astro's handler for anything that isn't a
 static file on disk.
 
+## Diagnosing the homepage hang (temporary production diagnostic)
+
+A second, more specific production symptom was found after switching to `server.mjs` + `mode: "middleware"`:
+`/favicon.ico` answers immediately, but `/` does not answer at all — Plesk logs "End of script output before
+headers" / "upstream prematurely closed connection while reading response header from upstream". The database is
+confirmed not to be the cause (the same behavior persisted with `.env` fully renamed away before a restart).
+
+Found while investigating (reading `node_modules/@astrojs/node/dist/middleware.js`, `serve-app.js` and
+`node_modules/@astrojs/node/dist/types.d.ts`'s official `RequestHandler` type): the previous `server.mjs` called
+`astroHandler(req, res)` without awaiting or catching its result at all, and had no per-request timeout. The
+official type is `(req, res, next?, locals?) => void | Promise<void>` — calling it with just `(req, res)` is a valid,
+documented invocation, but the returned value can be a `Promise` that needs handling. `@astrojs/node`'s own
+middleware handler does catch its own rendering errors internally, but only within the directly-awaited call chain —
+it would not catch a genuinely detached/unhandled rejection elsewhere in the rendering pipeline, and there was no
+fallback at all if the returned promise simply never settled.
+
+Fixed in `server-runtime.mjs` (the testable core of the request handling — see
+[`test/server-runtime.test.mjs`](../test/server-runtime.test.mjs)):
+
+- `createRequestListener` now explicitly wraps the handler call in a synchronous try/catch, an explicit
+  `.then()/.catch()` on the returned promise, and a 15-second per-request timeout — all three send a safe HTTP 500
+  (or destroy the connection if headers were already sent) instead of leaving the request open indefinitely.
+- `uncaughtException` and `unhandledRejection` (in `server.mjs`) no longer just log and keep running: per Node's own
+  guidance, the process may be in an inconsistent state afterwards, so both now log (safely, synchronously) and then
+  `process.exit(1)` — Plesk/Passenger is responsible for restarting the process; `server.mjs` does not loop or retry
+  itself.
+
+Since Plesk currently exposes no visible Node/Passenger stdout/stderr logs, `server.mjs` temporarily also writes
+plain-text lifecycle markers to `runtime-diagnostic.log` in the Application Root — never `DATABASE_URL`, other env
+values, headers, cookies, `Authorization`, query parameters, full URLs, or stack traces; only an error's name, a
+truncated/sanitized message, and the marker name itself. This block is clearly delimited in `server.mjs` (search for
+`TEMPORARY PRODUCTION DIAGNOSTIC`) and must be removed once the "/" hang is confirmed fixed on the actual server —
+verified locally (including an isolated `npm ci --omit=dev` runtime test) and by automated tests, but not yet
+re-confirmed against the real Plesk/Passenger setup, since that requires an actual deploy.
+
+### One-time production diagnostic run
+
+1. Deploy this version as usual (tag + push, or `workflow_dispatch`) and install dependencies on the server.
+2. Confirm the Startup File is still `server.mjs`, then "Restart App".
+3. Request `https://web.sameview.app/` once (it may still hang or return 500 — either is fine for this step).
+4. Retrieve `runtime-diagnostic.log` from the Application Root (e.g. via FTP) and check the sequence of markers.
+   Expected healthy sequence: `request-root-received` → `static-handling-skipped` → `astro-handler-invoked` →
+   `astro-handler-completed` → `response-finish` → `response-close`.
+5. Whichever marker is the *last* one written (or its absence entirely) identifies where the chain actually stops —
+   e.g. `astro-handler-invoked` with nothing after it points at something inside Astro's own render never settling;
+   `request-timeout` confirms the new timeout fired instead of hanging forever; `uncaughtException`/
+   `unhandledRejection` right after points at a process-level crash rather than a per-request hang.
+6. Delete `runtime-diagnostic.log` from the server afterwards — it is git-ignored and never uploaded, but it does
+   accumulate on disk between requests.
+7. Once the cause is confirmed fixed, remove the temporary diagnostic block from `server.mjs` entirely (both
+   `TEMPORARY PRODUCTION DIAGNOSTIC` comment markers and everything between them) in a follow-up commit.
+
 ## GitHub Environment: `production`
 
 Workflow: [`.github/workflows/deploy-production.yml`](../.github/workflows/deploy-production.yml).
@@ -86,16 +138,17 @@ git push origin v0.0.1
 This triggers the workflow:
 
 1. `build` job (no environment, no secrets): checkout → Corepack → Node 26 → `pnpm install --frozen-lockfile` →
-   `pnpm lint` → `pnpm typecheck` → `pnpm build` → assemble the deployment artifact → upload it as a GitHub Actions
-   artifact.
+   `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build` → assemble the deployment artifact → upload it as a
+   GitHub Actions artifact.
 2. `deploy` job (`environment: production`, needs the secrets/variables above): downloads the artifact, uploads it to
    Netcup via FTPS, then prints the manual next steps.
 
 `workflow_dispatch` is also enabled for a manual run — e.g. to redeploy an older tag (see
 [Rollback](#rollback)).
 
-There is currently no automated test step: `package.json` defines no `test` script yet. Add one to the workflow only
-once a real test setup exists.
+`pnpm test` runs Node's built-in test runner (`node --test`, no extra dependency) against
+[`test/server-runtime.test.mjs`](../test/server-runtime.test.mjs) — regression tests for the request-handling bug
+described in [Diagnosing the homepage hang](#diagnosing-the-homepage-hang-temporary-production-diagnostic).
 
 ## Deployment artifact
 
@@ -103,10 +156,11 @@ Assembled fresh on every run, uploaded to Netcup, nothing else:
 
 ```text
 release/
-├── dist/              (full Astro build output — client assets + server entry/handler)
+├── dist/                 (full Astro build output — client assets + server entry/handler)
 ├── package.json
-├── package-lock.json  (generated in CI, npm-only, production dependencies only)
-└── server.mjs         (versioned Plesk/Passenger-compatible Startup File)
+├── package-lock.json     (generated in CI, npm-only, production dependencies only)
+├── server.mjs            (versioned Plesk/Passenger-compatible Startup File)
+└── server-runtime.mjs    (request-handling logic imported by server.mjs)
 ```
 
 Verified locally: the built entry module fails at startup with `Cannot find package 'react'` when `node_modules` is
