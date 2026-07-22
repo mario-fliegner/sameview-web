@@ -6,7 +6,13 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["src/**/*.ts", "src/**/*.tsx", "*.ts", "drizzle.config.ts"]
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"*.ts",
+			"*.mjs",
+			"drizzle.config.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,

@@ -12,16 +12,49 @@ How `web.sameview.app` is deployed to Netcup Webhosting (Plesk Node.js). Complem
 - **Package Manager: `npm`** — Plesk's Node.js panel only offers `npm` or `yarn`; `pnpm` is not selectable there. This
   only affects how dependencies are installed *on the server* — development, CI install, lint, typecheck and build
   continue to use pnpm (see [Deployment artifact](#deployment-artifact) below).
-- **Application Startup File: `dist/server/entry.mjs`** (relative to the Application Root)
+- **Application Startup File: `server.mjs`** (relative to the Application Root)
 
-The Startup File was previously set to `app.js`, which does not exist in this project and must be corrected in the
-Plesk panel. The real file was determined by actually running `pnpm build` and inspecting the output — Astro's
-`@astrojs/node` adapter in `standalone` mode writes its real HTTP entry point to `dist/server/entry.mjs`. This is the
-only file that should be entered as the Startup File.
+The Startup File was originally set to `app.js`, which never existed in this project. It was then corrected to
+`dist/server/entry.mjs` — Astro's own real HTTP entry point in `@astrojs/node`'s `standalone` mode — which loaded
+successfully but reproducibly caused **502 Bad Gateway** under this Plesk/Passenger setup (see
+[Why the Astro standalone entrypoint is not used directly](#why-the-astro-standalone-entrypoint-is-not-used-directly)
+for the confirmed root cause). The final, working Startup File is the versioned `server.mjs` at the repository root.
 
-The deployment uploads `dist/`, `package.json` and `package-lock.json` directly into the Application Root (see
-[Deployment artifact](#deployment-artifact) below) — no `releases/`/`shared/` structure is used (see
+The deployment uploads `dist/`, `package.json`, `package-lock.json` and `server.mjs` directly into the Application
+Root (see [Deployment artifact](#deployment-artifact) below) — no `releases/`/`shared/` structure is used (see
 [Why direct deployment, not a releases/shared layout](#why-direct-deployment-not-a-releasesshared-layout)).
+
+## Why the Astro standalone entrypoint is not used directly
+
+Confirmed root cause, after a real Plesk test isolated it precisely: `@astrojs/node`'s `standalone` mode
+(`astro.config.mjs` previously had `adapter: node({ mode: "standalone" })`) makes `dist/server/entry.mjs` start its
+**own** internal HTTP server purely as an *import side effect* — as soon as the module is loaded, it calls its own
+internal `listen()` deep inside the adapter's bundled code, before any of our own code runs. A minimal test file
+(`http.createServer(...).listen(process.env.PORT)`, created directly and synchronously at the top of its own module)
+worked correctly as the Startup File under the same Plesk/Passenger setup, proving Plesk/Passenger, Node 26, nginx/
+Apache/SSL, `process.env.PORT`, and `npm`/`node_modules` were never the problem. The one structural difference between
+the two: the working test calls `http.createServer().listen()` directly, synchronously, at the top level of the
+Startup File itself; the standalone entrypoint's actual TCP `.listen()` call happens indirectly, nested inside the
+adapter's own internal module — which this Plesk/Passenger setup does not reliably detect as "the app is now
+listening".
+
+Checked before choosing a fix: `@astrojs/node@11.0.2`'s bundled `server.js` does export a reusable `handler` even in
+`standalone` mode, but using it safely would require suppressing the module's own autostart side effect first (via
+`ASTRO_NODE_AUTOSTART=disabled`, before import — awkward with static ESM imports) and the actual `.listen()` call
+would *still* happen inside the adapter's own nested code either way, not at the top level of the Startup File. That
+would not structurally differ from what already fails today.
+
+Fix: `astro.config.mjs` now configures the Node adapter with **`mode: "middleware"`** instead. In this mode, building
+produces a `handler` export (`dist/server/entry.mjs`) with no autostart side effect at all — verified by inspecting
+the actual built output. [`server.mjs`](../server.mjs) (versioned, at the repository root) is the new Startup File: it
+imports that `handler` and creates and starts its own plain `http.createServer(...).listen(process.env.PORT)` — no
+host argument, exactly mirroring the pattern already proven to work under this exact Plesk/Passenger setup.
+
+One consequence of `mode: "middleware"`: unlike `standalone` mode, the middleware handler only renders pages — it does
+not also serve `dist/client`'s static assets (verified locally: without extra handling, `/favicon.ico` and the built
+JS bundle both 404 even though `/` renders fine). `server.mjs` therefore also serves `dist/client` directly using only
+`node:fs`/`node:path` — no Express, no extra dependency — falling back to Astro's handler for anything that isn't a
+static file on disk.
 
 ## GitHub Environment: `production`
 
@@ -70,13 +103,14 @@ Assembled fresh on every run, uploaded to Netcup, nothing else:
 
 ```text
 release/
-├── dist/              (full Astro build output — client assets + server entry)
+├── dist/              (full Astro build output — client assets + server entry/handler)
 ├── package.json
-└── package-lock.json  (generated in CI, npm-only, production dependencies only)
+├── package-lock.json  (generated in CI, npm-only, production dependencies only)
+└── server.mjs         (versioned Plesk/Passenger-compatible Startup File)
 ```
 
-Verified locally: `dist/server/entry.mjs` fails at startup with `Cannot find package 'react'` when `node_modules` is
-not reachable — the standalone build does **not** bundle all runtime dependencies (`react`, and later likely
+Verified locally: the built entry module fails at startup with `Cannot find package 'react'` when `node_modules` is
+not reachable — the build does **not** bundle all runtime dependencies (`react`, and later likely
 `mysql2`/`drizzle-orm` once a page actually imports `src/db/client.ts`, plus `sharp` if image processing is added).
 `node_modules` is therefore required on the server but is deliberately **not** uploaded via FTP: pnpm's `node_modules`
 is largely symlinks into a local content-addressable store, which does not survive being copied by an FTP client, and
@@ -283,6 +317,20 @@ Guarantees, verified locally in all three states (DB working, DB unreachable, `D
   server-side only (`console.error`, visible in Plesk's own Node.js logs) for operators to diagnose — never in the
   HTML response.
 
+**Expected output after a healthy deploy** (migration already applied, database reachable):
+
+```text
+Database check
+DATABASE_URL configured: yes
+Database connection: ok (SELECT 1 succeeded)
+Table "comparisons" exists: yes
+Row count in "comparisons": 0
+```
+
+A row count of `0` here is correct and expected for `v0.0.1` — it is not an error. Before the first migration has been
+applied (see [Migrations](#migrations)), the third and fourth lines instead read `Table "comparisons" exists: no`,
+with no row-count line — also not an error, just not yet migrated.
+
 ## Restart (manual)
 
 The workflow never restarts the app itself. After every successful deploy:
@@ -290,8 +338,11 @@ The workflow never restarts the app itself. After every successful deploy:
 1. Open the Netcup/Plesk dashboard.
 2. If dependencies changed, install them first — see
    [Installing dependencies on the server](#installing-dependencies-on-the-server).
-3. Click "Restart App".
-4. Manually check `https://web.sameview.app`.
+3. Confirm the Application Startup File is set to `server.mjs` (not `dist/server/entry.mjs` or `app.js` — see
+   [Why the Astro standalone entrypoint is not used directly](#why-the-astro-standalone-entrypoint-is-not-used-directly)).
+4. Click "Restart App".
+5. Manually check `https://web.sameview.app` against the
+   [expected smoke test output](#smoke-test-homepage).
 
 No automatic restart or automatic post-deploy healthcheck is implemented — the workflow cannot know the app is
 actually serving again until the manual restart has happened, so making the upload job depend on a live healthcheck

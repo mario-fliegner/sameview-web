@@ -58,6 +58,7 @@ jobs:
           mkdir -p release
           cp -r dist release/dist
           cp package.json release/package.json
+          cp server.mjs release/server.mjs
 
       - name: Generate npm runtime lockfile for the artifact
         # Netcup/Plesk's Node.js panel only offers npm or yarn as the package

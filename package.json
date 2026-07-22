@@ -11,6 +11,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "start": "node server.mjs",
     "astro": "astro",
     "typecheck": "astro check",
     "lint": "biome check .",
