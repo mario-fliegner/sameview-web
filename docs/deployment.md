@@ -1,0 +1,312 @@
+# Deployment
+
+How `web.sameview.app` is deployed to Netcup Webhosting (Plesk Node.js). Complements
+[docs/ARCHITECTURE.md](ARCHITECTURE.md) — read that first for the overall technology and hosting decisions.
+
+## Netcup / Plesk configuration
+
+- Application Root: `/web.sameview.app`
+- Document Root: `/web.sameview.app/httpdocs`
+- Application Mode: `production`
+- Node.js version: `26.5.0`
+- **Package Manager: `npm`** — Plesk's Node.js panel only offers `npm` or `yarn`; `pnpm` is not selectable there. This
+  only affects how dependencies are installed *on the server* — development, CI install, lint, typecheck and build
+  continue to use pnpm (see [Deployment artifact](#deployment-artifact) below).
+- **Application Startup File: `dist/server/entry.mjs`** (relative to the Application Root)
+
+The Startup File was previously set to `app.js`, which does not exist in this project and must be corrected in the
+Plesk panel. The real file was determined by actually running `pnpm build` and inspecting the output — Astro's
+`@astrojs/node` adapter in `standalone` mode writes its real HTTP entry point to `dist/server/entry.mjs`. This is the
+only file that should be entered as the Startup File.
+
+The deployment uploads `dist/`, `package.json` and `package-lock.json` directly into the Application Root (see
+[Deployment artifact](#deployment-artifact) below) — no `releases/`/`shared/` structure is used (see
+[Why direct deployment, not a releases/shared layout](#why-direct-deployment-not-a-releasesshared-layout)).
+
+## GitHub Environment: `production`
+
+Workflow: [`.github/workflows/deploy-production.yml`](../.github/workflows/deploy-production.yml).
+
+**Secrets** (Environment → `production` → Secrets):
+
+- `NETCUP_FTP_USERNAME`
+- `NETCUP_FTP_PASSWORD`
+
+**Variables** (Environment → `production` → Variables):
+
+- `NETCUP_FTP_HOST`
+- `NETCUP_FTP_PORT`
+- `NETCUP_FTP_PROTOCOL` — value expected by [`SamKirkland/FTP-Deploy-Action`](https://github.com/SamKirkland/FTP-Deploy-Action): `ftps` (recommended), `ftp`, or `ftps-legacy`
+- `NETCUP_DEPLOY_PATH` — must resolve to the Application Root as seen by the FTP account (this depends on how the FTP user's home/chroot was set up on Netcup — verify once with a manual FTP login; it may need to be `/web.sameview.app/` or just `/`, and must end with a trailing `/`)
+- `PRODUCTION_URL` — `https://web.sameview.app`
+
+No production database credentials exist as a GitHub secret. `DATABASE_URL` is never read by the workflow — the
+build does not touch the database (verified: `astro build` completes with no `DATABASE_URL` set at all).
+
+## Release flow
+
+```sh
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+This triggers the workflow:
+
+1. `build` job (no environment, no secrets): checkout → Corepack → Node 26 → `pnpm install --frozen-lockfile` →
+   `pnpm lint` → `pnpm typecheck` → `pnpm build` → assemble the deployment artifact → upload it as a GitHub Actions
+   artifact.
+2. `deploy` job (`environment: production`, needs the secrets/variables above): downloads the artifact, uploads it to
+   Netcup via FTPS, then prints the manual next steps.
+
+`workflow_dispatch` is also enabled for a manual run — e.g. to redeploy an older tag (see
+[Rollback](#rollback)).
+
+There is currently no automated test step: `package.json` defines no `test` script yet. Add one to the workflow only
+once a real test setup exists.
+
+## Deployment artifact
+
+Assembled fresh on every run, uploaded to Netcup, nothing else:
+
+```text
+release/
+├── dist/              (full Astro build output — client assets + server entry)
+├── package.json
+└── package-lock.json  (generated in CI, npm-only, production dependencies only)
+```
+
+Verified locally: `dist/server/entry.mjs` fails at startup with `Cannot find package 'react'` when `node_modules` is
+not reachable — the standalone build does **not** bundle all runtime dependencies (`react`, and later likely
+`mysql2`/`drizzle-orm` once a page actually imports `src/db/client.ts`, plus `sharp` if image processing is added).
+`node_modules` is therefore required on the server but is deliberately **not** uploaded via FTP: pnpm's `node_modules`
+is largely symlinks into a local content-addressable store, which does not survive being copied by an FTP client, and
+shipping it would also bake in whatever OS the GitHub runner happened to build on.
+
+### Why `package-lock.json` instead of `pnpm-lock.yaml`
+
+Netcup/Plesk's Node.js panel only offers **npm** or **yarn** as the package manager — pnpm is not selectable there
+(confirmed against the actual panel). Since the runtime install therefore has to happen with npm, the server needs an
+npm-compatible lockfile, not `pnpm-lock.yaml`.
+
+`pnpm-lock.yaml` stays the single, authoritative lockfile for development, CI installs, linting, type-checking and
+the build (`pnpm install --frozen-lockfile` in the `build` job) — it is never touched, never removed, and the project
+does **not** switch to npm. A `package-lock.json` is instead generated fresh, only inside the disposable `release/`
+copy, on every workflow run:
+
+```sh
+# inside release/, after dist/ and package.json have been copied there
+npm install --package-lock-only --omit=dev --ignore-scripts
+```
+
+- `--package-lock-only` resolves the dependency tree and writes `package-lock.json` **without** installing
+  `node_modules` in CI — nothing is installed twice, this step only takes a few seconds.
+- `--omit=dev` marks devDependencies as `"dev": true` in the lockfile (they are still listed — that's normal,
+  unmodified npm behavior — but a later `npm ci --omit=dev` on the server will skip installing them).
+- `--ignore-scripts` is defensive: `--package-lock-only` doesn't run lifecycle scripts anyway since nothing is
+  installed, but this keeps that guaranteed regardless of npm version.
+- Verified: `npm install --package-lock-only` runs cleanly against the project's `package.json` including its
+  `"packageManager": "pnpm@11.1.2"` field and the presence of `pnpm-workspace.yaml` in the repo — npm does not read or
+  react to either (npm has no concept of `pnpm-workspace.yaml`, and plain `npm` is not intercepted by Corepack even
+  after `corepack enable` runs earlier in the same job). No changes to `package.json` were necessary, in the original
+  file or in the artifact's copy.
+- Only one lockfile is committed to the repository (`pnpm-lock.yaml`). `package-lock.json` is generated on every run
+  and only ever lives inside the CI artifact — it is not committed.
+
+**Required manual step after every deploy that changes dependencies:** install runtime dependencies for the Node.js
+application in the Plesk panel — see [Installing dependencies on the server](#installing-dependencies-on-the-server)
+below for the exact command and its trade-offs.
+
+## Installing dependencies on the server
+
+Preferred, if the Plesk Node.js panel exposes a free-form "Run Node.js commands" / "Run script" field:
+
+```sh
+npm ci --omit=dev
+```
+
+This installs exactly what `package-lock.json` records (fails instead of silently re-resolving if `package.json` and
+the lockfile ever disagree) and skips devDependencies.
+
+If Plesk only offers a fixed, single "NPM install" button with no free-form command available:
+
+- It almost certainly runs plain `npm install`, not `npm ci --omit=dev`. Modern npm (7 and later) no longer infers
+  "production only" from a `NODE_ENV=production` environment variable — that auto-detection was removed years ago —
+  so a plain `npm install` click installs devDependencies too unless Plesk is specifically configured otherwise.
+- Consequences compared to `npm ci --omit=dev`:
+  - `typescript`, `drizzle-kit`, `@biomejs/biome` and `@astrojs/check` (all devDependencies) get installed on the
+    server as well — extra disk space and install time, and dev tooling present on a production system that never
+    needs it. This is not a functional problem: the runtime dependencies the app actually needs are always a subset
+    of what gets installed either way, so the app still works.
+  - `npm install` can, in principle, adjust `package-lock.json` itself if it finds an inconsistency, rather than
+    failing the way `npm ci` does. Since a matching `package-lock.json` is uploaded together with `package.json` on
+    every deploy, this is unlikely to bite in practice, but it is a real difference in strictness.
+- Verify once against the actual panel which of the two is available, and prefer `npm ci --omit=dev` whenever a
+  free-form command can be entered.
+
+## Why direct deployment, not a releases/shared layout
+
+A `releases/<tag>/` + `shared/` structure (with a symlink pointing at the active release) was considered, but
+requires creating/repointing a symlink on every deploy and pointing Plesk's Startup File at a stable symlink target.
+Plain FTP/FTPS has no reliable, standard way to create or update a symlink, and no SSH access exists here to do it
+another way. Plesk's Node.js Startup File is also a fixed path under the Application Root, not designed to be
+repointed via a swapped symlink without direct server access. Building that structure without a way to reliably
+operate the symlink would be an unsafe, half-working "atomic deploy" — so this deploys directly into the Application
+Root instead, with the FTP action configured to never delete anything it did not itself upload (see below).
+
+## Upload behavior and delete protection
+
+`SamKirkland/FTP-Deploy-Action` tracks what it previously uploaded in a state file it keeps on the server. On each
+run it only uploads changed files and only deletes files *it previously uploaded and that are no longer present*
+locally (e.g. an old content-hashed chunk file from a prior build). It does not delete files it never uploaded in the
+first place.
+
+- `dangerous-clean-slate` is explicitly set to `false` — the target directory is never wiped.
+- The local artifact never contains `.env*`, `node_modules`, `.git`, tests, docs, `.vscode`, or Docker files, so none
+  of those can ever be part of the sync in the first place.
+- `exclude` additionally lists `.env`, `.env.*`, `node_modules/**` and `.git*` as an explicit second layer of
+  protection.
+- There is currently no persistent uploads/data directory in the Application Root (V1 has no such feature yet). If
+  one is added later, add its path to `exclude` as well, in addition to keeping it out of `release/`.
+
+## `.env.production` handling
+
+- `.env.production` is never read by this repository's tooling, never uploaded by the workflow, and not part of the
+  deployment artifact. `.gitignore` already excludes it.
+- **Important:** the application code (`src/db/client.ts`, `drizzle.config.ts`) only ever looks for a file literally
+  named `.env` (`existsSync(".env")` / `process.loadEnvFile(".env")`) — it does not look for `.env.production`. When
+  placing the production values on the server, the file must therefore be named `.env`, not `.env.production`.
+- Place it at `/web.sameview.app/.env` on the server (the Application Root) — this is a one-time manual step (e.g.
+  via an FTP client), independent of this workflow, and is never touched by any deploy.
+- This assumes Plesk starts the Node process with its working directory set to the Application Root, since
+  `process.loadEnvFile(".env")` resolves relative to `process.cwd()`. Verify this once after the first deploy; if the
+  app cannot find `DATABASE_URL` once it actually needs it, this is the first thing to check.
+- The homepage's smoke test (see [Smoke test](#smoke-test-homepage) below) does import `src/db/client.ts`, but only
+  lazily and inside its own error handling — the app still starts and serves the homepage correctly with no
+  `.env`/`DATABASE_URL` present at all, it just reports "DATABASE_URL configured: no" instead of attempting a
+  connection (verified locally).
+
+## Local vs. production database
+
+- The local MySQL container and its Docker volume (`sameview-mysql-data`) are for development only. They are never
+  copied, exported, or synced to Netcup in any form.
+- The production database structure is created exclusively from the versioned Drizzle migrations in
+  [`drizzle/`](../drizzle/) — never by copying the local volume.
+- Local development/test data is **not** transferred to production automatically, ever. There is no script or
+  workflow step that does this.
+- For `v0.0.1`, an empty `comparisons` table in production is the expected, correct state — no seed data ships with
+  this release. The smoke test on the homepage (see below) treats a row count of `0` as a successful result, not an
+  error.
+- If specific data is ever deliberately wanted in production later (not routine, not automatic), that would be a
+  one-off, manual export/import of chosen rows (e.g. via phpMyAdmin's own "Export"/"Import" tabs, selecting specific
+  rows or a `WHERE`-filtered result) — a completely separate action from schema migration, never bundled with it.
+
+## Migrations
+
+**What the existing migration does:** [`drizzle/0000_smart_zaran.sql`](../drizzle/0000_smart_zaran.sql) contains a
+single statement: `CREATE TABLE comparisons (...)` with a primary key on `id` and unique constraints on `public_id`
+and `management_token_hash`. Checked in detail:
+
+- No foreign keys, no triggers, no generated columns, no MySQL-version-specific syntax — plain `CHAR`/`VARCHAR`/`TEXT`/
+  `TIMESTAMP` columns, a primary key and two unique constraints. Confirmed to run cleanly on `mysql:8.0.46` (the same
+  version used locally and on Netcup) — applied locally against that exact image while writing this.
+- **It must only be run once.** The file is a plain `CREATE TABLE`, not `CREATE TABLE IF NOT EXISTS`. Verified locally:
+  re-applying the raw SQL file a second time fails with `ERROR 1050 (42S01): Table 'comparisons' already exists`. This
+  matters directly for Variant A below — the phpMyAdmin import must only be done once per database.
+- Running `pnpm db:migrate` (Drizzle Kit) a second time, by contrast, is safe and a no-op: Drizzle Kit tracks applied
+  migrations in its own `__drizzle_migrations` table and skips ones already recorded there — verified locally by
+  running it twice in a row.
+
+It has **not** been applied to the production database yet. It is not currently required for the app to start — no
+route uses the database for anything beyond the read-only smoke check below, which handles a missing table itself.
+
+Migrations are **not** run automatically from GitHub Actions, and `DATABASE_URL` for production is **not** added as a
+GitHub secret, by design.
+
+### Variant A — one-time manual import via Netcup's phpMyAdmin (recommended for the first setup)
+
+1. Open phpMyAdmin for the production database on Netcup (provided by Netcup/Plesk for the database itself — separate
+   from the local development phpMyAdmin described in [README.md](../README.md), which only ever talks to the local
+   Docker MySQL container).
+2. Select the production database.
+3. Open the "Import" tab.
+4. Choose the file [`drizzle/0000_smart_zaran.sql`](../drizzle/0000_smart_zaran.sql) from a local checkout.
+5. Run the import.
+6. Verify: the `comparisons` table now appears in the table list, with `0` rows.
+
+Because the migration must only be run once (see above), do **not** repeat this step for the same database once it
+has succeeded. Any future migration (after a future `pnpm db:generate`) would be imported the same way, once, as an
+additional file.
+
+### Variant B — later server-side migration (only if realistic)
+
+This would only apply if Plesk's "Run Node.js commands" panel realistically allows running arbitrary project
+commands (as used for dependency installation — see
+[Installing dependencies on the server](#installing-dependencies-on-the-server)). If so, the equivalent command is:
+
+```sh
+npx drizzle-kit migrate
+```
+
+This is **not** wired into the GitHub Actions workflow — `DATABASE_URL` for production is deliberately never added as
+a GitHub secret, and no automatic migration step exists or is planned there. Whether this variant is realistic on the
+actual Netcup panel has not been verified; Variant A works regardless and does not depend on it.
+
+### Manual migration from a local machine (alternative to both variants)
+
+1. Temporarily set `DATABASE_URL` to the production connection string in a local, never-committed `.env` (e.g. a
+   throwaway copy, not the tracked `.env.example`).
+2. Run `pnpm db:migrate`.
+3. Remove the temporary `.env` / production value again.
+
+Repeat step 2 for any future migration after `pnpm db:generate` adds one — safe to run repeatedly, unlike the raw SQL
+file used in Variant A.
+
+## Smoke test (homepage)
+
+The homepage (`src/pages/index.astro`, via `src/lib/db-health.ts`) runs a read-only check on every request, so that
+after a deploy and restart it's immediately visible whether the whole chain — Astro/Node runtime → `DATABASE_URL` →
+MySQL → `comparisons` table — actually works, without needing a separate tool:
+
+1. Is `DATABASE_URL` configured at all.
+2. If so: can a connection be opened and does `SELECT 1` succeed.
+3. Does the `comparisons` table exist (checked via `information_schema.tables`, not by guessing from an error).
+4. If it exists: `SELECT COUNT(*)` on it.
+
+Guarantees, verified locally in all three states (DB working, DB unreachable, `DATABASE_URL` unset):
+
+- Always renders the page with HTTP 200 — a failed or skipped check never turns into a 500. `checkDbHealth()` catches
+  every error itself and returns a plain status value; it never throws.
+- Never writes, deletes, or migrates anything — read-only queries only.
+- A row count of `0` is displayed as a normal, successful result (expected for `v0.0.1`, see
+  [Local vs. production database](#local-vs-production-database)), not hidden or treated as an error.
+- No connection string, host, credentials, SQL text, or stack trace is ever sent to the browser. Errors are logged
+  server-side only (`console.error`, visible in Plesk's own Node.js logs) for operators to diagnose — never in the
+  HTML response.
+
+## Restart (manual)
+
+The workflow never restarts the app itself. After every successful deploy:
+
+1. Open the Netcup/Plesk dashboard.
+2. If dependencies changed, install them first — see
+   [Installing dependencies on the server](#installing-dependencies-on-the-server).
+3. Click "Restart App".
+4. Manually check `https://web.sameview.app`.
+
+No automatic restart or automatic post-deploy healthcheck is implemented — the workflow cannot know the app is
+actually serving again until the manual restart has happened, so making the upload job depend on a live healthcheck
+would make it fail for the wrong reason every single time.
+
+## Rollback
+
+There is no instant/atomic rollback in this FTP-only setup (no symlink swap, no SSH). To roll back:
+
+1. Go to the Actions run history and either:
+   - re-run `workflow_dispatch` selecting the previous release tag as the ref, or
+   - download that older tag's `production-release` artifact (kept for 14 days) and upload it manually via an FTP
+     client.
+2. Reinstall dependencies (see [Installing dependencies on the server](#installing-dependencies-on-the-server)) if the
+   rolled-back version has different dependencies.
+3. Click "Restart App".
+
+This takes as long as a normal deploy — there is no faster path without SSH or a symlink-based release structure.

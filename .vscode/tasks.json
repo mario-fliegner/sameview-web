@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker: Up",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up", "-d"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Down",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "down"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Reset (destructive — deletes the local database volume)",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "down", "-v"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Logs",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "logs", "-f", "mysql"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Verify",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        { "type": "npm", "script": "lint" },
+        { "type": "npm", "script": "typecheck" }
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

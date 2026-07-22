@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "command": "./node_modules/.bin/astro dev",
+      "name": "Development server",
+      "request": "launch",
+      "type": "node-terminal"
+    },
+    {
+      "name": "Standalone server (built)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/server/entry.mjs",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+name: Deploy to Production
+
+# Tag-based release: push a semantic version tag to trigger a deploy.
+# workflow_dispatch is available for a manual re-run (e.g. to redeploy an
+# older tag as a rollback — pick that tag as the ref when dispatching).
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never run two deploys to the same FTP target at once. Do not cancel an
+  # in-flight upload — that could leave the server in an inconsistent state.
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Install, verify and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26 # matches the Netcup runtime (26.5.0); do not lower to 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Intentionally no "test" step: package.json currently defines no test
+      # script. Add one here once a real test setup exists — do not invent
+      # one before that.
+
+      - name: Build
+        run: pnpm build
+
+      - name: Assemble deployment artifact
+        run: |
+          set -euo pipefail
+          rm -rf release
+          mkdir -p release
+          cp -r dist release/dist
+          cp package.json release/package.json
+
+      - name: Generate npm runtime lockfile for the artifact
+        # Netcup/Plesk's Node.js panel only offers npm or yarn as the package
+        # manager — pnpm is not selectable there. pnpm-lock.yaml stays the
+        # authoritative lockfile for development, CI install, lint, typecheck
+        # and build above; it is not uploaded and the project does not switch
+        # to npm. Only the isolated release/ copy of package.json is used to
+        # generate a matching, production-only npm lockfile, so the server can
+        # run a reproducible `npm ci --omit=dev`.
+        working-directory: release
+        run: npm install --package-lock-only --omit=dev --ignore-scripts
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release
+          path: release/
+          retention-days: 14
+
+  deploy:
+    name: Deploy to Netcup (FTPS)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-release
+          path: release
+
+      - name: Deploy via FTP/FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ vars.NETCUP_FTP_HOST }}
+          port: ${{ vars.NETCUP_FTP_PORT }}
+          protocol: ${{ vars.NETCUP_FTP_PROTOCOL }}
+          username: ${{ secrets.NETCUP_FTP_USERNAME }}
+          password: ${{ secrets.NETCUP_FTP_PASSWORD }}
+          local-dir: ./release/
+          server-dir: ${{ vars.NETCUP_DEPLOY_PATH }}
+          # Never wipe the target first — .env, node_modules, uploads and
+          # other persistent/manually-managed files must survive every deploy.
+          dangerous-clean-slate: false
+          # Defense in depth: local-dir never contains these paths anyway,
+          # but keep them explicitly excluded from the sync.
+          exclude: |
+            **/.env
+            **/.env.*
+            **/node_modules/**
+            **/.git*
+
+      - name: Next steps (manual)
+        run: |
+          echo "Deployment uploaded successfully to Netcup."
+          echo "Target path: ${{ vars.NETCUP_DEPLOY_PATH }}"
+          echo ""
+          echo "Manual steps required now (see docs/deployment.md):"
+          echo "1. In the Netcup/Plesk dashboard, install runtime dependencies (npm ci --omit=dev if free-form commands are available, otherwise Plesk's own install action)."
+          echo "2. Click 'Restart App' in the Netcup/Plesk dashboard."
+          echo "3. If this release adds new database migrations, apply them manually first."
+          echo "4. Manually verify: ${{ vars.PRODUCTION_URL }}"

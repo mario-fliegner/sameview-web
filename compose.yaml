@@ -1,0 +1,43 @@
+services:
+  mysql:
+    image: mysql:8.0.46
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - sameview-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Local admin UI only — never used in production, no persistent volume of
+  # its own. Log in with the credentials from your local .env (MYSQL_USER /
+  # MYSQL_PASSWORD, or root / MYSQL_ROOT_PASSWORD); nothing is pre-filled.
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+
+volumes:
+  sameview-mysql-data:
+    name: sameview-mysql-data

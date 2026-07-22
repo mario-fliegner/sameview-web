@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "astro-build.astro-vscode",
+    "biomejs.biome",
+    // optional: Compose/YAML IntelliSense and a simple UI for the local MySQL container
+    "ms-azuretools.vscode-docker"
+  ],
+  "unwantedRecommendations": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+}

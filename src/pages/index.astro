@@ -1,0 +1,46 @@
+---
+import { checkDbHealth } from "../lib/db-health";
+
+const dbHealth = await checkDbHealth();
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>SameView Web</title>
+	</head>
+	<body>
+		<h1>SameView Web</h1>
+		<p>Application setup is running.</p>
+
+		<h2>Database check</h2>
+		<ul>
+			<li>
+				DATABASE_URL configured: {dbHealth.status === "unconfigured" ? "no" : "yes"}
+			</li>
+			{
+				dbHealth.status === "unconfigured" && (
+					<li>Database connection: not attempted (DATABASE_URL not set)</li>
+				)
+			}
+			{dbHealth.status === "unreachable" && <li>Database connection: failed</li>}
+			{
+				dbHealth.status === "connected" && (
+					<>
+						<li>Database connection: ok (SELECT 1 succeeded)</li>
+						<li>
+							Table "comparisons" exists: {dbHealth.tableExists ? "yes" : "no"}
+						</li>
+						{dbHealth.tableExists && (
+							<li>Row count in "comparisons": {dbHealth.comparisonsCount}</li>
+						)}
+					</>
+				)
+			}
+		</ul>
+	</body>
+</html>
