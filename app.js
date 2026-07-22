@@ -1,16 +1,27 @@
 // Plesk/Passenger startup file — the actual server entry point.
 //
-// Root cause of "Web application could not be started" (confirmed against
-// Plesk's own knowledge base and Node's documented behavior, and against how
-// every other Node app on this Netcup/Plesk account is built — see
-// docs/deployment.md): Phusion Passenger's Node loader always loads the
-// configured Startup File with CommonJS `require()`, never with ESM
-// `import()`. Node's `require()` can never load a native ES module — not
-// `.mjs` files, not `.js` files under a `"type": "module"` package.json —
-// regardless of Passenger. That failure happens before a single line of the
-// app's own code runs, which is why no log or diagnostic file was ever
-// produced. This file is plain CommonJS (package.json no longer sets
-// `"type": "module"`) so Passenger's `require()` can load it directly.
+// Two separate, confirmed root causes of "Web application could not be
+// started" led to this file's current shape (see docs/deployment.md for the
+// full history):
+//
+// 1. Phusion Passenger's Node loader always loads the configured Startup
+//    File with CommonJS `require()`, never with ESM `import()`. Node's
+//    `require()` can never load a native ES module — not `.mjs` files, not
+//    `.js` files under a `"type": "module"` package.json. This file is
+//    therefore plain CommonJS (package.json no longer sets
+//    `"type": "module"`) so Passenger's `require()` can load it directly.
+// 2. Passenger loads the Startup File by `require()`-ing it from inside its
+//    own internal loader module — it never runs it as `node app.js`
+//    directly. That means `require.main` (the process's actual entry
+//    module) is Passenger's own loader, never this file, so
+//    `require.main === module` is always false under Passenger. An earlier
+//    version of this file gated the entire startup path (including
+//    `.listen()`) behind that check, which silently skipped starting the
+//    server under Passenger while still working when run directly with
+//    `node app.js` locally. The startup path below therefore runs
+//    unconditionally, gated only by `NODE_ENV !== "test"` (mirroring
+//    ffg_monitor's proven pattern on this same Netcup/Plesk account), not by
+//    `require.main`.
 //
 // Astro's own build output (dist/server/entry.mjs) is unavoidably a native
 // ES module regardless of this project's package.json — Astro always emits
@@ -168,10 +179,17 @@ module.exports = {
 	createRequestListener,
 };
 
-// Everything below only runs when Passenger (or a developer) executes this
-// file directly with `node app.js` — not when a test imports the pure
-// functions above.
-if (require.main === module) {
+// Everything below runs as soon as this file is loaded — including when
+// Passenger loads it, which it does with `require("./app.js")` from inside
+// its own internal loader module, never as `node app.js` directly. That
+// means `require.main` is Passenger's own loader module, not this one, so
+// `require.main === module` is always false under Passenger and must not be
+// used to gate startup here (previously it was, which silently skipped
+// `.listen()` entirely under Passenger — see docs/deployment.md). None of
+// the reference Plesk apps (ffg_monitor, ffg_einsatzzusammenfassung_chart)
+// use that guard either; they start unconditionally (ffg_monitor only skips
+// under `NODE_ENV=test`, which mirrors the guard below).
+if (process.env.NODE_ENV !== "test") {
 	const port = process.env.PORT;
 
 	if (!port) {
@@ -182,10 +200,15 @@ if (require.main === module) {
 
 	// dist/server/entry.mjs is a native ES module (Astro always emits it as
 	// such); resolve it once and reuse the resolved handler for every request
-	// instead of re-importing per request.
+	// instead of re-importing per request. The extra top-level `.catch` below
+	// only marks this specific promise as handled (preventing an
+	// unhandledRejection from the process-level handler further down if the
+	// build is ever missing) — each request's own error handling, further
+	// below, still reports and responds to the failure per-request.
 	const astroHandlerReady = import("./dist/server/entry.mjs").then(
 		(mod) => mod.handler,
 	);
+	astroHandlerReady.catch(() => {});
 
 	function astroHandler(req, res) {
 		return astroHandlerReady.then((handler) => handler(req, res));

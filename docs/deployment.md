@@ -65,6 +65,35 @@ is unavoidably a native ES module regardless of this project's `package.json` �
 extension — so `app.js` loads it with a dynamic `import()`, the standard, documented way for a CommonJS module to load
 an ES module. Everything else `app.js` needs (`node:http`, `node:fs`, `node:path`) is loaded with plain `require()`.
 
+## Second confirmed root cause: `require.main === module` never matches under Passenger
+
+Fixing the ESM/CommonJS problem above still produced "Web application could not be started" in production. The
+actual code was checked directly, not assumed: an intermediate version of `app.js` gated its entire startup path —
+including the real `server.listen()` call — behind `if (require.main === module) { ... }`, a common Node.js idiom for
+"only run this when the file is executed directly, not when something else imports it".
+
+That idiom silently breaks under Passenger specifically: Passenger's Node loader does not run the configured Startup
+File as `node app.js`. It loads it with `require("./app.js")` from *inside its own internal loader module*. That
+loader module — not `app.js` — is the process's actual entry point, so `require.main` always refers to Passenger's
+loader, never to `app.js` itself. `require.main === module` is therefore always `false` inside `app.js` under
+Passenger, no matter what. The startup block was silently skipped, `.listen()` never ran, and Passenger — which does
+run the file and waits for it to bind a port — eventually gave up and reported "Web application could not be
+started" after its own timeout. This is exactly consistent with the long load time observed before the error, and
+with `node app.js` working correctly in every local/manual test: run directly, `app.js` genuinely *is* `require.main`,
+so the guard happened to pass there and only there.
+
+Checked directly against the two real Plesk/Passenger reference projects: neither uses `require.main === module`.
+`ffg_einsatzzusammenfassung_chart`'s `server.js` calls `app.listen(port, ...)` completely unconditionally at the top
+level. `ffg_monitor`'s `app.js` also calls `.listen()` unconditionally, guarded only by
+`if (process.env.NODE_ENV !== 'test')` — its own comment states plainly: *"WICHTIG für Passenger: immer lauschen"*
+("IMPORTANT for Passenger: always listen").
+
+Fix applied: the `require.main === module` guard is removed entirely. `app.js`'s startup path (see
+[`app.js`](../app.js)) now runs unconditionally, gated only by `process.env.NODE_ENV !== "test"` — mirroring
+`ffg_monitor`'s proven pattern exactly. Nothing about Passenger's own environment sets `NODE_ENV=test`, so this
+guard is always true in production; it only turns false in this project's own test run (see
+[Testing without starting a real server](#testing-without-starting-a-real-server) below).
+
 ## Why `standalone` mode is not used
 
 Separately from the ESM/CommonJS problem above, `@astrojs/node`'s `standalone` mode was tried and reproducibly caused
@@ -109,6 +138,27 @@ requiring an ES module can never work, regardless of what the code does at runti
 along with `server.mjs`/`server-runtime.mjs`. Process-level errors are logged with `console.error`/`console.log`,
 visible in Plesk's own Node.js log panel.
 
+## Testing without starting a real server
+
+`app.js`'s startup path (the real `.listen()`) now runs unconditionally unless `process.env.NODE_ENV === "test"` (see
+[Second confirmed root cause](#second-confirmed-root-cause-requiremain--module-never-matches-under-passenger) above
+for why it is not gated behind `require.main === module` instead). Two different test files rely on that guard in two
+different, deliberate ways:
+
+- [`test/app.test.mjs`](../test/app.test.mjs) sets `process.env.NODE_ENV = "test"` and only then loads `app.js`, via a
+  **dynamic** `import()` — a static `import` at the top of the file would be hoisted and evaluated before that
+  assignment ever runs, defeating the guard. This test only exercises the pure request-handling helper functions
+  (`createRequestListener` and friends) with a fake `astroHandler`; no real port is ever opened.
+- [`test/passenger-boot.test.mjs`](../test/passenger-boot.test.mjs) is the regression test for the
+  `require.main === module` bug specifically. It does not import `app.js` in-process at all — it spawns a separate
+  `node -e "require('./app.js')"` child process (deliberately not `node app.js`, and with `NODE_ENV` set to
+  `"production"`, not `"test"`), which reproduces Passenger's actual loading model: `app.js` is `require()`d from
+  inside another module (the `-e` script), so `require.main` is that other module, never `app.js` — the same relationship
+  as Passenger's own loader. The test then confirms the port Passenger would have given it actually accepts
+  connections. Confirmed to fail correctly: temporarily reintroducing `require.main === module` in `app.js` while
+  running this test reproduces the exact symptom seen in production (nothing ever listens; the test fails via the
+  connection-timeout, not a crash).
+
 ## GitHub Environment: `production`
 
 Workflow: [`.github/workflows/deploy-production.yml`](../.github/workflows/deploy-production.yml).
@@ -149,7 +199,9 @@ This triggers the workflow:
 
 `pnpm test` runs Node's built-in test runner (`node --test`, no extra dependency) against
 [`test/app.test.mjs`](../test/app.test.mjs) — regression tests for the request-handling logic described in
-[Request handling safety](#request-handling-safety).
+[Request handling safety](#request-handling-safety) — and
+[`test/passenger-boot.test.mjs`](../test/passenger-boot.test.mjs) — the Passenger-loading regression test described in
+[Testing without starting a real server](#testing-without-starting-a-real-server).
 
 ## Deployment artifact
 

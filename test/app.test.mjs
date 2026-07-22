@@ -7,13 +7,25 @@
 // real, built Astro app, plus the request-abort and already-responded cases.
 //
 // app.js is a CommonJS module (Passenger's Node loader requires that — see
-// docs/deployment.md); Node's ESM loader can still import its named exports
-// directly, as done here.
+// docs/deployment.md); Node's ESM loader can still import its named exports.
+//
+// app.js's own startup path (the real `.listen()`) runs unconditionally
+// unless `NODE_ENV === "test"` — see docs/deployment.md for why it must NOT
+// be gated behind `require.main === module` instead (that silently breaks
+// under Passenger). NODE_ENV is set here, before app.js is loaded, so this
+// file only exercises the pure request-handling helpers below, without
+// starting a real server on a real port. A dynamic `import()` is required
+// for that ordering to actually work: a static `import` at the top of this
+// file would be hoisted and evaluated before the `process.env.NODE_ENV`
+// assignment below ever runs. See test/passenger-boot.test.mjs for the
+// separate test that verifies the real startup path actually listens.
 
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { describe, test } from "node:test";
-import { createRequestListener } from "../app.js";
+
+process.env.NODE_ENV = "test";
+const { createRequestListener } = await import("../app.js");
 
 const neverMatchesStaticAsset = () => false;
 
