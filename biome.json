@@ -12,7 +12,8 @@
 			"*.ts",
 			"*.mjs",
 			"test/**/*.mjs",
-			"drizzle.config.ts"
+			"drizzle.config.ts",
+			"app.js"
 		]
 	},
 	"formatter": {

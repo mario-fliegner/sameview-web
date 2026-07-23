@@ -111,7 +111,12 @@ Original ZIP files are not stored.
 - The Astro/Node application runs locally directly on the host via pnpm; it does not run in a Docker container locally.
 - MySQL runs locally as a single container via Docker Desktop.
 - The compose file is named `compose.yaml`; the deprecated filename `docker-compose.yml` is not used.
-- No additional containers (e.g. phpMyAdmin, Adminer, Redis, backend containers) are introduced.
+- MySQL remains the only infrastructure service required to run the application locally.
+- `phpMyAdmin` is an explicitly permitted, optional local development container — used solely for manual, ad-hoc access to the local development database.
+- `phpMyAdmin` is not a production component: it is never deployed, never part of the Netcup/Plesk hosting setup, and not covered by any of the production architecture decisions elsewhere in this document.
+- `phpMyAdmin` is not a dependency of the application itself — the app never talks to it, imports it, or requires it to run.
+- `phpMyAdmin` does not change the runtime architecture or the deployment process described in [docs/deployment.md](deployment.md) in any way.
+- No other additional containers (e.g. Redis, Adminer, backend containers) are introduced.
 - Production uses the existing Netcup MySQL database; local and production use the same versioned database schema.
 - Credentials are provided exclusively via environment variables.
 - A `.env.example` will be committed later; the real `.env` and other local secrets are never committed.
