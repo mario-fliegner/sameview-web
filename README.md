@@ -1,6 +1,19 @@
 # SameView Web
 
-Developer setup notes. For product scope, architecture and data handling, see [docs/](docs/).
+SameView Web is the companion web application for SameView, the Android app used to create interactive before/after
+photo comparisons.
+
+The Android app creates the comparison. SameView Web lets you import that comparison, adjust its presentation, export
+it as a standalone HTML file, and optionally publish it online with a shareable link.
+
+## Quick Start
+
+```sh
+pnpm install
+docker compose up -d
+pnpm db:migrate
+pnpm dev
+```
 
 ## Prerequisites
 
@@ -28,20 +41,36 @@ production, no PHP added to the app itself):
 
 Nothing is pre-filled — phpMyAdmin shows its normal login form and connects to the local `mysql` container.
 
+## Important URLs
+
+- Application: <http://localhost:4321>
+- phpMyAdmin: <http://localhost:8081>
+
 ## Other Commands
 
 - `pnpm build` — production build
 - `pnpm preview` — preview the production build locally
 - `pnpm typecheck` — type-check the project (`astro check`)
 - `pnpm lint` — lint with Biome
+- `pnpm test` — run the test suite
 - `pnpm db:generate` — generate a new SQL migration from `src/db/schema.ts`
 - `pnpm db:migrate` — apply pending migrations (does not start the app)
 - `pnpm db:studio` — open Drizzle Studio
 
 ## Full Local Reset
 
+`docker compose down -v` deletes the local database volume — all local development data is lost.
+
 ```sh
 docker compose down -v
 docker compose up -d
 pnpm db:migrate
 ```
+
+## Documentation
+
+- [Product Scope](docs/PRODUCT_SCOPE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Engineering Guide](docs/AI_ENGINEERING_GUIDE.md)
+- [Deployment](docs/deployment.md)
+- [Data & Privacy](docs/DATA_AND_PRIVACY.md)
