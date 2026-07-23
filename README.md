@@ -67,6 +67,22 @@ docker compose up -d
 pnpm db:migrate
 ```
 
+## Release Process
+
+Production deployments are automated through GitHub Actions.
+
+1. Commit and push your changes.
+2. Create a semantic version tag (e.g. `v1.2.0`).
+3. Push the tag to GitHub.
+4. The deployment workflow builds the project and deploys it automatically.
+
+For deployment details, workflow behavior and infrastructure information, see:
+- [docs/deployment.md](docs/deployment.md)
+
+> **Note**
+> Pushing a semantic version tag triggers a production deployment.
+> Do not create or push release tags unless a production deployment is intended.
+
 ## Documentation
 
 - [Product Scope](docs/PRODUCT_SCOPE.md)
