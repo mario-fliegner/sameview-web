@@ -7,6 +7,17 @@ SameView Web is the web application for importing, viewing, exporting and publis
 The Android app remains the tool used to recreate and capture a photo.
 SameView Web provides additional ways to present and share the finished comparison.
 
+## Relationship to SameView Android
+
+SameView Android is the primary application for creating and managing photo comparisons.
+SameView Web is not an alternative for capturing or creating new photo comparisons. It extends comparisons created with SameView Android with browser-based viewing, metadata editing, export and publication functions.
+
+## Entry Points
+
+Users can reach SameView Web directly at `web.sameview.app`, through a prominent reference on `sameview.app`, or, in a future version, from SameView Android.
+
+SameView Web must provide the product context needed by users who access it directly and may not already know the application. This includes its relationship to SameView Android, the availability of the Android app and the requirement in Version 1 to import an export from the Android app.
+
 ## Repository and Domain
 
 Repository: sameview-web
@@ -23,12 +34,15 @@ SameView Web presents, exports and optionally publishes it.
 
 1. Import a SameView export ZIP.
 2. Display an interactive comparison slider.
-3. Edit title, description and slider labels.
-4. Remove image metadata and optimize images.
-5. Download as standalone HTML, generated entirely in the browser without uploading to the server.
-6. Publish online.
-7. Receive public URL, QR code and iframe embed code.
-8. Manage or delete the publication through a private management link.
+3. Edit supported comparison metadata: title, description, reference date, user-authored location and session branding.
+4. Derive slider labels from the reference date and immutable capture timestamp; slider labels are not independently editable.
+5. Remove image metadata and optimize images.
+6. Download as standalone HTML, generated entirely in the browser without uploading to the server.
+7. Publish online.
+8. Receive public URL, QR code and iframe embed code.
+9. Manage or delete the publication through a private management link.
+
+The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md).
 
 ## Outputs
 
@@ -47,3 +61,7 @@ SameView Web presents, exports and optionally publishes it.
 - Automatic Android-to-web transfer
 - Video hosting
 - ZIP backup storage
+
+## Future Scope
+
+- Open a selected comparison directly from SameView Android in SameView Web without requiring a manual ZIP import for that entry point.

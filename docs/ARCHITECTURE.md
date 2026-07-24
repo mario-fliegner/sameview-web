@@ -20,13 +20,18 @@
 
 Browser:
 - Import ZIP
+- Read supported SameView session metadata according to [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md)
+- Preserve immutable Source Data and unknown metadata fields locally
+- Maintain the editable Current Working State locally
 - Display slider
 - Edit presentation data
+- Derive slider-label snapshots when generating an outcome
 - Generate the standalone HTML export (client-side, no upload required)
 
 Server:
 - Validate uploads
 - Process images
+- Process an optional branding asset when required by the published outcome
 - Remove metadata
 - Encode WebP
 - Publish comparisons
@@ -58,11 +63,15 @@ The server always validates, decodes, strips metadata from and re-encodes images
 
 ## Export Structure
 
+- SameView Web Version 1 accepts valid session metadata versions 2 through 6 inclusive
+- Current metadata fields are read before the documented legacy fallbacks in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md)
 - A valid import must contain a supported `metadata.json`
 - Relevant files are determined from the references in `metadata.json`
 - Exactly one referenced `reference` file and exactly one referenced `capture` file are required
 - Additional known SameView files may also be present (e.g. original images, HEIC source files, branding files)
 - Files that are not referenced or not recognized are not processed automatically
+- Unknown metadata fields are tolerated and preserved locally but are not published automatically
+- Device-local URIs and MediaStore references are retained as provenance only and are never used for file resolution
 
 ## Image Limits
 
@@ -70,7 +79,7 @@ Input:
 
 - Maximum resolution per processed file: 40 megapixels
 - Files must be decoded and validated based on their actual content; file extension and browser-supplied MIME type alone are not sufficient
-- Only the reference and capture files actually needed for publication are processed
+- Only the reference, capture and optional branding files actually needed for publication are processed
 
 Hosted output:
 
@@ -89,14 +98,17 @@ Hosted output:
 
 ## Storage
 
+Unpublished Source Data and the Current Working State remain local to the browser. The concrete local persistence technology is not defined here. Publication sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
+
 Database:
-- metadata
+- allowlisted outcome metadata
 - identifiers
 
 Filesystem:
 comparisons/<internal-id>/
 - reference.webp
 - capture.webp
+- branding.webp (optional)
 
 Original ZIP files are not stored.
 
@@ -173,8 +185,14 @@ Version 1 needs a single table, `comparisons`, consisting exclusively of:
 - `management_token_hash` — hash of the private management token, unique
 - `title` (optional)
 - `description` (optional)
-- `reference_label` (optional)
-- `capture_label` (optional)
+- `reference_label` — derived Outcome Snapshot value
+- `capture_label` — derived Outcome Snapshot value
+- `location_display_name` (optional)
+- `location_city` (optional)
+- `location_country` (optional)
+- `branding_type` (optional)
+- `branding_builtin_id` (optional)
+- `branding_path` — relative persistent file path (optional)
 - `reference_path` — relative persistent file path
 - `capture_path` — relative persistent file path
 - `created_at` (UTC)
@@ -185,6 +203,7 @@ Further decisions:
 - Binary images are never stored in MySQL.
 - There is no files table, no token table, no user table, no account table and no consent table.
 - File paths are never derived from user input.
+- Published rows contain only the explicit outcome allowlist; complete session metadata and unknown fields are never stored.
 
 ## Planned Repository Structure
 
