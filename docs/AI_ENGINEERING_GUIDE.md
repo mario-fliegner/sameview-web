@@ -102,3 +102,19 @@ Before completion verify as applicable:
 - SEO
 - i18n
 - documentation consistency
+
+## Proportionality
+
+- Keep solutions proportionate to the current product scope.
+- Avoid overengineering.
+- Prefer the simplest solution that fully satisfies the approved requirements.
+- Do not introduce additional layers, abstractions, architecture or complexity unless they solve a demonstrated need.
+- Grow architecture and documentation only when increasing product complexity genuinely requires it.
+
+## Specification Discipline
+
+- Specifications are the source of truth.
+- Keep specifications focused, cohesive and free of unnecessary overlap.
+- Reuse and extend existing specifications before creating new ones.
+- Create new specification documents only when they define a distinct responsibility that cannot reasonably be integrated into an existing specification.
+- Do not duplicate requirements across multiple specifications.
