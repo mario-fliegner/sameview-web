@@ -51,6 +51,8 @@ The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](
 - QR code
 - iframe embed code
 
+SameView Web is designed to support multiple comparison output types generated from the same comparison. The initial supported comparison output types are Standalone HTML and Hosted Comparison. Future versions may additionally support a Static Microsite and a CMS Package, and further comparison output types may be added in the future.
+
 ## Out of Scope (V1)
 
 - User accounts

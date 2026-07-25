@@ -1,0 +1,116 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	color-scheme: dark;
+}
+
+body {
+	min-width: 0;
+	min-height: 100vh;
+	margin: 0;
+	background: #0d1424;
+	color: #ffffff;
+	font-family:
+		ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+		"Segoe UI Symbol", "Noto Color Emoji";
+	font-size: 1rem;
+	line-height: 1.5;
+}
+
+h1,
+h2,
+p {
+	margin-block-start: 0;
+}
+
+h1,
+h2 {
+	line-height: 1.2;
+}
+
+a {
+	color: #4f8cff;
+}
+
+:focus-visible {
+	outline: 0.1875rem solid #4f8cff;
+	outline-offset: 0.1875rem;
+}
+
+.skip-link {
+	position: fixed;
+	inset-block-start: 1rem;
+	inset-inline-start: 1rem;
+	z-index: 1;
+	padding: 0.75rem 1rem;
+	background: #17202f;
+	color: #ffffff;
+	transform: translateY(-200%);
+}
+
+.skip-link:focus {
+	transform: translateY(0);
+}
+
+.app-header {
+	display: flex;
+	align-items: center;
+	min-height: 4rem;
+	padding: 1rem;
+	border-block-end: 1px solid #2a3445;
+}
+
+.app-header__name {
+	margin: 0;
+	font-weight: 700;
+}
+
+main {
+	width: 100%;
+	padding: 1rem;
+}
+
+.workspace {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem 1rem;
+	border: 1px solid #2a3445;
+	background: #17202f;
+}
+
+.workspace__content {
+	text-align: center;
+}
+
+.workspace__description,
+.database-check li {
+	color: #c7ccd6;
+}
+
+.workspace__eyebrow {
+	margin-block-end: 0.5rem;
+	color: #c7ccd6;
+	font-weight: 600;
+}
+
+.database-check {
+	margin-block-start: 1rem;
+	padding: 1rem;
+	border: 1px solid #2a3445;
+	background: #17202f;
+}
+
+.database-check h2 {
+	margin-block-end: 0.75rem;
+	font-size: 1rem;
+}
+
+.database-check ul {
+	margin: 0;
+	padding-inline-start: 1.25rem;
+}
