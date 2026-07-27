@@ -17,10 +17,10 @@ The following files under [docs/](docs/) are the binding functional and technica
 - No S3 or other external object storage in V1.
 - No separate frontend/backend deployments — one application.
 - Stack: Astro + React + TypeScript, one Node.js application, on Netcup shared hosting.
-- One Netcup MySQL database.
-- Persistent image storage on the local Netcup filesystem.
+- One Netcup MySQL database — prepared technical foundation for planned Version 2 Hosted Publication, not used by the Version 1 browser-local workflow.
+- Persistent image storage on the local Netcup filesystem — prepared technical foundation for planned Version 2 Hosted Publication, not used by the Version 1 browser-local workflow.
 - Production domain: `https://web.sameview.app`.
-- Hosted images are stored as web-optimized WebP files.
+- Hosted images are stored as web-optimized WebP files — applies to planned Version 2 Hosted Publication; Version 1 has no hosted images.
 - Original SameView ZIP files are never stored permanently.
 - No user accounts in V1.
 
