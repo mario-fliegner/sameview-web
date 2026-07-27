@@ -1,0 +1,5 @@
+{
+	"version": 6,
+	"capture": { "timestampMs": 1700000000000 },
+	"files": { "reference": "reference.jpg", "capture": "capture.jpg" }
+}

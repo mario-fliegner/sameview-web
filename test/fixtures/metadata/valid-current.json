@@ -1,0 +1,12 @@
+{
+	"version": 6,
+	"session": { "id": "session-current-001", "createdAtMs": 1699999990000 },
+	"capture": { "timestampMs": 1700000000000 },
+	"files": { "reference": "reference.jpg", "capture": "capture.jpg" },
+	"content": { "title": "Current Field Example" },
+	"reference": { "date": "2020-05" },
+	"location": { "city": "Berlin" },
+	"additional": { "isFavorite": true },
+	"unknownTopLevelField": "should be preserved",
+	"unknownNestedBlock": { "nestedUnknown": 42, "deep": { "value": true } }
+}

@@ -45,20 +45,21 @@ An Outcome Snapshot contains the values derived or selected when an outcome is g
 
 ## Supported Metadata Versions
 
-SameView Web Version 1 accepts valid SameView session metadata versions 2 through 6 inclusive.
+SameView Web Version 1 accepts valid SameView session metadata versions 2 through 6 inclusive, declared in the top-level `version` field (JSON integer; matches `SessionStorage.METADATA_VERSION` and `SessionScanner.SUPPORTED_VERSIONS` in the SameView Android source). `metadata.json` is UTF-8 encoded, without a byte-order mark.
 
 Readers use the current field first and then the documented legacy fallback:
 
-| Current field | Legacy fallback |
-| --- | --- |
-| `session.id` | `sessionId` |
-| `capture.timestampMs` | `sessionTimestampMs` |
-| `capture.mediaStoreUri` | `captureMediaStoreUri` |
-| `reference.sourceUri` | `reference.sourceDisplayName`, then `referencePickerUri` |
-| `content.title` | `title` |
-| `files.reference` | `referenceFile` |
-| `files.referenceOriginal` | `referenceOriginalFile` |
-| `files.capture` | `captureFile` |
+| Current field | Legacy fallback | Verification |
+| --- | --- | --- |
+| `capture.timestampMs` | `session.createdAtMs` | Confirmed directly against the Android reader (`SessionScanner.kt`) and its instrumented test suite (`SessionScannerTest.kt`), which exercises this fallback for versions 2–4. |
+| `capture.mediaStoreUri` | `captureMediaStoreUri` | Informational provenance only; absence never invalidates an import. |
+| `reference.sourceUri` | `reference.sourceDisplayName` (schema version 4), then `referencePickerUri` (versions 2–3) | Informational provenance only; absence never invalidates an import. Confirmed against `SESSION_METADATA_V1.md` §4 in the Android repository. |
+| `content.title` | `title` | Optional field. The current Android reader (`SessionScanner.kt`) only reads `content.title` and does not implement this fallback; it is tolerated here defensively but is unconfirmed against any real or currently-producible export. |
+| `files.reference` | `referenceFile` | Required field for a valid import. The current Android reader only reads the nested `files.reference` form for every supported version (2–6, confirmed by `SessionScannerTest.kt`). The flat fallback is tolerated here defensively but is unconfirmed against any real or currently-producible export. |
+| `files.referenceOriginal` | `referenceOriginalFile` | Optional field (not required for a valid import); same fallback caveat as `files.reference`. |
+| `files.capture` | `captureFile` | Required field for a valid import; same fallback caveat as `files.reference`. |
+
+`session.id` (nested, present from schema version 5 onward) and the legacy flat `sessionId` are informational only and are not used to resolve session identity. See "Session Identity" below.
 
 Newer optional blocks and fields may be absent in older versions. Their absence alone does not make an older comparison invalid.
 
@@ -67,15 +68,25 @@ Newer optional blocks and fields may be absent in older versions. Their absence 
 A valid import must:
 
 - contain a parseable JSON object as `metadata.json`,
-- declare a supported metadata version,
-- provide a session identity through the current field or its fallback,
-- provide a valid capture timestamp through the current field or its fallback,
-- provide the required reference and capture file references through current fields or their fallbacks, and
+- declare a supported metadata version in the top-level `version` field,
+- provide a valid capture timestamp through `capture.timestampMs` or its documented fallback,
+- contain a `files` object block,
+- provide the required reference and capture file references through `files.reference` and `files.capture` (or their documented, unconfirmed legacy fallbacks — see above), and
 - satisfy the file and archive validation rules in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-If a valid `capture.timestampMs` cannot be obtained after applying the fallback, the import is invalid. It must not be reconstructed from image EXIF.
+A resolvable session identity value is not required at the metadata-parsing level. See "Session Identity" below.
+
+If a valid capture timestamp cannot be obtained after applying the fallback, the import is invalid. It must not be reconstructed from image EXIF.
 
 Device-local URIs and MediaStore references are informational provenance. They are never used to resolve files in SameView Web and their absence does not invalidate an otherwise valid import.
+
+## Session Identity
+
+Session identity is authoritatively the session's directory name inside the SameView export archive — matching the Android app's own contract, where the ZIP subdirectory name is the stable session identity (`SESSION_BACKUP_EXPORT_V1.md` §4.2, §11.1 in the Android repository) and, from schema version 5 onward, `metadata.json`'s `session.id` field is written identically to it.
+
+The Android reader (`SessionScanner.kt`) itself never validates a `session.id` or `sessionId` field for identity; it uses the containing directory name exclusively, and resolves `capture.timestampMs`'s fallback from the nested `session.createdAtMs` field without requiring an identity field to be present.
+
+Metadata-level parsing therefore does not require or validate a session identity value. Resolving the archive directory name — and, when `session.id` is present, confirming it matches — is a ZIP/archive-resolution-level concern, defined together with the file and archive validation rules in [ARCHITECTURE.md](ARCHITECTURE.md), not a metadata-parsing-level concern.
 
 ## Metadata Preservation
 
@@ -218,10 +229,12 @@ Branding uses:
 
 - `branding.type`,
 - `branding.builtinId`,
-- `branding.handleFile`, and
+- `branding.handleFile`,
+- `branding.updatedAtMs`,
+- `files.brandingHandle` (the same filename as `branding.handleFile`, referenced from the `files` block), and
 - an optional branding asset referenced by the branding configuration.
 
-`branding.type` is `builtin` or `image`. `branding.builtinId` identifies a built-in symbol and is applicable only to built-in branding. `branding.handleFile` identifies the normalized handle asset when one is present.
+`branding.type` is `builtin` or `image`. `branding.builtinId` identifies a built-in symbol and is applicable only to built-in branding. `branding.handleFile` identifies the normalized handle asset when one is present. `branding.updatedAtMs` and `files.brandingHandle` are preserved but have no operative effect on Web V1 branding behavior; an inconsistency between `files.brandingHandle` and the `branding` block is tolerated and treated as no branding, matching the Android reader's own tolerance (`SessionScanner.kt`).
 
 Branding imported from Source Data is optional. Older comparisons without branding remain valid. Changes made in SameView Web affect only the Current Working State.
 

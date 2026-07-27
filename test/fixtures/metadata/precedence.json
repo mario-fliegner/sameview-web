@@ -1,0 +1,9 @@
+{
+	"version": 6,
+	"session": { "id": "current-session-id", "createdAtMs": 1000000000000 },
+	"sessionId": "legacy-session-id",
+	"capture": { "timestampMs": 1700000000000 },
+	"files": { "reference": "current-reference.jpg", "capture": "current-capture.jpg" },
+	"referenceFile": "legacy-reference.jpg",
+	"captureFile": "legacy-capture.jpg"
+}
