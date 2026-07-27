@@ -36,7 +36,7 @@ export default defineConfig({
 		},
 		{
 			name: "app",
-			testMatch: /workspace-creation\.spec\.ts/,
+			testMatch: /(workspace-creation|app-shell)\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"], baseURL: APP_URL },
 		},
 	],

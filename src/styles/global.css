@@ -9,6 +9,8 @@ html {
 }
 
 body {
+	display: flex;
+	flex-direction: column;
 	min-width: 0;
 	min-height: 100vh;
 	margin: 0;
@@ -41,6 +43,13 @@ a {
 	outline-offset: 0.1875rem;
 }
 
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+	}
+}
+
 .skip-link {
 	position: fixed;
 	inset-block-start: 1rem;
@@ -56,50 +65,241 @@ a {
 	transform: translateY(0);
 }
 
+/* Visually hides content while keeping it available to assistive tech and
+   programmatically clickable; used for the native file input, which must
+   never be the visible drop-zone surface (docs/APPLICATION_LAYOUT.md
+   "Drag & Drop"). */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	white-space: nowrap;
+	clip-path: inset(50%);
+	border: 0;
+}
+
+/* Header */
+
 .app-header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
 	min-height: 4rem;
-	padding: 1rem;
+	padding: 0.75rem 1rem;
 	border-block-end: 1px solid #2a3445;
+}
+
+.app-header__brand {
+	display: flex;
+	align-items: center;
+	gap: 0.625rem;
+	min-width: 0;
+}
+
+.app-header__logo {
+	display: block;
+	width: 2rem;
+	height: 2rem;
+	flex-shrink: 0;
 }
 
 .app-header__name {
 	margin: 0;
+	overflow: hidden;
 	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
+.app-header__lang {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	flex-shrink: 0;
+}
+
+.app-header__lang-separator {
+	color: #c7ccd6;
+}
+
+.app-header__lang-button {
+	padding: 0.25rem 0.375rem;
+	border: none;
+	background: none;
+	color: #c7ccd6;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.app-header__lang-button[aria-current="true"] {
+	color: #ffffff;
+	text-decoration: underline;
+	text-underline-offset: 0.1875rem;
+	cursor: default;
+}
+
+.app-header__lang-button:disabled {
+	cursor: default;
+}
+
+/* Footer */
+
+.app-footer {
+	margin-block-start: auto;
+	padding: 1rem;
+	border-block-start: 1px solid #2a3445;
+}
+
+.app-footer__nav {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.75rem;
+	font-size: 0.875rem;
+}
+
+.app-footer__nav a {
+	color: #c7ccd6;
+	text-decoration: none;
+}
+
+.app-footer__nav a:hover,
+.app-footer__nav a:focus-visible {
+	color: #4f8cff;
+	text-decoration: underline;
+}
+
+/* Main content */
+
 main {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
 	width: 100%;
 	padding: 1rem;
 }
 
-.workspace {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 2rem 1rem;
-	border: 1px solid #2a3445;
-	background: #17202f;
-}
+/* Import section (docs/APPLICATION_LAYOUT.md "Import Section") */
 
-.workspace__content {
+.import-section {
+	width: 100%;
+	max-width: 32rem;
+	margin-inline: auto;
 	text-align: center;
 }
 
-.workspace__description {
+.import-section__title {
+	margin-block-end: 0.5rem;
+}
+
+.import-section__description {
+	margin-block-end: 1.5rem;
 	color: #c7ccd6;
 }
 
-.workspace__eyebrow {
-	margin-block-end: 0.5rem;
-	color: #c7ccd6;
-	font-weight: 600;
+.import-section__alert-slot {
+	/* Reserves space so the error message appearing does not shift the
+	   dropzone excessively (docs/APPLICATION_LAYOUT.md "Import Failed"). */
+	min-height: 3rem;
 }
 
-.workspace__import-label {
-	display: block;
-	margin-block-start: 1.5rem;
-	margin-block-end: 0.5rem;
+.import-section__alert {
+	margin: 0 0 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid #f87171;
+	border-radius: 0.25rem;
+	background: #2a1414;
+	color: #fca5a5;
+	text-align: start;
+}
+
+.import-section__privacy,
+.import-section__format {
+	margin-block-start: 1.25rem;
+	color: #c7ccd6;
+	font-size: 0.875rem;
+}
+
+.import-section__format {
+	margin-block-start: 0.5rem;
+}
+
+/* Dropzone: both the drag target and the clickable file selector
+   (docs/APPLICATION_LAYOUT.md "Drag & Drop"). */
+
+.dropzone {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 3rem 1.5rem;
+	border: 0.125rem dashed #2a3445;
+	border-radius: 0.5rem;
+	background: #17202f;
+	cursor: pointer;
+}
+
+.dropzone--drag-active {
+	border-color: #4f8cff;
+	background: #1e2c40;
+}
+
+.dropzone--importing {
+	cursor: not-allowed;
+	opacity: 0.7;
+}
+
+.dropzone__hint {
+	margin: 0;
 	font-weight: 600;
+	font-size: 1.125rem;
+}
+
+.dropzone__or {
+	margin: 0;
+	color: #c7ccd6;
+}
+
+.dropzone__button {
+	margin-block-start: 0.5rem;
+	padding: 0.625rem 1.25rem;
+	border: 1px solid #4f8cff;
+	border-radius: 0.25rem;
+	background: none;
+	color: #4f8cff;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.dropzone__button:disabled {
+	cursor: not-allowed;
+	opacity: 0.7;
+}
+
+.dropzone__status {
+	margin-block-start: 0.5rem;
+	min-height: 1.25rem;
+	color: #c7ccd6;
+}
+
+/* Workspace Active (minimal placeholder; the viewer/comparison/output
+   regions are later iterations, see docs/IMPLEMENTATION_PLAN_V1.md). */
+
+.workspace-active {
+	width: 100%;
+	max-width: 32rem;
+	margin-inline: auto;
+	text-align: center;
+}
+
+.workspace-active__session {
+	color: #c7ccd6;
 }

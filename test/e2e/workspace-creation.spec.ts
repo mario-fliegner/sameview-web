@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 // decodable image content.
 test("selecting a valid ZIP creates a workspace", async ({ page }) => {
 	await expect(
-		page.getByRole("heading", { name: "No comparison open" }),
+		page.getByRole("heading", { name: "Import Comparison" }),
 	).toBeVisible();
 
 	await page
@@ -62,7 +62,7 @@ test("an invalid ZIP leaves no workspace and shows a clear failure message", asy
 		.setInputFiles(join(fixturesDir, "archives", "missing-required-file.zip"));
 
 	await expect(
-		page.getByRole("heading", { name: "No comparison open" }),
+		page.getByRole("heading", { name: "Import Comparison" }),
 	).toBeVisible();
 	await expect(
 		page.getByRole("heading", { name: "Comparison imported" }),
@@ -74,7 +74,7 @@ test("no file selected leaves the workspace state unchanged", async ({
 	page,
 }) => {
 	await expect(
-		page.getByRole("heading", { name: "No comparison open" }),
+		page.getByRole("heading", { name: "Import Comparison" }),
 	).toBeVisible();
 	await expect(page.getByText(/could not be imported/i)).toHaveCount(0);
 });

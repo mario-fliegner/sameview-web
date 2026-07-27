@@ -11,8 +11,8 @@ Version 1 ends with a browser-local workflow whose only output is downloadable S
 The repository is not an empty Astro starter. The following is present and verified in code:
 
 - `package.json`, `astro.config.mjs` and `tsconfig.json` provide Astro 7, React 19, strict TypeScript and the Node middleware adapter. React is installed, but no React component or hydrated island exists yet.
-- `src/pages/index.astro`, `src/layouts/AppLayout.astro`, `src/components/AppHeader.astro` and `src/components/Workspace.astro` render an English, server-rendered application shell and a static `No comparison open` workspace state.
-- `src/styles/global.css` provides a responsive dark foundation, visible keyboard focus, a skip link and colors aligned with the current web values in `BRAND_GUIDE.md`. It is not yet a viewer or editor UI.
+- `src/pages/index.astro` and `src/layouts/AppLayout.astro` render only the document shell (`<html>`/`<head>`/skip link); the interactive application — header with SameView identity and DE/EN language selector, the polished `No Workspace` import section, and the footer with legal navigation to `sameview.app` — is a single hydrated React root (`src/components/App.tsx`), per `docs/APPLICATION_LAYOUT.md`. Localization uses ordinary React context (`src/i18n/LocaleContext.tsx`, `src/i18n/translations.ts`), not routing, so switching language never reloads the page or resets the active workspace.
+- `src/styles/global.css` provides a responsive dark foundation, visible keyboard focus, a skip link and colors aligned with the current web values in `BRAND_GUIDE.md`. It now also styles the header, footer and import dropzone; it is not yet a viewer or editor UI.
 - `app.js` and `astro.config.mjs` implement the proven Netcup/Plesk Passenger startup and static-asset delivery path.
 - `test/app.test.mjs` and `test/passenger-boot.test.mjs` use Node's built-in test runner to cover request failure containment and Passenger-style boot. There are no parser, workspace, component or browser tests.
 - The existing scripts are `build`, `typecheck`, `lint`, `test` and database commands. Biome covers TypeScript, JavaScript and the existing tests.
@@ -73,6 +73,19 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Tests/manual:** Unit tests for immutable transitions, atomic replacement and failure preservation; automated Playwright E2E tests for select, cancel, failure and replace paths.
 - **Not included:** Multiple workspaces, autosave, server persistence, viewer behavior.
 - **Risks/open decisions:** The specifications leave browser persistence technology undefined; decide whether V1 is session-memory only or survives reload before this phase is finalized.
+
+### Phase 3b – Establish the Permanent Application Shell and Polished `No Workspace` Experience
+
+- **Goal:** Bring the always-visible application shell and the `No Workspace` state up to `docs/APPLICATION_LAYOUT.md` before further workspace features are built on top of it.
+- **Specs/features:** `APPLICATION_LAYOUT.md` Header, Footer, State A (`No Workspace`), Import Section, Import States, Internationalization, Language Selector, Reference Implementation.
+- **Existing basis:** The workspace creation logic from Phase 3 (unchanged); a static, English-only header and a bare file input.
+- **Implement:** A single hydrated React application (header, workspace content, footer as one tree; Astro renders only the document shell) so language switching can update the whole UI through ordinary React context without reloading the page or losing the in-memory workspace; a SameView header identity with a DE/EN language selector; a footer linking to the existing `sameview.app` legal pages; and a polished import section (title, description, accessible drag-and-drop dropzone with a hidden native file input, privacy notice, supported-format notice, and idle/drag-active/importing/import-failed presentation).
+- **Likely areas:** `src/components/App.tsx`, `src/components/AppHeader.tsx`, `src/components/AppFooter.tsx`, `src/components/ImportSection.tsx`, `src/i18n/*`, `src/layouts/AppLayout.astro`, `src/styles/global.css`.
+- **Dependencies:** Phase 3 (workspace creation). Does not depend on replacement, the viewer or any later phase.
+- **Definition of Done:** The shell and `No Workspace` experience match `APPLICATION_LAYOUT.md`; switching language updates header, footer and import text immediately, never navigates, and never resets an active workspace; the existing import/validation/workspace-creation behavior from Phase 3 is unchanged.
+- **Tests/manual:** Unit test for translation key parity between locales; automated Playwright E2E tests for the language switch preserving an active workspace, dropzone keyboard operation (Enter/Space), drag-active state and the import-failure alert; manual assistive-technology and responsive spot checks.
+- **Not included:** Comparison viewer, fullscreen, editing, branding, output section, replace-export flow, workspace persistence.
+- **Risks/open decisions:** None remaining; the React-architecture and localization-strategy questions for this phase are resolved (single React root, ordinary context — no cross-island store).
 
 ### Phase 4 – Render the Interactive Comparison (F-002)
 
@@ -172,16 +185,17 @@ The repository is not an empty Astro starter. The following is present and verif
 3. **Inspect ZIPs safely in the browser:** enforce archive limits and reject unsafe/nested entries. Predecessor: ZIP decision and 2.
 4. **Resolve and validate referenced files:** require exactly one reference and capture file based on metadata, never device URIs. Predecessor: 3.
 5. **Create immutable Source Data and Current Working State:** commit a workspace only after complete acceptance. Predecessor: 4.
-6. **Make replacement atomic:** explicit confirm/cancel and preservation on failed second import. Predecessor: 5.
-7. **Render the interactive comparison:** Current Working State images, responsive slider and non-mutating interaction. Predecessor: 5.
-8. **Edit textual values and reference date:** normalization, validation, immutable capture timestamp and live viewer updates. Predecessor: 7.
-9. **Edit presentation visibility:** independent visibility without altering preserved `additional.visibility`. Predecessor: 8 and visibility-model decision.
-10. **Configure branding:** import and switch No Branding/Built-in/Custom, including atomic invalid-image handling. Predecessor: 7 and built-in catalog decision.
-11. **Derive labels and build Outcome Snapshots:** generation-time locale formatting, explicit allowlist and snapshot immutability. Predecessor: 9–10.
-12. **Process comparison images in-browser:** content validation, 40 MP guard, metadata removal and agreed Standalone optimization. Predecessor: 11 and image-output decision.
-13. **Generate safe self-contained HTML:** embed one snapshot, assets, style and viewer behavior without network dependencies. Predecessor: 12 and artifact-contract decision.
-14. **Download and preserve independent outcomes:** browser download plus repeated generation without changing older artifacts or workspace state. Predecessor: 13.
-15. **Run the complete V1 integration pass:** error recovery, accessibility, responsiveness, offline output and repository quality gates. Predecessor: 1–14.
+6. **Establish the permanent application shell and polished `No Workspace` experience:** SameView header identity, DE/EN language selector, footer legal navigation and an accessible import dropzone, built on a single hydrated React application so language switching never reloads the page or resets the active workspace. Predecessor: 5.
+7. **Make replacement atomic:** explicit confirm/cancel and preservation on failed second import. Predecessor: 5.
+8. **Render the interactive comparison:** Current Working State images, responsive slider and non-mutating interaction. Predecessor: 5.
+9. **Edit textual values and reference date:** normalization, validation, immutable capture timestamp and live viewer updates. Predecessor: 8.
+10. **Edit presentation visibility:** independent visibility without altering preserved `additional.visibility`. Predecessor: 9 and visibility-model decision.
+11. **Configure branding:** import and switch No Branding/Built-in/Custom, including atomic invalid-image handling. Predecessor: 8 and built-in catalog decision.
+12. **Derive labels and build Outcome Snapshots:** generation-time locale formatting, explicit allowlist and snapshot immutability. Predecessor: 10–11.
+13. **Process comparison images in-browser:** content validation, 40 MP guard, metadata removal and agreed Standalone optimization. Predecessor: 12 and image-output decision.
+14. **Generate safe self-contained HTML:** embed one snapshot, assets, style and viewer behavior without network dependencies. Predecessor: 13 and artifact-contract decision.
+15. **Download and preserve independent outcomes:** browser download plus repeated generation without changing older artifacts or workspace state. Predecessor: 14.
+16. **Run the complete V1 integration pass:** error recovery, accessibility, responsiveness, offline output and repository quality gates. Predecessor: 1–15.
 
 Each iteration has one primary result, avoids V2 preparation and should remain independently reviewable and deployable when its predecessor state is present.
 
@@ -224,10 +238,10 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 | Decision | Why it is open | Required before | Constraints |
 |---|---|---|---|
 | Local workspace retention | Architecture deliberately leaves local persistence technology undefined; current code has no client state. | Iteration 5 | Exactly one active workspace, local-only data, failure preservation; do not infer multi-workspace storage. |
-| Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 9 | F-003 visibility table and metadata preservation rules. |
-| Built-in branding catalog | `builtinId` exists conceptually, but supported V1 IDs/assets are not identified in the repository specs or assets. | Iteration 10 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design. |
-| Standalone image profile | V1 requires metadata removal and optimization, but does not specify format, dimensions, quality or size. V2 hosted WebP limits must not be copied silently. | Iteration 12 | 40 MP input limit, local processing, usable visual quality, no upload. |
-| Standalone artifact contract | Filename, exact self-contained document shape and viewer code-sharing/build approach are unspecified. | Iteration 13 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot, Standalone HTML only. |
+| Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 10 | F-003 visibility table and metadata preservation rules. |
+| Built-in branding catalog | `builtinId` exists conceptually, but supported V1 IDs/assets are not identified in the repository specs or assets. | Iteration 11 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design. |
+| Standalone image profile | V1 requires metadata removal and optimization, but does not specify format, dimensions, quality or size. V2 hosted WebP limits must not be copied silently. | Iteration 13 | 40 MP input limit, local processing, usable visual quality, no upload. |
+| Standalone artifact contract | Filename, exact self-contained document shape and viewer code-sharing/build approach are unspecified. | Iteration 14 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot, Standalone HTML only. |
 
 These decisions need narrow technical or product clarification in their named iteration; they do not justify advance infrastructure.
 

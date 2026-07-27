@@ -1,5 +1,5 @@
 ---
-import AppHeader from "../components/AppHeader.astro";
+import App from "../components/App";
 import "../styles/global.css";
 
 interface Props {
@@ -23,9 +23,6 @@ const { title, description } = Astro.props;
 	</head>
 	<body>
 		<a class="skip-link" href="#main-content">Skip to main content</a>
-		<AppHeader />
-		<main id="main-content" tabindex="-1">
-			<slot />
-		</main>
+		<App client:load />
 	</body>
 </html>
