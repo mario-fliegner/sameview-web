@@ -1,6 +1,10 @@
 # build output
 dist/
 release/
+
+# Playwright output (test/e2e, see playwright.config.ts)
+test-results/
+playwright-report/
 # generated types
 .astro/
 

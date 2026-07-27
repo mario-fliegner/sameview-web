@@ -18,7 +18,12 @@
 //
 // Browser-safe: no Node, server, Astro or React API is used.
 
-import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js";
+import {
+	TextWriter,
+	Uint8ArrayReader,
+	Uint8ArrayWriter,
+	ZipReader,
+} from "@zip.js/zip.js";
 
 export const MAX_ARCHIVE_BYTES = 25 * 1024 * 1024;
 export const MAX_ARCHIVE_FILE_COUNT = 20;
@@ -129,4 +134,42 @@ export async function validateArchive(
 	}
 
 	return validateArchiveEntries(entries);
+}
+
+// Decompresses and returns exactly one named entry's content as UTF-8 text —
+// used by the file/metadata resolution step to read a candidate session's
+// metadata.json without decompressing anything else in the archive. Returns
+// undefined if no entry with that exact path exists.
+export async function readEntryText(
+	zipBytes: Uint8Array,
+	path: string,
+): Promise<string | undefined> {
+	const reader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	try {
+		const entries = await reader.getEntries();
+		const entry = entries.find((e) => !e.directory && e.filename === path);
+		if (!entry || entry.directory) return undefined;
+		return await entry.getData(new TextWriter());
+	} finally {
+		await reader.close();
+	}
+}
+
+// Decompresses and returns exactly one named entry's raw content bytes —
+// used to hand a resolved image file (e.g. reference.jpg) to browser-side
+// decode validation (src/lib/import-image.ts). Returns undefined if no entry
+// with that exact path exists.
+export async function readEntryBytes(
+	zipBytes: Uint8Array,
+	path: string,
+): Promise<Uint8Array | undefined> {
+	const reader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	try {
+		const entries = await reader.getEntries();
+		const entry = entries.find((e) => !e.directory && e.filename === path);
+		if (!entry || entry.directory) return undefined;
+		return await entry.getData(new Uint8ArrayWriter());
+	} finally {
+		await reader.close();
+	}
 }

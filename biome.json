@@ -12,6 +12,7 @@
 			"*.ts",
 			"*.mjs",
 			"test/**/*.mjs",
+			"test/**/*.ts",
 			"drizzle.config.ts",
 			"app.js"
 		]

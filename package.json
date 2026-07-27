@@ -16,6 +16,7 @@
     "typecheck": "astro check",
     "lint": "biome check .",
     "test": "node --test \"test/**/*.test.mjs\"",
+    "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -35,7 +36,9 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@biomejs/biome": "^2.5.5",
+    "@playwright/test": "^1.62.0",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.1.5"
   }
 }

@@ -91,7 +91,7 @@ This document defines engineering quality standards for the project.
 - Automated browser testing with Playwright is the approved strategy for critical browser workflows that cannot be proportionately verified by Node unit tests alone.
 - Manual verification is supplementary only, reserved for what cannot realistically be automated: native OS dialogs, real assistive technologies, limited real-device spot checks.
 - Browser automation stays proportional and targeted at critical user workflows; it does not duplicate deterministic unit tests.
-- Introduce browser automation when the first real browser workflow requires it (currently Phase 3).
+- Introduce browser automation when a capability genuinely has no Node equivalent, not merely when UI exists — e.g. Phase 2's image-decode validation (`createImageBitmap`), which is unavailable in Node and was the actual trigger for introducing Playwright, earlier than the workspace-UI phase originally assumed.
 
 ## Browser Compatibility
 - Stable APIs

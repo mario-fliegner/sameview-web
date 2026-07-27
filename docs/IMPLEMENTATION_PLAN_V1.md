@@ -54,12 +54,12 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Specs/features:** F-001; `IMPORTED_COMPARISON_V1.md` Supported Metadata Versions, Import Validity, Metadata Preservation; `ARCHITECTURE.md` Upload Limits and Export Structure.
 - **Existing basis:** Strict TypeScript only; no archive or parser implementation exists.
 - **Implement:** First add pure metadata parsing/validation and current-field-before-legacy-fallback resolution. Then add browser ZIP inspection with size, file-count, uncompressed-size, nested-archive and path-safety checks. Finally resolve exactly one referenced reference file and capture file plus accepted optional files, validating actual file content where specified.
-- **Likely areas:** A small client-safe import responsibility under `src/lib` or a feature area justified when implemented; focused fixtures under `test`.
-- **Dependencies:** Phase 1; ZIP dependency decision before archive inspection.
-- **Definition of Done:** Valid metadata versions 2–6 normalize into a lossless accepted representation; invalid JSON, unsupported/missing fields, unsafe archives and missing/ambiguous required files fail with typed product-level results and no workspace side effects.
-- **Tests/manual:** Node unit tests for parser, fallbacks, unknown-field preservation and archive/path limits; browser manual import of valid and invalid fixture ZIPs.
+- **Likely areas:** `src/lib/import-metadata.ts`, `src/lib/import-archive.ts`, `src/lib/import-resolve.ts`, `src/lib/import-image.ts`; layered fixtures under `test/unit`, `test/integration` and `test/e2e`.
+- **Dependencies:** Phase 1. Resolved: ZIP reading uses `@zip.js/zip.js`, chosen specifically because its entry-listing API exposes central-directory metadata (declared sizes) without decompressing content, required to reject an oversized archive before decompression is attempted.
+- **Definition of Done:** Valid metadata versions 2–6 normalize into a lossless accepted representation; invalid JSON, unsupported/missing fields, unsafe archives, missing/ambiguous required files, multi-session archives and undecodable/oversized required images fail with typed product-level results and no workspace side effects.
+- **Tests/manual:** Node unit tests (`test/unit`) for parser, fallbacks, unknown-field preservation and archive/path/resolver rules against plain literal data; Node integration tests (`test/integration`) for the same modules against real ZIP bytes, including the committed canonical real-export fixture (`test/fixtures/android-export/`); Playwright tests (`test/e2e`, `pnpm test:e2e`) for browser-only image decode validation and one complete import flow against the real export fixture — introduced here because `createImageBitmap` has no Node equivalent (see Section 6).
 - **Not included:** Workspace creation, UI editing, image optimization, uploads.
-- **Risks/open decisions:** Select the smallest maintained browser ZIP reader; define fixture provenance without inventing metadata semantics.
+- **Risks/open decisions:** None remaining for this phase; the ZIP library and fixture-provenance decisions noted in Section 9 are resolved.
 
 ### Phase 3 – Create the Atomic Single Workspace (F-001)
 
@@ -190,7 +190,7 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 - Use the existing Node test runner for pure metadata parsing, archive/path rules, normalization, date/label derivation, state transitions, allowlist construction, escaping and snapshot immutability.
 - Keep fixture ZIPs and images minimal and purpose-specific. Cover current and legacy metadata, unknown fields, malformed/unsafe archives, missing references, oversized decoded images and metadata-bearing images.
 - Preserve the existing `app.js` and Passenger regression suite; it validates deployment behavior, not V1 product behavior.
-- Use Playwright for automated end-to-end coverage of critical browser workflows that cannot be proportionately verified by Node unit tests alone: workspace creation and replacement, slider interaction, live editing, branding, outcome generation, and standalone HTML download and offline execution. Introduced starting at Phase 3, the first phase requiring real browser workflow coverage — see `AI_ENGINEERING_GUIDE.md`'s Testing section for the durable principle.
+- Use Playwright for automated end-to-end coverage of behavior that genuinely has no Node equivalent or that exercises a full end-to-end path: workspace creation and replacement, slider interaction, live editing, branding, outcome generation, standalone HTML download and offline execution, and browser-only image decode validation. Introduced at Phase 2 (`createImageBitmap` has no Node equivalent, needed to validate reference/capture image content) rather than deferred to Phase 3 as originally assumed — see `AI_ENGINEERING_GUIDE.md`'s Testing section for the durable principle.
 - Run `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build` at each applicable iteration boundary, together with the Playwright suite once introduced. Database migration/smoke testing is not a V1 product gate.
 - Manual verification remains supplementary only, for what automation cannot realistically reach: native OS file-picker dialogs, real assistive-technology behavior and limited real-device spot checks.
 
@@ -223,7 +223,6 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 
 | Decision | Why it is open | Required before | Constraints |
 |---|---|---|---|
-| Browser ZIP implementation | No ZIP reader dependency or native implementation exists. | Iteration 3 | Archive limits, path safety, no server upload, minimal dependencies. |
 | Local workspace retention | Architecture deliberately leaves local persistence technology undefined; current code has no client state. | Iteration 5 | Exactly one active workspace, local-only data, failure preservation; do not infer multi-workspace storage. |
 | Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 9 | F-003 visibility table and metadata preservation rules. |
 | Built-in branding catalog | `builtinId` exists conceptually, but supported V1 IDs/assets are not identified in the repository specs or assets. | Iteration 10 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design. |
