@@ -86,6 +86,13 @@ This document defines engineering quality standards for the project.
 - Safe migrations
 - No destructive changes without approval
 
+## Testing
+- Node's built-in test runner is the default for deterministic logic: parsing, validation, normalization, state transitions, derivation, escaping, serialization.
+- Automated browser testing with Playwright is the approved strategy for critical browser workflows that cannot be proportionately verified by Node unit tests alone.
+- Manual verification is supplementary only, reserved for what cannot realistically be automated: native OS dialogs, real assistive technologies, limited real-device spot checks.
+- Browser automation stays proportional and targeted at critical user workflows; it does not duplicate deterministic unit tests.
+- Introduce browser automation when the first real browser workflow requires it (currently Phase 3).
+
 ## Browser Compatibility
 - Stable APIs
 - Progressive enhancement

@@ -30,7 +30,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - Derive display and snapshot values instead of duplicating them in mutable state. Generating an outcome must not mutate Source Data or Current Working State.
 - Keep viewer rendering reusable by the workspace and generated Standalone HTML without coupling it to ZIP import UI or adding a future service layer.
 - Add no repository, service, database, upload or publication abstraction without a demonstrated V1 responsibility.
-- Extend the current test stack where it is sufficient. Add a test dependency only after the relevant testing decision is made and a real interaction cannot be covered proportionately otherwise.
+- Extend the current test stack where it is sufficient. Use Playwright for critical browser workflows that cannot be proportionately covered by Node unit tests alone, per the approved Testing strategy in `AI_ENGINEERING_GUIDE.md`.
 - Every iteration ends in a buildable, type-safe state with focused automated tests where supported and explicit manual verification where browser behavior is involved.
 
 ## 4. Implementation Phases
@@ -70,7 +70,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** The interactive workspace boundary, pure state transition helpers and import UI integration. React hydration is justified here by file input plus shared live state; its boundary should remain as small as practical.
 - **Dependencies:** Phase 2; local-retention decision before promising reload persistence.
 - **Definition of Done:** One successful import creates one workspace; Source Data cannot be changed through supported transitions; a second import replaces it only after confirmation and complete success.
-- **Tests/manual:** Unit tests for immutable transitions, atomic replacement and failure preservation; component/browser-level verification of select, cancel, failure and replace paths.
+- **Tests/manual:** Unit tests for immutable transitions, atomic replacement and failure preservation; automated Playwright E2E tests for select, cancel, failure and replace paths.
 - **Not included:** Multiple workspaces, autosave, server persistence, viewer behavior.
 - **Risks/open decisions:** The specifications leave browser persistence technology undefined; decide whether V1 is session-memory only or survives reload before this phase is finalized.
 
@@ -83,9 +83,9 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Hydrated workspace UI, comparison presentation component and scoped styles.
 - **Dependencies:** Phase 3.
 - **Definition of Done:** Both images can be inspected at common viewport sizes and input methods; interaction changes only presentation position, never workspace data.
-- **Tests/manual:** Pure geometry/state tests where applicable; browser/component tests after the test approach is selected; keyboard, touch, responsive, image-loading and no-mutation checks.
+- **Tests/manual:** Pure geometry/state tests where applicable; automated Playwright E2E tests for keyboard, touch, responsive, image-loading and no-mutation checks.
 - **Not included:** Editing, marker editing, HTML generation.
-- **Risks/open decisions:** Choose a proportionate DOM/browser test approach before relying on interaction automation; do not assume a framework currently exists.
+- **Risks/open decisions:** None; the Playwright framework decision is settled at Phase 3 and reused here.
 
 ### Phase 5 – Edit Comparison Information and Visibility (F-003)
 
@@ -96,7 +96,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Workspace state transitions, editor UI, viewer presentation.
 - **Dependencies:** Phases 3–4; explicit Current Working State representation for presentation visibility.
 - **Definition of Done:** Supported changes are reflected live; hide differs from remove; capture timestamp and Source Data remain unchanged; invalid edits cannot partially apply.
-- **Tests/manual:** Unit tests for normalization, date validation/mutation and immutable-field preservation; interaction tests for value/visibility changes; accessibility and responsive form checks.
+- **Tests/manual:** Unit tests for normalization, date validation/mutation and immutable-field preservation; automated Playwright E2E tests for value/visibility changes; manual accessibility and responsive form spot checks.
 - **Not included:** Tags, favorite/source metadata, GPS derivation, reverse geocoding, image replacement or alignment.
 - **Risks/open decisions:** The web visibility state is explicitly independent of imported `additional.visibility`, but its concrete working-state representation is unspecified and must be chosen before implementation.
 
@@ -109,7 +109,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Branding state transitions, controls, viewer presentation and client asset handling.
 - **Dependencies:** Phases 3–5; supported built-in symbol/asset decision.
 - **Definition of Done:** Every option switches cleanly and updates the viewer; Source Data stays unchanged; invalid custom images leave the previous branding intact.
-- **Tests/manual:** Unit tests for transitions and imported branding; interaction tests for switching/replacement/error paths; visual checks for scaling and contrast.
+- **Tests/manual:** Unit tests for transitions and imported branding; automated Playwright E2E tests for switching/replacement/error paths; manual visual checks for scaling and contrast.
 - **Not included:** New logo design, external asset hosting, server processing.
 - **Risks/open decisions:** The specs define `builtinId` but not the supported V1 ID/catalog; settle this before the phase without inventing symbols in code.
 
@@ -135,7 +135,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Client-safe image processing, outcome generation orchestration and focused tests/fixtures.
 - **Dependencies:** Phase 7; output image-format/quality/size decision.
 - **Definition of Done:** Processed output contains no original binary payload or embedded metadata, remains visually usable, stays local, and failure is atomic.
-- **Tests/manual:** Pure limit tests plus browser tests with metadata-bearing, malformed, oversized and valid fixtures; manual quality/file-size review.
+- **Tests/manual:** Pure limit tests plus automated Playwright E2E tests with metadata-bearing, malformed, oversized and valid fixtures; manual quality/file-size review.
 - **Not included:** V2 WebP publication limits, server validation, upload pipeline, persistent files.
 - **Risks/open decisions:** Current specs do not define Standalone HTML image format, dimensions, quality or absolute size; define these before implementation rather than copying V2 hosted-output limits.
 
@@ -148,7 +148,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Standalone document renderer, client download orchestration and reusable viewer behavior with no dependency on the workspace page.
 - **Dependencies:** Phases 7–8; standalone artifact contract decision.
 - **Definition of Done:** Downloaded HTML opens without network/server access, presents the snapshot interactively and accessibly, contains only allowlisted data, and remains unchanged after workspace edits.
-- **Tests/manual:** Unit tests for escaping, allowlist serialization and deterministic document structure; build/typecheck/lint; manual download/open checks offline in supported browsers and responsive/keyboard checks inside the artifact.
+- **Tests/manual:** Unit tests for escaping, allowlist serialization and deterministic document structure; build/typecheck/lint; automated Playwright E2E tests for download, offline execution and responsive/keyboard checks inside the artifact; manual spot checks in additional real browsers/devices.
 - **Not included:** Hosted output, URL, QR/iframe code, upload or management.
 - **Risks/open decisions:** The specs do not define filename, exact self-contained document contract or code-sharing/build mechanism; settle these before this phase while preserving fully client-side generation.
 
@@ -161,9 +161,9 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Likely areas:** Existing V1 components, styles and tests; no new architectural layer.
 - **Dependencies:** Phases 1–9.
 - **Definition of Done:** Completion Criteria below pass on the deployed Node application with no database, upload or publication dependency in the V1 workflow.
-- **Tests/manual:** Full `test`, `typecheck`, `lint`, `build`; end-to-end manual matrix for valid/invalid imports, replacement, editing, responsive inputs, repeated generation and offline artifact use.
+- **Tests/manual:** Full `test`, `typecheck`, `lint`, `build` and the automated Playwright E2E suite from Phases 3–9; manual regression sweep limited to the supplementary checks defined in `AI_ENGINEERING_GUIDE.md`'s Testing section.
 - **Not included:** Any deferred work below.
-- **Risks/open decisions:** If automated browser coverage has not been justified earlier, document the remaining manual regression surface rather than adding a framework at the end without scope.
+- **Risks/open decisions:** None; the testing strategy is settled (see Section 6).
 
 ## 5. Recommended Iteration Order
 
@@ -190,10 +190,9 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 - Use the existing Node test runner for pure metadata parsing, archive/path rules, normalization, date/label derivation, state transitions, allowlist construction, escaping and snapshot immutability.
 - Keep fixture ZIPs and images minimal and purpose-specific. Cover current and legacy metadata, unknown fields, malformed/unsafe archives, missing references, oversized decoded images and metadata-bearing images.
 - Preserve the existing `app.js` and Passenger regression suite; it validates deployment behavior, not V1 product behavior.
-- Before Phase 4, decide whether proportionate component/browser automation requires an additional tool. No such framework currently exists. Do not add one merely to mirror a preferred stack.
-- Use browser-level checks for file selection, replacement confirmation, slider keyboard/pointer behavior, live editing, branding file handling, Blob downloads and offline execution of generated HTML.
-- Run `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build` at each applicable iteration boundary. Database migration/smoke testing is not a V1 product gate.
-- Manually verify downloaded HTML in supported browsers because browser download behavior, offline loading, visual comparison quality and embedded interaction cross boundaries that pure unit tests do not prove.
+- Use Playwright for automated end-to-end coverage of critical browser workflows that cannot be proportionately verified by Node unit tests alone: workspace creation and replacement, slider interaction, live editing, branding, outcome generation, and standalone HTML download and offline execution. Introduced starting at Phase 3, the first phase requiring real browser workflow coverage — see `AI_ENGINEERING_GUIDE.md`'s Testing section for the durable principle.
+- Run `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build` at each applicable iteration boundary, together with the Playwright suite once introduced. Database migration/smoke testing is not a V1 product gate.
+- Manual verification remains supplementary only, for what automation cannot realistically reach: native OS file-picker dialogs, real assistive-technology behavior and limited real-device spot checks.
 
 ## 7. V2 Compatibility Boundaries
 
@@ -228,7 +227,6 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 | Local workspace retention | Architecture deliberately leaves local persistence technology undefined; current code has no client state. | Iteration 5 | Exactly one active workspace, local-only data, failure preservation; do not infer multi-workspace storage. |
 | Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 9 | F-003 visibility table and metadata preservation rules. |
 | Built-in branding catalog | `builtinId` exists conceptually, but supported V1 IDs/assets are not identified in the repository specs or assets. | Iteration 10 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design. |
-| Interaction test tooling | Only Node tests exist; they cannot by themselves prove DOM/file/download interaction. | Iteration 7 | Add no framework without demonstrated need; preserve current test scripts where possible. |
 | Standalone image profile | V1 requires metadata removal and optimization, but does not specify format, dimensions, quality or size. V2 hosted WebP limits must not be copied silently. | Iteration 12 | 40 MP input limit, local processing, usable visual quality, no upload. |
 | Standalone artifact contract | Filename, exact self-contained document shape and viewer code-sharing/build approach are unspecified. | Iteration 13 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot, Standalone HTML only. |
 
