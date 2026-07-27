@@ -96,3 +96,10 @@ main {
 	color: #c7ccd6;
 	font-weight: 600;
 }
+
+.workspace__import-label {
+	display: block;
+	margin-block-start: 1.5rem;
+	margin-block-end: 0.5rem;
+	font-weight: 600;
+}
