@@ -76,12 +76,14 @@ For the current Version 1 browser import and planned Version 2 publication uploa
 - Maximum uncompressed total size: 50 MB
 - Nested archives are not allowed
 - ZIP entries with absolute paths or path traversal segments (e.g. `../`) are rejected
+- A ZIP archive containing more than one entry with the same relative path is rejected as invalid; this check does not depend on the specific ZIP parser used
 
 ## Export Structure
 
 - SameView Web Version 1 accepts valid session metadata versions 2 through 6 inclusive
 - Current metadata fields are read before the documented legacy fallbacks in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md)
 - A valid import must contain a supported `metadata.json`
+- A SameView export ZIP may contain more than one session directory (e.g. a multi-session backup); because Version 1 supports exactly one active workspace, an import ZIP containing more than one valid session directory is rejected as a distinct import failure and does not create or replace a workspace
 - Relevant files are determined from the references in `metadata.json`
 - Exactly one referenced `reference` file and exactly one referenced `capture` file are required
 - Additional known SameView files may also be present (e.g. original images, HEIC source files, branding files)

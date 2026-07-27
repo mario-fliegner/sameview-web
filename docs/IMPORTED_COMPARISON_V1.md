@@ -67,6 +67,7 @@ Newer optional blocks and fields may be absent in older versions. Their absence 
 
 A valid import must:
 
+- resolve to exactly one session directory within the archive (see "Session Identity" below),
 - contain a parseable JSON object as `metadata.json`,
 - declare a supported metadata version in the top-level `version` field,
 - provide a valid capture timestamp through `capture.timestampMs` or its documented fallback,
@@ -87,6 +88,8 @@ Session identity is authoritatively the session's directory name inside the Same
 The Android reader (`SessionScanner.kt`) itself never validates a `session.id` or `sessionId` field for identity; it uses the containing directory name exclusively, and resolves `capture.timestampMs`'s fallback from the nested `session.createdAtMs` field without requiring an identity field to be present.
 
 Metadata-level parsing therefore does not require or validate a session identity value. Resolving the archive directory name — and, when `session.id` is present, confirming it matches — is a ZIP/archive-resolution-level concern, defined together with the file and archive validation rules in [ARCHITECTURE.md](ARCHITECTURE.md), not a metadata-parsing-level concern.
+
+A SameView export archive may legitimately contain more than one session directory (Android's own multi-session backup export produces exactly this structure). Because Version 1 supports exactly one active workspace, SameView Web does not select, merge or otherwise automatically resolve multiple session directories in a single import archive. An archive containing more than one valid session directory is rejected as a distinct import failure, as defined in [ARCHITECTURE.md](ARCHITECTURE.md) and [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-001.
 
 ## Metadata Preservation
 

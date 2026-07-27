@@ -74,6 +74,7 @@ A successful import creates one active workspace representing the selected compa
 
 - Exactly one workspace may be active at a time.
 - A workspace may be created only from a valid, supported SameView export.
+- A SameView export ZIP containing more than one valid session directory is rejected as a distinct import failure; SameView Web V1 does not select, merge or otherwise automatically resolve multiple sessions in one archive.
 - Source Data remains immutable after a successful import.
 - Unknown metadata fields and unknown optional blocks are tolerated and preserved where required by the imported comparison specification.
 - Current metadata fields take precedence over documented legacy fallbacks.
@@ -86,7 +87,7 @@ A successful import creates one active workspace representing the selected compa
 
 ### Failure Conditions
 
-An import fails when the selected archive is not a supported SameView export or does not satisfy the existing archive, metadata or referenced-file validation requirements. This includes an archive that cannot be accepted, a missing or unparseable `metadata.json`, an unsupported metadata version, missing or invalid required metadata, or required referenced comparison files that cannot be resolved or validated.
+An import fails when the selected archive is not a supported SameView export or does not satisfy the existing archive, metadata or referenced-file validation requirements. This includes an archive that cannot be accepted, a missing or unparseable `metadata.json`, an unsupported metadata version, missing or invalid required metadata, required referenced comparison files that cannot be resolved or validated, or an archive containing more than one valid session directory.
 
 When an import fails, the application communicates that the comparison could not be imported. The failure does not create a workspace from the rejected comparison. Failed imports never create a partially initialized workspace and never modify an already active workspace, its Current Working State or its previously generated outcomes.
 
