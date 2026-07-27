@@ -9,6 +9,13 @@ The following files under [docs/](docs/) are the binding functional and technica
 - [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md) — what SameView Web does and does not do (V1 scope)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technology, hosting, routes, storage
 - [docs/DATA_AND_PRIVACY.md](docs/DATA_AND_PRIVACY.md) — stored data, image processing, publication, deletion
+- [docs/FEATURE_SPECIFICATION.md](docs/FEATURE_SPECIFICATION.md) — normative functional behavior of each feature (F-001–F-007)
+- [docs/USER_WORKFLOW.md](docs/USER_WORKFLOW.md) — user journey, workspace model, workflow and operational states
+- [docs/IMPORTED_COMPARISON_V1.md](docs/IMPORTED_COMPARISON_V1.md) — the V1 import and metadata contract
+- [docs/IMPLEMENTATION_PLAN_V1.md](docs/IMPLEMENTATION_PLAN_V1.md) — V1 implementation phases and order; not itself a specification — approved specifications remain authoritative where they conflict
+- [docs/AI_ENGINEERING_GUIDE.md](docs/AI_ENGINEERING_GUIDE.md) — engineering quality standards (accessibility, security, performance, i18n, etc.)
+- [docs/BRAND_GUIDE.md](docs/BRAND_GUIDE.md) — brand identity, colors, typography
+- [docs/deployment.md](docs/deployment.md) — Netcup/Plesk deployment contract; complements ARCHITECTURE.md
 
 ## Hard Constraints (V1)
 
