@@ -1,9 +1,6 @@
 ---
 import Workspace from "../components/Workspace.astro";
 import AppLayout from "../layouts/AppLayout.astro";
-import { checkDbHealth } from "../lib/db-health";
-
-const dbHealth = await checkDbHealth();
 ---
 
 <AppLayout
@@ -11,31 +8,4 @@ const dbHealth = await checkDbHealth();
 	description="Present, export and publish photo comparisons created with SameView."
 >
 	<Workspace />
-	<section class="database-check" aria-labelledby="database-check-title">
-		<h2 id="database-check-title">Database check</h2>
-		<ul>
-			<li>
-				DATABASE_URL configured: {dbHealth.status === "unconfigured" ? "no" : "yes"}
-			</li>
-			{
-				dbHealth.status === "unconfigured" && (
-					<li>Database connection: not attempted (DATABASE_URL not set)</li>
-				)
-			}
-			{dbHealth.status === "unreachable" && <li>Database connection: failed</li>}
-			{
-				dbHealth.status === "connected" && (
-					<>
-						<li>Database connection: ok (SELECT 1 succeeded)</li>
-						<li>
-							Table "comparisons" exists: {dbHealth.tableExists ? "yes" : "no"}
-						</li>
-						{dbHealth.tableExists && (
-							<li>Row count in "comparisons": {dbHealth.comparisonsCount}</li>
-						)}
-					</>
-				)
-			}
-		</ul>
-	</section>
 </AppLayout>
