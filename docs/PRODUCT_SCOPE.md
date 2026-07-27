@@ -36,22 +36,24 @@ SameView Web presents, exports and optionally publishes it.
 2. Display an interactive comparison slider.
 3. Edit supported comparison metadata: title, description, reference date, user-authored location and session branding.
 4. Derive slider labels from the reference date and immutable capture timestamp; slider labels are not independently editable.
-5. Remove image metadata and optimize images.
+5. Remove image metadata and optimize images as required for the client-side standalone HTML output.
 6. Download as standalone HTML, generated entirely in the browser without uploading to the server.
-7. Publish online.
-8. Receive public URL, QR code and iframe embed code.
-9. Manage or delete the publication through a private management link.
 
 The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md).
 
 ## Outputs
 
+Currently supported in Version 1:
+
 - Standalone HTML
-- Hosted comparison
+
+Planned for Version 2:
+
+- Hosted Comparison
 - QR code
 - iframe embed code
 
-SameView Web is designed to support multiple comparison output types generated from the same comparison. The initial supported comparison output types are Standalone HTML and Hosted Comparison. Future versions may additionally support a Static Microsite and a CMS Package, and further comparison output types may be added in the future.
+SameView Web is designed to support multiple comparison output types generated from the same comparison. Version 1 supports Standalone HTML. Version 2 is planned to add Hosted Comparison, QR code and iframe embed code. Later versions may additionally support a Static Microsite and a CMS Package, and further comparison output types may be added in the future.
 
 ## Out of Scope (V1)
 
@@ -66,4 +68,7 @@ SameView Web is designed to support multiple comparison output types generated f
 
 ## Future Scope
 
+- Version 2: publish a Hosted Comparison online.
+- Version 2: receive a public URL, QR code and iframe embed code.
+- Version 2: manage, update or delete a publication through a private management link.
 - Open a selected comparison directly from SameView Android in SameView Web without requiring a manual ZIP import for that entry point.

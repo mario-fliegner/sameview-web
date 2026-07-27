@@ -2,15 +2,19 @@
 
 ## Privacy
 
-SameView Web is an optional publishing service.
+SameView Web supports local comparison output in Version 1 and is planned to add optional Hosted Publication in Version 2.
 
 The Android app continues to work completely offline.
 
-The standalone HTML export is generated entirely in the browser and never uploaded to the server.
+The Version 1 standalone HTML export is generated entirely in the browser and never uploaded to the server. Original ZIP files and complete metadata are not sent to the server for this output.
 
-Imported Source Data and the Current Working State remain full-fidelity and local to the user's browser. Publishing sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
+Imported Source Data and the Current Working State remain full-fidelity and local to the user's browser in Version 1.
+
+For Hosted Publication planned in Version 2, publishing sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
 
 ## Stored Data
+
+The following data may be stored for Hosted Publication in Version 2:
 
 - processed reference image
 - processed capture image
@@ -32,9 +36,9 @@ Additional files from the export (e.g. original images and HEIC source files) ar
 
 Session metadata in `metadata.json` is distinct from metadata embedded in image files.
 
-Source Data and the Current Working State preserve supported and unknown session metadata locally for compatibility. Image processing removes embedded EXIF, XMP, IPTC and GPS metadata from published images.
+Source Data and the Current Working State preserve supported and unknown session metadata locally for compatibility. For Hosted Publication in Version 2, image processing removes embedded EXIF, XMP, IPTC and GPS metadata from published images.
 
-## Image Processing
+## Image Processing (Version 2 Hosted Publication)
 
 Before storage:
 
@@ -45,7 +49,7 @@ Before storage:
 
 This processing is always performed by the server for every published comparison, independent of and without trusting any client-side processing already performed for the standalone HTML export.
 
-## Publication
+## Publication (Version 2)
 
 Publishing is always an explicit user action.
 
@@ -69,7 +73,7 @@ https://web.sameview.app/v/<public-id>
 Private management URL:
 https://web.sameview.app/manage/<management-token>
 
-## Deletion
+## Deletion (Version 2 Hosted Publication)
 
 Deletion removes:
 - publication
@@ -90,7 +94,7 @@ Temporary upload lifecycle:
 
 The concrete folder structure and cleanup/cron implementation are not yet defined.
 
-Version 1 uses hard delete exclusively. Deleting a publication means:
+Hosted Publication in Version 2 uses hard delete exclusively. Deleting a publication means:
 
 - the publication becomes immediately unreachable
 - the management link becomes immediately invalid

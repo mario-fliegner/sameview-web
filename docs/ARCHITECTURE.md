@@ -2,6 +2,8 @@
 
 ## Technology
 
+The Astro, React, TypeScript and Node.js application stack applies to Version 1. The MySQL and persistent local-filesystem capabilities are the prepared technical basis for Hosted Publication in Version 2; Version 1 does not implement publication infrastructure.
+
 - Astro
 - React
 - TypeScript
@@ -11,6 +13,8 @@
 
 ## Hosting
 
+Version 1 deploys as one Node.js application. The database and persistent upload directory listed below remain the prepared hosting basis for Version 2 Hosted Publication and are not used by the Version 1 standalone HTML output.
+
 - Domain: https://web.sameview.app
 - One Node.js application
 - One MySQL database
@@ -18,7 +22,7 @@
 
 ## Responsibilities
 
-Browser:
+Current Version 1 browser:
 - Import ZIP
 - Read supported SameView session metadata according to [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md)
 - Preserve immutable Source Data and unknown metadata fields locally
@@ -28,7 +32,10 @@ Browser:
 - Derive slider-label snapshots when generating an outcome
 - Generate the standalone HTML export (client-side, no upload required)
 
-Server:
+Planned Version 2 browser:
+- Trigger publication
+
+Planned Version 2 server:
 - Validate uploads
 - Process images
 - Process an optional branding asset when required by the published outcome
@@ -37,16 +44,23 @@ Server:
 - Publish comparisons
 - Generate management tokens
 
-The server always validates, decodes, strips metadata from and re-encodes images submitted for online publication itself. It never trusts client-side image processing, including any processing done for the standalone HTML export. The limits defined below apply to online publication; the client-side standalone HTML export has no server upload and should apply the same checks where practicable, but is not server-enforced.
+For Hosted Publication in Version 2, the server always validates, decodes, strips metadata from and re-encodes submitted images itself. It never trusts client-side image processing, including any processing done for the standalone HTML export. The limits defined below apply to Version 2 online publication; the Version 1 client-side standalone HTML export has no server upload and should apply the same checks where practicable, but is not server-enforced.
 
 ## Main Routes
 
+Current Version 1:
+
 /
  /new
+
+Planned for Hosted Publication in Version 2:
+
  /v/<public-id>
  /manage/<management-token>
 
 ## Identifiers
+
+The following identifiers are planned for Hosted Publication in Version 2:
 
 - `internal_id`: a UUID, used only internally for database rows and the filesystem path. Never exposed in a URL.
 - `public_id`: an independent, random, URL-safe string of about 10–12 characters, used in the public route `/v/<public-id>`.
@@ -54,6 +68,8 @@ The server always validates, decodes, strips metadata from and re-encodes images
 - Sequential database IDs must never appear in public URLs or storage paths.
 
 ## Upload Limits
+
+For the current Version 1 browser import and planned Version 2 publication upload:
 
 - Maximum ZIP size: 25 MB
 - Maximum number of contained files: 20
@@ -75,13 +91,18 @@ The server always validates, decodes, strips metadata from and re-encodes images
 
 ## Image Limits
 
-Input:
+Current Version 1 client-side standalone HTML input:
+
+- Maximum resolution per processed file: 40 megapixels
+- Files must be decoded and validated based on their actual content; file extension and browser-supplied MIME type alone are not sufficient
+
+Planned Version 2 publication input:
 
 - Maximum resolution per processed file: 40 megapixels
 - Files must be decoded and validated based on their actual content; file extension and browser-supplied MIME type alone are not sufficient
 - Only the reference, capture and optional branding files actually needed for publication are processed
 
-Hosted output:
+Planned Version 2 hosted output:
 
 - Scaled to a maximum of 1920 px on the long edge
 - Stored as WebP
@@ -90,21 +111,25 @@ Hosted output:
 
 ## Abuse Protection
 
-- Version 1 has no user accounts; anonymous publishing must be protected against automated abuse.
-- Simple server-side rate limiting is sufficient for Version 1.
-- No CAPTCHA and no external anti-spam services are used in Version 1.
+The following requirements apply to anonymous Hosted Publication planned for Version 2:
+
+- Anonymous publishing must be protected against automated abuse.
+- Simple server-side rate limiting is sufficient.
+- No CAPTCHA and no external anti-spam services are used.
 - The concrete technical implementation (e.g. Redis, in-memory) is not yet defined.
 - Failed publication attempts may use the same protection mechanisms.
 
 ## Storage
 
-Unpublished Source Data and the Current Working State remain local to the browser. The concrete local persistence technology is not defined here. Publication sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
+In Version 1, Source Data and the Current Working State remain local to the browser. The concrete local persistence technology is not defined here. Standalone HTML is generated entirely in the browser and is not uploaded.
 
-Database:
+For Hosted Publication planned in Version 2, publication sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
+
+Planned Version 2 database storage:
 - allowlisted outcome metadata
 - identifiers
 
-Filesystem:
+Planned Version 2 filesystem storage:
 comparisons/<internal-id>/
 - reference.webp
 - capture.webp
@@ -114,11 +139,15 @@ Original ZIP files are not stored.
 
 ## Backup
 
+The following backup requirements apply to the prepared database and persistent image storage used by Hosted Publication in Version 2:
+
 - The MySQL database and the persistent image storage are covered by the regular Netcup backups.
-- A detailed backup and restore strategy is not part of Version 1.
+- A detailed backup and restore strategy is not part of the planned Version 2 Hosted Publication architecture.
 - SameView Web is not a backup system for complete SameView exports.
 
 ## Local Development
+
+The publication-related MySQL setup described in this section is a prepared technical foundation for Version 2. It does not add publication infrastructure to the current Version 1 implementation scope.
 
 - The Astro/Node application runs locally directly on the host via pnpm; it does not run in a Docker container locally.
 - MySQL runs locally as a single container via Docker Desktop.
@@ -169,6 +198,8 @@ A full local reset will later be possible by removing the Docker volume and re-r
 
 ## Database Schema and Migrations
 
+These database requirements apply to the prepared Version 2 Hosted Publication foundation.
+
 - The database schema is fully versioned.
 - Schema and SQL migrations are stored in the repository.
 - Tables are never created automatically via `CREATE TABLE IF NOT EXISTS` on application startup.
@@ -178,7 +209,7 @@ A full local reset will later be possible by removing the Docker volume and re-r
 
 ## Initial Data Model
 
-Version 1 needs a single table, `comparisons`, consisting exclusively of:
+Hosted Publication in Version 2 is planned to use a single table, `comparisons`, consisting exclusively of:
 
 - `id` — internal UUID, primary key, generated by the application, never exposed publicly
 - `public_id` — cryptographically random, URL-safe public ID, unique

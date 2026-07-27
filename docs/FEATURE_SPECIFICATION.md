@@ -17,15 +17,15 @@ It does not redefine:
 
 ## Feature Index
 
-| ID | Feature |
-|----|---------|
-| F-001 | Import Comparison |
-| F-002 | View Comparison |
-| F-003 | Edit Comparison |
-| F-004 | Configure Comparison Branding |
-| F-005 | Generate Comparison Output |
-| F-006 | Publish Hosted Comparison (planned) |
-| F-007 | Manage Hosted Comparisons (planned) |
+| ID | Feature | Scope |
+|----|---------|-------|
+| F-001 | Import Comparison | Current Version 1 |
+| F-002 | View Comparison | Current Version 1 |
+| F-003 | Edit Comparison | Current Version 1 |
+| F-004 | Configure Comparison Branding | Current Version 1 |
+| F-005 | Generate Comparison Output | Current Version 1 |
+| F-006 | Publish Hosted Comparison (planned) | Planned Version 2 |
+| F-007 | Manage Hosted Comparisons (planned) | Planned Version 2 |
 
 ## Specification Principles
 
@@ -249,12 +249,15 @@ Generate Comparison Output allows the user to create a new comparison output art
 
 SameView Web supports multiple comparison output types generated from the same comparison.
 
-The currently supported output types are:
+The currently supported Version 1 output type is:
 
 - Standalone HTML
+
+The output type planned for Version 2 is:
+
 - Hosted Comparison
 
-Planned future output types include:
+Later possible output types include:
 
 - Static Microsite
 - CMS Package
