@@ -164,6 +164,313 @@ test("the slider is pointer-operable via drag", async ({ page }) => {
 	expect(value).toBeGreaterThan(70);
 });
 
+test("the divider line always shares the handle's horizontal center, after both click and drag", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const slider = page.getByRole("slider");
+	const dividerLine = page.getByTestId("comparison-divider-line");
+	const frame = page.getByTestId("comparison-slider");
+	const frameBox = await frame.boundingBox();
+	if (!frameBox) throw new Error("comparison-slider frame has no bounding box");
+
+	async function expectHandleAndDividerAligned() {
+		const handleBox = await slider.boundingBox();
+		const dividerBox = await dividerLine.boundingBox();
+		if (!handleBox || !dividerBox) {
+			throw new Error("handle or divider line has no bounding box");
+		}
+		const handleCenter = handleBox.x + handleBox.width / 2;
+		const dividerCenter = dividerBox.x + dividerBox.width / 2;
+		// A regression here (the divider line stuck at a stale position while
+		// the handle moves) would show up as tens of pixels of difference —
+		// this tolerance only allows for ordinary sub-pixel rendering rounding.
+		expect(Math.abs(handleCenter - dividerCenter)).toBeLessThanOrEqual(2);
+	}
+
+	// Click away from the default 50% position.
+	await page.mouse.click(
+		frameBox.x + frameBox.width * 0.25,
+		frameBox.y + frameBox.height / 2,
+	);
+	await expect(slider).toHaveAttribute("aria-valuenow", "25");
+	await expectHandleAndDividerAligned();
+
+	// Drag to a different position again.
+	await page.mouse.move(
+		frameBox.x + frameBox.width * 0.25,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		frameBox.x + frameBox.width * 0.8,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.up();
+	await expectHandleAndDividerAligned();
+});
+
+test("dragging continues correctly when the pointer moves outside the Viewer, and the position stays clamped", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const slider = page.getByRole("slider");
+	const frame = page.getByTestId("comparison-slider");
+	const frameBox = await frame.boundingBox();
+	if (!frameBox) throw new Error("comparison-slider frame has no bounding box");
+
+	await page.mouse.move(
+		frameBox.x + frameBox.width / 2,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.down();
+	// Well outside the frame's right edge, and past the bottom of the page —
+	// pointer capture (src/components/ComparisonSlider.tsx) must keep
+	// routing move events to the frame regardless.
+	await page.mouse.move(frameBox.x + frameBox.width + 400, frameBox.y - 200);
+	await expect(slider).toHaveAttribute("aria-valuenow", "100");
+
+	await page.mouse.move(frameBox.x - 400, frameBox.y - 200);
+	await expect(slider).toHaveAttribute("aria-valuenow", "0");
+	await page.mouse.up();
+});
+
+test("the on-image comparison labels use the Android-equivalent capture-aware wording", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	// sample-v6-session_full.zip: reference.date is "2024" (year precision)
+	// and the capture timestamp is in 2026 (see the workspace-session
+	// assertion above) — different years, so the ported Android priority
+	// chain (src/lib/compare-slider-labels.ts) resolves to the bare years,
+	// not the sidebar's independently-formatted referenceLabel.
+	await expect(page.getByTestId("comparison-slider-label-left")).toHaveText(
+		"2024",
+	);
+	await expect(page.getByTestId("comparison-slider-label-right")).toHaveText(
+		"2026",
+	);
+});
+
+test("each on-image label independently hides once its own rendered bounds would cross its Viewer edge", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const frame = page.getByTestId("comparison-slider");
+	const frameBox = await frame.boundingBox();
+	if (!frameBox) throw new Error("comparison-slider frame has no bounding box");
+
+	// Drag close to the left edge: the left label's own measured bounds
+	// cross the Viewer's left edge and it disappears, independently of the
+	// right label, which stays put.
+	await page.mouse.move(
+		frameBox.x + frameBox.width / 2,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(frameBox.x + 2, frameBox.y + frameBox.height / 2);
+	await page.mouse.up();
+	await expect(page.getByTestId("comparison-slider-label-left")).toHaveCount(0);
+	await expect(page.getByTestId("comparison-slider-label-right")).toBeVisible();
+
+	// Drag close to the right edge: the reverse.
+	await page.mouse.move(
+		frameBox.x + frameBox.width / 2,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		frameBox.x + frameBox.width - 2,
+		frameBox.y + frameBox.height / 2,
+	);
+	await page.mouse.up();
+	await expect(page.getByTestId("comparison-slider-label-left")).toBeVisible();
+	await expect(page.getByTestId("comparison-slider-label-right")).toHaveCount(
+		0,
+	);
+});
+
+test("touch and pen pointers drag the divider through the same Pointer Events implementation as the mouse", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const slider = page.getByRole("slider");
+	const frame = page.getByTestId("comparison-slider");
+	const frameBox = await frame.boundingBox();
+	if (!frameBox) throw new Error("comparison-slider frame has no bounding box");
+	const centerX = frameBox.x + frameBox.width / 2;
+	const centerY = frameBox.y + frameBox.height / 2;
+
+	// Playwright's own input APIs only ever emit pointerType "mouse"; a real
+	// touch/pen device is simulated the same way the app itself receives one
+	// in production — as native PointerEvents with a different pointerType —
+	// since the component has exactly one Pointer Events implementation with
+	// no touch/pen-specific branch to otherwise exercise. Each event is
+	// dispatched from its own `evaluate()` round trip (not all three from a
+	// single synchronous script): dispatching them back-to-back with no yield
+	// back to the browser never gives React a chance to commit the
+	// `isDragging` state update from pointerdown before pointermove's own
+	// (stale, pre-commit) handler closure runs — a test-harness artifact a
+	// real pointer stream never hits, since genuine hardware events always
+	// arrive as separate tasks.
+	async function dragWithPointerType(pointerType: "touch" | "pen") {
+		const pointerId = pointerType === "touch" ? 11 : 12;
+		await frame.evaluate(
+			(element, { pointerType: type, pointerId: id, x, y }) => {
+				element.dispatchEvent(
+					new PointerEvent("pointerdown", {
+						bubbles: true,
+						cancelable: true,
+						pointerId: id,
+						pointerType: type,
+						isPrimary: true,
+						clientX: x,
+						clientY: y,
+					}),
+				);
+			},
+			{ pointerType, pointerId, x: centerX, y: centerY },
+		);
+		await frame.evaluate(
+			(element, { pointerType: type, pointerId: id, x, y }) => {
+				element.dispatchEvent(
+					new PointerEvent("pointermove", {
+						bubbles: true,
+						cancelable: true,
+						pointerId: id,
+						pointerType: type,
+						isPrimary: true,
+						clientX: x + 40,
+						clientY: y,
+					}),
+				);
+			},
+			{ pointerType, pointerId, x: centerX, y: centerY },
+		);
+		await frame.evaluate(
+			(element, { pointerType: type, pointerId: id, x, y }) => {
+				element.dispatchEvent(
+					new PointerEvent("pointerup", {
+						bubbles: true,
+						cancelable: true,
+						pointerId: id,
+						pointerType: type,
+						isPrimary: true,
+						clientX: x + 40,
+						clientY: y,
+					}),
+				);
+			},
+			{ pointerType, pointerId, x: centerX, y: centerY },
+		);
+	}
+
+	await dragWithPointerType("touch");
+	const afterTouch = Number(await slider.getAttribute("aria-valuenow"));
+	expect(afterTouch).toBeGreaterThan(50);
+
+	await frame.evaluate((element) => {
+		element.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				cancelable: true,
+				pointerId: 20,
+				pointerType: "mouse",
+				isPrimary: true,
+				clientX: element.getBoundingClientRect().left + 10,
+				clientY: element.getBoundingClientRect().top + 10,
+			}),
+		);
+	});
+	await frame.evaluate((element) => {
+		element.dispatchEvent(
+			new PointerEvent("pointerup", {
+				bubbles: true,
+				cancelable: true,
+				pointerId: 20,
+				pointerType: "mouse",
+				isPrimary: true,
+			}),
+		);
+	});
+	await expect(slider).not.toHaveAttribute("aria-valuenow", String(afterTouch));
+
+	await dragWithPointerType("pen");
+	const afterPen = Number(await slider.getAttribute("aria-valuenow"));
+	expect(afterPen).toBeGreaterThan(0);
+});
+
+test("an unrelated concurrent pointer cannot move or terminate the active drag", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const slider = page.getByRole("slider");
+	const frame = page.getByTestId("comparison-slider");
+	const frameBox = await frame.boundingBox();
+	if (!frameBox) throw new Error("comparison-slider frame has no bounding box");
+
+	const x = frameBox.x + frameBox.width / 2;
+	const y = frameBox.y + frameBox.height / 2;
+
+	// Each event is its own `evaluate()` round trip so React commits the
+	// preceding state update first — see the comment on `dragWithPointerType`
+	// above for why dispatching a whole sequence synchronously would instead
+	// read a stale pre-commit closure.
+	async function dispatch(
+		eventType: string,
+		pointerId: number,
+		clientX: number,
+	) {
+		await frame.evaluate(
+			(element, { type, id, cx, cy }) => {
+				element.dispatchEvent(
+					new PointerEvent(type, {
+						bubbles: true,
+						cancelable: true,
+						pointerId: id,
+						pointerType: "touch",
+						isPrimary: id === 1,
+						clientX: cx,
+						clientY: cy,
+					}),
+				);
+			},
+			{ type: eventType, id: pointerId, cx: clientX, cy: y },
+		);
+	}
+
+	// Pointer 1 starts the drag.
+	await dispatch("pointerdown", 1, x);
+	// An unrelated second pointer (e.g. a second finger) moves and lifts — it
+	// must not affect the active drag at all.
+	await dispatch("pointermove", 2, x + 300);
+	await dispatch("pointerup", 2, x + 300);
+	await expect(slider).toHaveAttribute("aria-valuenow", "50");
+
+	// The original pointer keeps controlling the drag afterwards.
+	await dispatch("pointermove", 1, x + 40);
+	const afterOriginalContinues = await slider.getAttribute("aria-valuenow");
+	expect(Number(afterOriginalContinues)).toBeGreaterThan(50);
+	await dispatch("pointerup", 1, x + 40);
+});
+
+test("the Viewer keeps native vertical touch scrolling enabled", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const touchAction = await page
+		.getByTestId("comparison-slider")
+		.evaluate((element) => getComputedStyle(element).touchAction);
+	expect(touchAction).toBe("pan-y");
+});
+
 test("the Viewer appears before the comparison information in visual order on a narrow screen", async ({
 	page,
 }) => {

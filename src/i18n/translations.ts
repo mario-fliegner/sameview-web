@@ -51,6 +51,15 @@ export interface Translations {
 		readonly sliderLabel: string;
 		readonly referenceImageAlt: string;
 		readonly captureImageAlt: string;
+		// On-image comparison labels beside the slider handle (Android
+		// CompareLabelLogic.kt's Level 4/5 fallback wording:
+		// compare_label_past/present/reference/current) — distinct from
+		// referenceFallbackLabel/referenceHeading/captureHeading above, which
+		// are the sidebar's own separate wording.
+		readonly sliderPastLabel: string;
+		readonly sliderPresentLabel: string;
+		readonly sliderReferenceLabel: string;
+		readonly sliderCurrentLabel: string;
 	};
 	readonly replacementMode: {
 		readonly validatingHeading: string;
@@ -104,6 +113,10 @@ export const translations: Record<Locale, Translations> = {
 			sliderLabel: "Comparison position",
 			referenceImageAlt: "Reference photo",
 			captureImageAlt: "New photo",
+			sliderPastLabel: "Past",
+			sliderPresentLabel: "Present",
+			sliderReferenceLabel: "Reference",
+			sliderCurrentLabel: "Current",
 		},
 		replacementMode: {
 			validatingHeading: "Preparing replacement…",
@@ -157,6 +170,10 @@ export const translations: Record<Locale, Translations> = {
 			sliderLabel: "Vergleichsposition",
 			referenceImageAlt: "Referenzfoto",
 			captureImageAlt: "Neues Foto",
+			sliderPastLabel: "Früher",
+			sliderPresentLabel: "Heute",
+			sliderReferenceLabel: "Referenz",
+			sliderCurrentLabel: "Aktuell",
 		},
 		replacementMode: {
 			validatingHeading: "Ersetzung wird vorbereitet…",

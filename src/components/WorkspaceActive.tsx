@@ -75,8 +75,22 @@ export default function WorkspaceActive({
 		() =>
 			deriveComparisonPresentation(currentWorkingState.metadata, locale, {
 				referenceFallbackLabel: t.workspace.referenceFallbackLabel,
+				sliderLabelFallbacks: {
+					past: t.workspace.sliderPastLabel,
+					present: t.workspace.sliderPresentLabel,
+					reference: t.workspace.sliderReferenceLabel,
+					current: t.workspace.sliderCurrentLabel,
+				},
 			}),
-		[currentWorkingState.metadata, locale, t.workspace.referenceFallbackLabel],
+		[
+			currentWorkingState.metadata,
+			locale,
+			t.workspace.referenceFallbackLabel,
+			t.workspace.sliderPastLabel,
+			t.workspace.sliderPresentLabel,
+			t.workspace.sliderReferenceLabel,
+			t.workspace.sliderCurrentLabel,
+		],
 	);
 
 	const referenceSrc = useObjectUrl(currentWorkingState.files.referenceBytes);
@@ -115,6 +129,8 @@ export default function WorkspaceActive({
 					captureAlt={t.workspace.captureImageAlt}
 					sliderLabel={t.workspace.sliderLabel}
 					loadingLabel={t.workspace.loadingLabel}
+					leftLabel={presentation.sliderLabels.left}
+					rightLabel={presentation.sliderLabels.right}
 				/>
 				<ComparisonInfo
 					description={presentation.description}

@@ -523,9 +523,12 @@ main {
 	   letterbox background" — the same established treatment for the area
 	   behind/around the comparison images. */
 	background: #17202f;
-	/* Prevents the browser's own touch-scroll/zoom gestures from fighting
-	   the slider's own pointer-drag handling. */
-	touch-action: none;
+	/* `pan-y` (not `none`): lets the browser keep handling vertical page
+	   scroll natively when a touch gesture starts inside the Viewer, while
+	   horizontal movement is still left entirely to the pointer handlers
+	   below — `none` would also block scrolling straight past the Viewer on
+	   a phone. */
+	touch-action: pan-y;
 }
 
 .comparison-slider__frame--loading {
@@ -555,33 +558,67 @@ main {
 	object-fit: cover;
 	user-select: none;
 	-webkit-user-drag: none;
+	/* The frame itself owns all pointer handling (docs/... F-002 Viewer
+	   interaction model) — the images are purely decorative layers and must
+	   never be the ones hit-tested, dragged natively, or selected. */
+	pointer-events: none;
 }
 
+/* Comparison handle (Android CompareScreen.kt `CompareDivider`/
+   `CompareSliderViewport` — see src/components/ComparisonSlider.tsx's own
+   constants comment for the exact dp values each rule below transcribes).
+   This wrapper is the 56dp-equivalent invisible interaction/focus corridor,
+   wider than the 48dp visible handle on purpose — the visual ring, circle
+   and chevrons live in the child SVG. */
 .comparison-slider__handle {
 	position: absolute;
 	inset-block: 0;
-	width: 0.1875rem;
-	margin-inline-start: -0.09375rem;
-	background: #4f8cff;
+	width: 3.5rem;
+	margin-inline-start: -1.75rem;
 	cursor: ew-resize;
 }
 
-.comparison-slider__handle::after {
-	content: "";
+.comparison-slider__handle-visual {
 	position: absolute;
 	inset-block-start: 50%;
 	inset-inline-start: 50%;
-	width: 2.75rem;
-	height: 2.75rem;
+	width: 3.375rem;
+	height: 3.375rem;
 	transform: translate(-50%, -50%);
-	border-radius: 50%;
-	background: #4f8cff;
-	box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.3);
+	/* Approximates Android's `shadow(3.dp, CircleShape)` on the handle. */
+	filter: drop-shadow(0 0.1875rem 0.1875rem rgba(0, 0, 0, 0.3));
 }
 
-.comparison-slider__handle:focus-visible {
+.comparison-slider__handle:focus-visible .comparison-slider__handle-visual {
 	outline: 0.1875rem solid #ffffff;
 	outline-offset: 0.1875rem;
+	border-radius: 50%;
+}
+
+.comparison-slider__divider-line {
+	position: absolute;
+	inset-block: 0;
+	/* inset-inline-start is set inline (src/components/ComparisonSlider.tsx),
+	   driven by the live slider position — same coordinate system as
+	   `.comparison-slider__handle` below, so both always share one center. */
+	width: 0.125rem;
+	margin-inline-start: -0.0625rem;
+	background: rgba(255, 255, 255, 0.9);
+	pointer-events: none;
+}
+
+.comparison-slider__label {
+	position: absolute;
+	inset-block-start: 50%;
+	color: #ffffff;
+	font-size: 0.875rem;
+	font-weight: 600;
+	white-space: nowrap;
+	/* Approximates Android's Shadow(color = Black @ 0.75 alpha, offset (0,1),
+	   blurRadius = 4) — legible over arbitrary image content without a
+	   background chip. */
+	text-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.75);
+	pointer-events: none;
 }
 
 .comparison-slider__loading {

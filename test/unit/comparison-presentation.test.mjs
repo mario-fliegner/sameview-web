@@ -8,6 +8,12 @@ import { describe, test } from "node:test";
 import { deriveComparisonPresentation } from "../../src/lib/comparison-presentation.ts";
 
 const FALLBACK = "Then";
+const SLIDER_LABEL_FALLBACKS = {
+	past: "Past",
+	present: "Present",
+	reference: "Reference",
+	current: "Current",
+};
 
 function metadataWithRaw(raw, captureTimestampMs = 1700000000000) {
 	return {
@@ -32,7 +38,10 @@ describe("deriveComparisonPresentation", () => {
 				},
 			}),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 
 		assert.equal(result.title, "White wall");
@@ -48,7 +57,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ title: "Legacy Title" }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.title, "Legacy Title");
 	});
@@ -56,6 +68,7 @@ describe("deriveComparisonPresentation", () => {
 	test("title, description and location are all undefined when absent", () => {
 		const result = deriveComparisonPresentation(metadataWithRaw({}), "en", {
 			referenceFallbackLabel: FALLBACK,
+			sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
 		});
 		assert.equal(result.title, undefined);
 		assert.equal(result.description, undefined);
@@ -66,7 +79,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ location: {} }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.location, undefined);
 	});
@@ -74,6 +90,7 @@ describe("deriveComparisonPresentation", () => {
 	test("reference label uses the fallback when reference.date is absent", () => {
 		const result = deriveComparisonPresentation(metadataWithRaw({}), "en", {
 			referenceFallbackLabel: FALLBACK,
+			sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
 		});
 		assert.equal(result.referenceLabel, FALLBACK);
 	});
@@ -82,7 +99,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ reference: { date: "2024" } }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.referenceLabel, "2024");
 	});
@@ -91,7 +111,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ reference: { date: "2024-05" } }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.referenceLabel, "May 2024");
 	});
@@ -100,7 +123,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ reference: { date: "2024-05-06" } }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.referenceLabel, "May 6, 2024");
 	});
@@ -109,7 +135,10 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ reference: { date: "not-a-date" } }),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		assert.equal(result.referenceLabel, FALLBACK);
 	});
@@ -118,9 +147,51 @@ describe("deriveComparisonPresentation", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({ reference: { date: "2024-05-06" } }),
 			"de",
-			{ referenceFallbackLabel: "Damals" },
+			{
+				referenceFallbackLabel: "Damals",
+				sliderLabelFallbacks: {
+					past: "Früher",
+					present: "Heute",
+					reference: "Referenz",
+					current: "Aktuell",
+				},
+			},
 		);
 		assert.equal(result.referenceLabel, "6. Mai 2024");
+	});
+
+	test("sliderLabels falls back to the reference/current wording when reference.date is absent", () => {
+		const result = deriveComparisonPresentation(
+			metadataWithRaw({}, Date.UTC(2026, 6, 27)),
+			"en",
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
+		);
+		assert.deepEqual(result.sliderLabels, {
+			left: "Reference",
+			right: "Current",
+		});
+	});
+
+	test("sliderLabels are capture-aware, unlike the independently-formatted sidebar referenceLabel", () => {
+		// Same year as the capture timestamp below: the sidebar's
+		// referenceLabel formats "2024" in isolation, while sliderLabels
+		// compares against the capture date and falls back to Past/Present
+		// per the ported Android priority chain (compare-slider-labels.test.mjs
+		// covers the full chain; this only checks the two are wired together
+		// and genuinely differ).
+		const result = deriveComparisonPresentation(
+			metadataWithRaw({ reference: { date: "2024" } }, Date.UTC(2024, 6, 27)),
+			"en",
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
+		);
+		assert.equal(result.referenceLabel, "2024");
+		assert.deepEqual(result.sliderLabels, { left: "Past", right: "Present" });
 	});
 
 	test("capture label is derived from captureTimestampMs and localized", () => {
@@ -128,12 +199,23 @@ describe("deriveComparisonPresentation", () => {
 		const resultEn = deriveComparisonPresentation(
 			metadataWithRaw({}, captureTimestampMs),
 			"en",
-			{ referenceFallbackLabel: FALLBACK },
+			{
+				referenceFallbackLabel: FALLBACK,
+				sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
+			},
 		);
 		const resultDe = deriveComparisonPresentation(
 			metadataWithRaw({}, captureTimestampMs),
 			"de",
-			{ referenceFallbackLabel: "Damals" },
+			{
+				referenceFallbackLabel: "Damals",
+				sliderLabelFallbacks: {
+					past: "Früher",
+					present: "Heute",
+					reference: "Referenz",
+					current: "Aktuell",
+				},
+			},
 		);
 		assert.equal(resultEn.captureLabel, "July 27, 2026");
 		assert.equal(resultDe.captureLabel, "27. Juli 2026");
@@ -148,6 +230,7 @@ describe("deriveComparisonPresentation", () => {
 		const before = JSON.stringify(raw);
 		deriveComparisonPresentation(metadata, "en", {
 			referenceFallbackLabel: FALLBACK,
+			sliderLabelFallbacks: SLIDER_LABEL_FALLBACKS,
 		});
 		assert.equal(JSON.stringify(raw), before);
 	});

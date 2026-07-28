@@ -19,6 +19,11 @@
 // duplication would blur that boundary.
 
 import type { Locale } from "../i18n/translations";
+import {
+	type CompareSliderLabelFallbacks,
+	type CompareSliderLabels,
+	computeCompareSliderLabels,
+} from "./compare-slider-labels.ts";
 import type { ResolvedImportedMetadata } from "./import-metadata";
 
 export interface ComparisonLocation {
@@ -33,6 +38,12 @@ export interface ComparisonPresentation {
 	readonly referenceLabel: string;
 	readonly captureLabel: string;
 	readonly location: ComparisonLocation | undefined;
+	// The Viewer's on-image labels beside the slider handle — distinct from
+	// referenceLabel/captureLabel above (the sidebar's independent,
+	// non-capture-aware formatting). Computed by the ported Android priority
+	// chain in ./compare-slider-labels, which compares reference.date against
+	// the capture date rather than formatting each in isolation.
+	readonly sliderLabels: CompareSliderLabels;
 }
 
 export interface DeriveComparisonPresentationOptions {
@@ -41,6 +52,7 @@ export interface DeriveComparisonPresentationOptions {
 	// Internationalization: "the layout must not contain hard-coded
 	// user-facing strings").
 	readonly referenceFallbackLabel: string;
+	readonly sliderLabelFallbacks: CompareSliderLabelFallbacks;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -168,5 +180,11 @@ export function deriveComparisonPresentation(
 		),
 		captureLabel: deriveCaptureLabel(metadata.captureTimestampMs, locale),
 		location: resolveLocation(raw),
+		sliderLabels: computeCompareSliderLabels(
+			getNestedString(raw, "reference", "date"),
+			metadata.captureTimestampMs,
+			locale,
+			options.sliderLabelFallbacks,
+		),
 	};
 }
