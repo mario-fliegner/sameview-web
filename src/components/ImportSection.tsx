@@ -3,11 +3,33 @@
 // (`Workspace Active`) placeholder pending later phases (viewer, editing,
 // branding, output — see docs/IMPLEMENTATION_PLAN_V1.md Phases 4+).
 //
+// The `No Workspace` composition is deliberately not a bordered/shadowed
+// "card": the entire region between header and footer is one open stage —
+// SameView's own two-frame symbol (large, with a soft glow behind it, grouped
+// with the glow in `.import-stage__symbol` so the glow stays centered on the
+// icon regardless of how much text follows), a headline, a real
+// "Choose Export" button, and a quiet caption. An earlier iteration also had
+// a supporting line between the headline and the button; it was removed
+// because it restated the same idea as the headline/button in different
+// words rather than answering a genuinely different user question (see the
+// information-hierarchy review that approved this change). Clicking or
+// dropping anywhere in the stage (not just on the icon or button) starts the
+// same import. The page's H1 is visually hidden (`.visually-hidden`) rather
+// than removed — sighted users get their immediate context from the stage's
+// composition instead; assistive technology and the document outline still
+// get exactly one heading.
+//
 // This component owns only the presentational states (idle, drag-active,
 // importing, import-failed) and the existing workspace-creation logic; it
 // does not change docs/FEATURE_SPECIFICATION.md F-001 behavior. Workspace
 // replacement is a separate, later iteration — once a workspace is active,
 // this component no longer offers an import entry point.
+//
+// `data-testid` attributes below exist so E2E functional/interaction tests
+// never depend on visible copy or CSS class names, which change frequently
+// as this screen's wording and presentation are iterated on. Copy itself is
+// still covered, but only in tests whose explicit purpose is verifying copy
+// or translation (see test/e2e/app-shell.spec.ts).
 
 import {
 	type ChangeEvent,
@@ -24,6 +46,26 @@ import {
 	initialWorkspaceState,
 	type WorkspaceState,
 } from "../lib/workspace-state";
+
+// SameView's own two-frame glyph — the product's identity, not a generic
+// cloud-upload icon (this product never uploads anything;
+// docs/DATA_AND_PRIVACY.md). Rendered large: it is the stage's central
+// visual element, not a small label icon.
+function StageIcon() {
+	return (
+		<svg
+			className="import-stage__icon"
+			viewBox="0 0 48 48"
+			width="96"
+			height="96"
+			aria-hidden="true"
+			focusable="false"
+		>
+			<rect x="5" y="11" width="26" height="26" rx="4" />
+			<rect x="17" y="21" width="26" height="26" rx="4" />
+		</svg>
+	);
+}
 
 export default function ImportSection() {
 	const { t } = useLocale();
@@ -65,16 +107,16 @@ export default function ImportSection() {
 		inputRef.current?.click();
 	}
 
-	function handleDropzoneKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+	function handleStageKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === "Enter" || event.key === " ") {
 			event.preventDefault();
 			openFilePicker();
 		}
 	}
 
-	function handleSelectButtonClick(event: MouseEvent<HTMLButtonElement>) {
-		// Prevents the dropzone's own onClick from also firing for the same
-		// interaction (the button is nested inside the dropzone).
+	function handleChooseButtonClick(event: MouseEvent<HTMLButtonElement>) {
+		// Prevents the stage's own onClick from also firing for the same
+		// interaction (the button is nested inside the stage).
 		event.stopPropagation();
 		openFilePicker();
 	}
@@ -91,8 +133,8 @@ export default function ImportSection() {
 
 	function handleDragLeave(event: DragEvent<HTMLDivElement>) {
 		event.preventDefault();
-		// Ignore leave events caused by moving between children of the
-		// dropzone (e.g. onto the nested button) to avoid flicker.
+		// Ignore leave events caused by moving between children of the stage
+		// (e.g. onto the nested button) to avoid flicker.
 		const nextTarget = event.relatedTarget as Node | null;
 		if (nextTarget && event.currentTarget.contains(nextTarget)) return;
 		setIsDragActive(false);
@@ -111,11 +153,15 @@ export default function ImportSection() {
 			<section
 				className="workspace-active"
 				aria-labelledby="workspace-active-title"
+				data-testid="workspace-active"
 			>
 				<h1 id="workspace-active-title" className="workspace-active__title">
 					{t.workspace.title}
 				</h1>
-				<p className="workspace-active__session">
+				<p
+					className="workspace-active__session"
+					data-testid="workspace-session"
+				>
 					{t.workspace.sessionLabel}{" "}
 					{workspaceState.workspace.currentWorkingState.sessionDirectory}
 				</p>
@@ -123,26 +169,30 @@ export default function ImportSection() {
 		);
 	}
 
-	const dropzoneClassName = [
-		"dropzone",
-		isDragActive && "dropzone--drag-active",
-		isImporting && "dropzone--importing",
+	const stageClassName = [
+		"import-stage",
+		isDragActive && "import-stage--drag-active",
+		isImporting && "import-stage--importing",
 	]
 		.filter(Boolean)
 		.join(" ");
 
 	return (
-		<section className="import-section" aria-labelledby="import-section-title">
-			<h1 id="import-section-title" className="import-section__title">
-				{t.importSection.title}
+		<section
+			className="import-section"
+			aria-labelledby="import-section-heading"
+		>
+			<h1 id="import-section-heading" className="visually-hidden">
+				{t.importSection.hiddenHeading}
 			</h1>
-			<p className="import-section__description">
-				{t.importSection.description}
-			</p>
 
 			<div className="import-section__alert-slot">
 				{errorMessage && (
-					<p className="import-section__alert" role="alert">
+					<p
+						className="import-section__alert"
+						data-testid="import-error"
+						role="alert"
+					>
 						{errorMessage}
 					</p>
 				)}
@@ -150,35 +200,43 @@ export default function ImportSection() {
 
 			{/* biome-ignore lint/a11y/useSemanticElements: cannot be a <button>
 			    element because it contains a nested, separately-clickable
-			    <button> (the "select" secondary interaction per
+			    <button> (the "Choose Export" secondary interaction per
 			    docs/APPLICATION_LAYOUT.md "Import Button"); nesting a <button>
 			    inside a native <button> is invalid HTML. */}
 			<div
-				className={dropzoneClassName}
+				className={stageClassName}
+				data-testid="import-stage"
 				role="button"
 				tabIndex={0}
 				aria-disabled={isImporting}
-				aria-describedby="import-section-status"
+				aria-describedby="import-stage-status"
 				onClick={openFilePicker}
-				onKeyDown={handleDropzoneKeyDown}
+				onKeyDown={handleStageKeyDown}
 				onDragEnter={handleDragEnter}
 				onDragOver={handleDragOver}
 				onDragLeave={handleDragLeave}
 				onDrop={handleDrop}
 			>
-				<p className="dropzone__hint">{t.importSection.dropzoneLabel}</p>
-				<p className="dropzone__or">{t.importSection.dropzoneOr}</p>
+				<div className="import-stage__symbol">
+					<span className="import-stage__glow" aria-hidden="true" />
+					<StageIcon />
+				</div>
+				<p className="import-stage__instruction">
+					{t.importSection.heroInstruction}
+				</p>
 				<button
 					type="button"
-					className="dropzone__button"
+					className="import-stage__button"
+					data-testid="import-choose-button"
 					disabled={isImporting}
-					onClick={handleSelectButtonClick}
+					onClick={handleChooseButtonClick}
 				>
-					{t.importSection.selectButton}
+					{t.importSection.chooseExportButton}
 				</button>
 				<p
-					id="import-section-status"
-					className="dropzone__status"
+					id="import-stage-status"
+					className="import-stage__status"
+					data-testid="import-status"
 					aria-live="polite"
 				>
 					{isImporting ? t.importSection.importing : ""}
@@ -195,14 +253,7 @@ export default function ImportSection() {
 				/>
 			</div>
 
-			<p className="import-section__privacy">
-				{t.importSection.privacyNoticeLine1}
-				<br />
-				{t.importSection.privacyNoticeLine2}
-			</p>
-			<p className="import-section__format">
-				{t.importSection.supportedFormat}
-			</p>
+			<p className="import-section__caption">{t.importSection.helperCaption}</p>
 		</section>
 	);
 }

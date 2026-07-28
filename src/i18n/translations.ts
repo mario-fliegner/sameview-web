@@ -31,14 +31,10 @@ export interface Translations {
 		readonly imprint: string;
 	};
 	readonly importSection: {
-		readonly title: string;
-		readonly description: string;
-		readonly dropzoneLabel: string;
-		readonly dropzoneOr: string;
-		readonly selectButton: string;
-		readonly privacyNoticeLine1: string;
-		readonly privacyNoticeLine2: string;
-		readonly supportedFormat: string;
+		readonly hiddenHeading: string;
+		readonly heroInstruction: string;
+		readonly chooseExportButton: string;
+		readonly helperCaption: string;
 		readonly importing: string;
 		readonly importFailed: string;
 	};
@@ -67,18 +63,13 @@ export const translations: Record<Locale, Translations> = {
 			imprint: "Imprint",
 		},
 		importSection: {
-			title: "Import Comparison",
-			description:
-				"Continue working with an exported SameView comparison directly in your browser.",
-			dropzoneLabel: "Drag & Drop",
-			dropzoneOr: "or",
-			selectButton: "Select SameView Export (.zip)",
-			privacyNoticeLine1: "Processed locally in your browser.",
-			privacyNoticeLine2: "Nothing is uploaded.",
-			supportedFormat: "Supports SameView Export (.zip)",
-			importing: "Importing…",
+			hiddenHeading: "Start a workspace with a SameView Export",
+			heroInstruction: "Start with your SameView Export",
+			chooseExportButton: "Choose Export",
+			helperCaption: "Processed on your device. Nothing is uploaded.",
+			importing: "Setting up your workspace…",
 			importFailed:
-				"This file could not be imported as a SameView comparison. Please choose a valid SameView export ZIP.",
+				"That doesn't look like a SameView Export — try another file.",
 		},
 		workspace: {
 			title: "Comparison imported",
@@ -103,18 +94,14 @@ export const translations: Record<Locale, Translations> = {
 			imprint: "Impressum",
 		},
 		importSection: {
-			title: "Vergleich importieren",
-			description:
-				"Arbeite direkt im Browser mit einem exportierten SameView-Vergleich weiter.",
-			dropzoneLabel: "Ziehen & Ablegen",
-			dropzoneOr: "oder",
-			selectButton: "SameView-Export auswählen (.zip)",
-			privacyNoticeLine1: "Wird lokal in deinem Browser verarbeitet.",
-			privacyNoticeLine2: "Es wird nichts hochgeladen.",
-			supportedFormat: "Unterstützt SameView-Export (.zip)",
-			importing: "Wird importiert…",
+			hiddenHeading: "Starte einen Arbeitsbereich mit einem SameView-Export",
+			heroInstruction: "Starte mit deinem SameView-Export",
+			chooseExportButton: "Export auswählen",
+			helperCaption:
+				"Wird auf deinem Gerät verarbeitet. Nichts wird hochgeladen.",
+			importing: "Arbeitsbereich wird eingerichtet…",
 			importFailed:
-				"Diese Datei konnte nicht als SameView-Vergleich importiert werden. Bitte wähle einen gültigen SameView-Export als ZIP-Datei.",
+				"Das sieht nicht nach einem SameView-Export aus — versuche es mit einer anderen Datei.",
 		},
 		workspace: {
 			title: "Vergleich importiert",

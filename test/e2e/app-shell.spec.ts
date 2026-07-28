@@ -1,14 +1,26 @@
 // Coverage for the application shell introduced by docs/APPLICATION_LAYOUT.md:
 // header identity, the DE/EN language selector, footer legal navigation, and
-// the polished import dropzone's accessibility/interaction states. Runs
-// against the real app (see the "app" project in playwright.config.ts).
+// the "No Workspace" stage's accessibility/interaction states. Runs against
+// the real app (see the "app" project in playwright.config.ts).
 //
-// The language-switch test is the most important case here: it exists
-// specifically to prove the approved architecture decision actually holds —
-// switching language must not reload the page and must not lose an already
-// active workspace, since V1 has no workspace persistence (see
-// src/i18n/LocaleContext.tsx and src/i18n/translations.ts for why a
-// route-based locale switch was deliberately rejected).
+// Functional/interaction tests below locate elements by stable `data-testid`
+// attributes (see src/components/ImportSection.tsx), never by visible copy
+// or translated text — this screen's wording has changed in nearly every
+// iteration, and a functional test coupled to it broke every time even
+// though the behavior it covered never changed. Copy and translation are
+// still covered, but only in tests explicitly about wording (marked below);
+// accessibility tests may use roles/accessible names where the test is
+// specifically about accessibility, per the same reasoning.
+//
+// The language-switch persistence test is the most important functional case
+// here: it exists specifically to prove the approved architecture decision
+// actually holds — switching language must not reload the page and must not
+// lose an already active workspace, since V1 has no workspace persistence
+// (see src/i18n/LocaleContext.tsx and src/i18n/translations.ts for why a
+// route-based locale switch was deliberately rejected). It is kept separate
+// from the dedicated translation-content test below so that a future wording
+// change can never accidentally mask a regression in that architectural
+// guarantee, or vice versa.
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,83 +67,112 @@ test("footer links to the existing sameview.app legal pages", async ({
 	).toHaveAttribute("href", "https://sameview.app/en/imprint");
 });
 
+// Functional: proves the architectural guarantee. Deliberately locates
+// everything via stable testids/attributes, never via translated copy — see
+// "switching language translates the visible UI text" below for the
+// (separate) claim that the wording actually changes.
 test("switching language updates the UI immediately, without navigating or losing the active workspace", async ({
 	page,
 }) => {
 	await page
 		.locator("#import-zip-input")
 		.setInputFiles(join(fixturesDir, "archives", "valid-with-real-images.zip"));
-	await expect(
-		page.getByRole("heading", { name: "Comparison imported" }),
-	).toBeVisible();
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
 
 	const urlBeforeSwitch = page.url();
 
 	await page.getByRole("button", { name: "DE", exact: true }).click();
 
 	// Proves both requirements at once: if the switch had reloaded the page,
-	// the in-memory workspace would be gone and this German heading (only
-	// shown once a workspace is active) would not appear.
-	await expect(
-		page.getByRole("heading", { name: "Vergleich importiert" }),
-	).toBeVisible();
-	await expect(page.getByText(/2024-01-15_10-30-00/)).toBeVisible();
+	// the in-memory workspace would be gone and this testid would disappear.
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+	await expect(page.getByTestId("workspace-session")).toContainText(
+		"2024-01-15_10-30-00",
+	);
 	expect(page.url()).toBe(urlBeforeSwitch);
 
-	// Footer and header text updated too ("complete application UI").
-	await expect(
-		page.getByRole("link", { name: "Datenschutz", exact: true }),
-	).toBeVisible();
 	await expect(
 		page.getByRole("button", { name: "DE", exact: true }),
 	).toHaveAttribute("aria-current", "true");
 });
 
-test("the dropzone is keyboard operable and opens the native file picker on Enter", async ({
+// Copy/localization: the one place that deliberately asserts translated
+// wording landed, kept separate from the functional persistence test above.
+test("switching language translates the visible UI text", async ({ page }) => {
+	await page.getByRole("button", { name: "DE", exact: true }).click();
+
+	await expect(
+		page.getByRole("heading", {
+			name: "Starte einen Arbeitsbereich mit einem SameView-Export",
+		}),
+	).toBeVisible();
+	await expect(
+		page.getByRole("link", { name: "Datenschutz", exact: true }),
+	).toBeVisible();
+});
+
+test("the stage is keyboard operable and opens the native file picker on Enter", async ({
 	page,
 }) => {
-	const dropzone = page.locator(".dropzone");
-	await dropzone.focus();
+	const stage = page.getByTestId("import-stage");
+	await stage.focus();
 	const chooserPromise = page.waitForEvent("filechooser");
 	await page.keyboard.press("Enter");
 	await chooserPromise;
 });
 
-test("the dropzone is keyboard operable and opens the native file picker on Space", async ({
+test("the stage is keyboard operable and opens the native file picker on Space", async ({
 	page,
 }) => {
-	const dropzone = page.locator(".dropzone");
-	await dropzone.focus();
+	const stage = page.getByTestId("import-stage");
+	await stage.focus();
 	const chooserPromise = page.waitForEvent("filechooser");
 	await page.keyboard.press(" ");
 	await chooserPromise;
 });
 
-test("dragging a file over the dropzone shows the drag-active state", async ({
+test("dragging a file over the stage shows the drag-active state", async ({
 	page,
 }) => {
-	const dropzone = page.locator(".dropzone");
-	await expect(dropzone).not.toHaveClass(/dropzone--drag-active/);
+	const stage = page.getByTestId("import-stage");
+	await expect(stage).not.toHaveClass(/import-stage--drag-active/);
 
-	await dropzone.dispatchEvent("dragenter", {
+	await stage.dispatchEvent("dragenter", {
 		dataTransfer: await page.evaluateHandle(() => new DataTransfer()),
 	});
-	await expect(dropzone).toHaveClass(/dropzone--drag-active/);
+	await expect(stage).toHaveClass(/import-stage--drag-active/);
 
-	await dropzone.dispatchEvent("dragleave", {
+	await stage.dispatchEvent("dragleave", {
 		dataTransfer: await page.evaluateHandle(() => new DataTransfer()),
 	});
-	await expect(dropzone).not.toHaveClass(/dropzone--drag-active/);
+	await expect(stage).not.toHaveClass(/import-stage--drag-active/);
 });
 
-test("a failed import shows an accessible alert above the dropzone", async ({
+// Accessibility: specifically verifies the failure is exposed as a
+// semantic alert, so it intentionally uses role/accessible-name queries
+// rather than a testid. It does not assert on the message's wording — see
+// "the import failure message uses the expected product wording" below.
+test("a failed import shows an accessible alert above the stage", async ({
 	page,
 }) => {
 	await page
 		.locator("#import-zip-input")
 		.setInputFiles(join(fixturesDir, "archives", "missing-required-file.zip"));
 
-	const alert = page.getByRole("alert");
-	await expect(alert).toBeVisible();
-	await expect(alert).toContainText(/could not be imported/i);
+	await expect(page.getByRole("alert")).toBeVisible();
+});
+
+// Copy/localization: the dedicated place that asserts the failure message's
+// actual wording, decoupled from the accessibility test above and from the
+// functional failure-path coverage in test/e2e/workspace-creation.spec.ts.
+test("the import failure message uses the expected product wording", async ({
+	page,
+}) => {
+	await page
+		.locator("#import-zip-input")
+		.setInputFiles(join(fixturesDir, "archives", "missing-required-file.zip"));
+
+	await expect(page.getByTestId("import-error")).toContainText(
+		/doesn't look like a SameView Export/i,
+	);
 });

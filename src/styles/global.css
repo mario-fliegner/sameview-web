@@ -175,7 +175,9 @@ a {
 	text-decoration: underline;
 }
 
-/* Main content */
+/* Main content: a slight upward bias (more bottom padding than top) so the
+   centered stage reads as deliberately composed rather than mathematically
+   centered — a true dead-center placement tends to look slightly too low. */
 
 main {
 	display: flex;
@@ -183,30 +185,28 @@ main {
 	align-items: center;
 	justify-content: center;
 	width: 100%;
-	padding: 1rem;
+	padding: 1.5rem 1rem 3.5rem;
 }
 
-/* Import section (docs/APPLICATION_LAYOUT.md "Import Section") */
+/* Import section — the stage is the entire visual hierarchy
+   (docs/APPLICATION_LAYOUT.md "Import Section"); everything else here is
+   deliberately quiet supporting context. */
 
 .import-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 	width: 100%;
-	max-width: 32rem;
+	max-width: 46rem;
+	height: 100%;
 	margin-inline: auto;
 	text-align: center;
 }
 
-.import-section__title {
-	margin-block-end: 0.5rem;
-}
-
-.import-section__description {
-	margin-block-end: 1.5rem;
-	color: #c7ccd6;
-}
-
 .import-section__alert-slot {
 	/* Reserves space so the error message appearing does not shift the
-	   dropzone excessively (docs/APPLICATION_LAYOUT.md "Import Failed"). */
+	   stage excessively (docs/APPLICATION_LAYOUT.md "Import Failed"). */
+	width: 100%;
 	min-height: 3rem;
 }
 
@@ -220,74 +220,156 @@ main {
 	text-align: start;
 }
 
-.import-section__privacy,
-.import-section__format {
-	margin-block-start: 1.25rem;
+.import-section__caption {
+	margin-block-start: 1rem;
 	color: #c7ccd6;
-	font-size: 0.875rem;
+	font-size: 0.8125rem;
 }
 
-.import-section__format {
-	margin-block-start: 0.5rem;
-}
+/* Stage: the entire clickable/drop region — deliberately not a bordered,
+   shadowed "card". There is no visible boundary at rest; scale, the glow
+   behind the icon and generous surrounding space signal that this whole
+   area is the one interactive surface, not a rectangle drawn around it.
+   The app's shared :focus-visible outline still applies here, so keyboard
+   users get an unambiguous boundary exactly when they tab to it.
 
-/* Dropzone: both the drag target and the clickable file selector
-   (docs/APPLICATION_LAYOUT.md "Drag & Drop"). */
+   Spacing between children is deliberately uneven, not a uniform `gap`:
+   icon → headline → supporting line are held close together (one message),
+   then a larger gap sets the button apart as the action that follows it —
+   so the whole stack reads as one composed object with internal structure,
+   not a list of equally-spaced items. */
 
-.dropzone {
+.import-stage {
+	position: relative;
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	align-items: center;
-	gap: 0.5rem;
-	padding: 3rem 1.5rem;
-	border: 0.125rem dashed #2a3445;
-	border-radius: 0.5rem;
-	background: #17202f;
+	justify-content: center;
+	width: 100%;
+	min-height: 24rem;
+	padding: 3rem 2rem;
 	cursor: pointer;
 }
 
-.dropzone--drag-active {
-	border-color: #4f8cff;
-	background: #1e2c40;
-}
-
-.dropzone--importing {
+.import-stage--importing {
 	cursor: not-allowed;
 	opacity: 0.7;
 }
 
-.dropzone__hint {
-	margin: 0;
-	font-weight: 600;
-	font-size: 1.125rem;
+/* Wraps the icon and its glow together so the glow stays centered on the
+   icon itself regardless of how much text follows below it. */
+.import-stage__symbol {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.dropzone__or {
-	margin: 0;
-	color: #c7ccd6;
+/* Soft accent-colored light behind the icon — depth and "premium" feel
+   without illustration, per docs/BRAND_GUIDE.md's sparing use of the accent
+   color for interactive/active states. Purely decorative, and deliberately
+   subtle: it supports the icon, it isn't a visual effect of its own. */
+.import-stage__glow {
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-start: 50%;
+	z-index: 0;
+	width: 17rem;
+	height: 17rem;
+	background: radial-gradient(
+		circle,
+		rgba(79, 140, 255, 0.14) 0%,
+		rgba(79, 140, 255, 0) 70%
+	);
+	transform: translate(-50%, -50%);
+	transition:
+		width 0.2s ease,
+		height 0.2s ease,
+		background 0.2s ease;
 }
 
-.dropzone__button {
-	margin-block-start: 0.5rem;
-	padding: 0.625rem 1.25rem;
-	border: 1px solid #4f8cff;
-	border-radius: 0.25rem;
-	background: none;
+.import-stage:hover .import-stage__glow,
+.import-stage:focus-visible .import-stage__glow {
+	width: 20rem;
+	height: 20rem;
+}
+
+.import-stage--drag-active .import-stage__glow {
+	width: 24rem;
+	height: 24rem;
+	background: radial-gradient(
+		circle,
+		rgba(79, 140, 255, 0.28) 0%,
+		rgba(79, 140, 255, 0) 70%
+	);
+}
+
+.import-stage__icon {
+	position: relative;
+	z-index: 1;
+	color: rgba(79, 140, 255, 0.75);
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	filter: drop-shadow(0 0.5rem 1rem rgba(79, 140, 255, 0.18));
+	transition:
+		color 0.15s ease,
+		transform 0.15s ease;
+}
+
+.import-stage:hover .import-stage__icon,
+.import-stage:focus-visible .import-stage__icon,
+.import-stage--drag-active .import-stage__icon {
 	color: #4f8cff;
-	font: inherit;
-	font-weight: 600;
-	cursor: pointer;
+	transform: scale(1.05);
 }
 
-.dropzone__button:disabled {
+.import-stage__instruction {
+	position: relative;
+	z-index: 1;
+	margin: 1.5rem 0 0;
+	font-weight: 600;
+	font-size: 1.625rem;
+	letter-spacing: -0.01em;
+}
+
+.import-stage__button {
+	position: relative;
+	z-index: 1;
+	margin-block-start: 2rem;
+	padding: 0.75rem 1.5rem;
+	border: 1px solid rgba(79, 140, 255, 0.25);
+	border-radius: 0.625rem;
+	background: #17202f;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	cursor: pointer;
+	box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.2);
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.import-stage__button:hover,
+.import-stage__button:focus-visible {
+	border-color: #4f8cff;
+}
+
+.import-stage__button:disabled {
 	cursor: not-allowed;
 	opacity: 0.7;
 }
 
-.dropzone__status {
-	margin-block-start: 0.5rem;
+.import-stage__status {
+	position: relative;
+	z-index: 1;
+	margin: 0.75rem 0 0;
 	min-height: 1.25rem;
 	color: #c7ccd6;
+	font-size: 0.875rem;
 }
 
 /* Workspace Active (minimal placeholder; the viewer/comparison/output
