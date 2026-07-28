@@ -286,6 +286,16 @@ A loading indicator communicates ongoing processing.
 
 ---
 
+## Import Succeeded
+
+A short visual confirmation communicates that the import completed successfully.
+
+No additional user interaction is required to continue.
+
+The workspace then becomes the primary focus.
+
+---
+
 ## Import Failed
 
 The drop zone remains visible.
@@ -310,6 +320,10 @@ Once a comparison has been successfully imported, the application switches compl
 The large import area disappears.
 
 The focus becomes working with the comparison.
+
+The transition into the workspace preserves the user's orientation.
+
+The workspace becomes the new visual focus automatically, without requiring further navigation.
 
 Desktop layout:
 
@@ -518,6 +532,12 @@ When a workspace already exists, importing another export becomes a dedicated wo
 It is not presented as the original large landing-page import area.
 
 Replacement is initiated from the header.
+
+Replace Export is intentionally a secondary workspace action.
+
+It remains easily accessible, but never competes visually with the active workspace.
+
+Once a workspace is active, the workspace itself — not the import action — remains the primary focus.
 
 Future iterations define:
 
