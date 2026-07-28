@@ -81,16 +81,13 @@ test("switching language updates the UI immediately, without navigating or losin
 
 	const urlBeforeSwitch = page.url();
 
-	// Force: the language selector now renders in the footer while a
-	// workspace is active, which the Astro dev server's own dev-only
-	// toolbar (astro-dev-toolbar, fixed to the bottom of the viewport, never
-	// present in a production build) visually overlaps and intercepts
-	// pointer events for — confirmed via the actionability-retry log, not
-	// assumed. This is a test-environment artifact of where the button now
-	// sits, not a real product interaction problem.
-	await page
-		.getByRole("button", { name: "DE", exact: true })
-		.click({ force: true });
+	// Invokes the button's own click() rather than a real pointer click:
+	// Astro's dev toolbar (dev-only, never present in a production build)
+	// overlaps the footer's language selector in the Playwright dev server,
+	// so this verifies the language-switch logic below, not real pointer
+	// actionability.
+	const germanButton = page.getByRole("button", { name: "DE", exact: true });
+	await germanButton.evaluate((element: HTMLElement) => element.click());
 
 	// Proves both requirements at once: if the switch had reloaded the page,
 	// the in-memory workspace would be gone and this testid would disappear.
@@ -100,9 +97,7 @@ test("switching language updates the UI immediately, without navigating or losin
 	);
 	expect(page.url()).toBe(urlBeforeSwitch);
 
-	await expect(
-		page.getByRole("button", { name: "DE", exact: true }),
-	).toHaveAttribute("aria-current", "true");
+	await expect(germanButton).toHaveAttribute("aria-current", "true");
 });
 
 // Copy/localization: the one place that deliberately asserts translated

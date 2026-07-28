@@ -1,9 +1,9 @@
 // Implements docs/APPLICATION_LAYOUT.md's "Import Section" and "Import
-// States" for State A (`No Workspace`), the minimal State B
-// (`Workspace Active`) placeholder pending later phases (viewer, editing,
-// branding, output — see docs/IMPLEMENTATION_PLAN_V1.md Phases 4+), and the
-// transient green "Import Succeeded" confirmation with its automatic scroll
-// into the workspace.
+// States" for State A (`No Workspace`), and the transient green
+// "Import Succeeded" confirmation with its automatic scroll into the
+// workspace. State B (`Workspace Active`) itself is
+// src/components/WorkspaceActive.tsx (docs/FEATURE_SPECIFICATION.md F-002) —
+// this component only decides which of the two states to render.
 //
 // The `No Workspace` composition is deliberately not a bordered/shadowed
 // "card": the entire region between header and footer is one open stage —
@@ -26,16 +26,14 @@
 // "Replace Export" action needs to trigger the same input and pipeline, so
 // the smallest common owner is the shared parent, not this component or a
 // new store. This component renders two mutually exclusive top-level views
-// driven by props: the `No Workspace` stage, and the `Workspace Active`
-// placeholder — each with exactly one H1, matching the established pattern.
+// driven by props: the `No Workspace` stage, and (delegated to
+// src/components/WorkspaceActive.tsx) `Workspace Active`.
 //
 // The Replace Export validate/confirm decision (docs/FEATURE_SPECIFICATION.md
 // F-001 step 2) is deliberately NOT rendered here: it is an application-level
 // modal owned by the app shell (src/components/ReplacementModeOverlay.tsx),
-// independent of whatever this component (or its future Viewer/Editor/Output
-// successors) currently renders — see the forward-looking Replacement Mode
-// analysis this implements. This component only reacts to a replacement's
-// atomic commit by moving focus to the workspace heading (below).
+// independent of whatever this component (or WorkspaceActive) renders — see
+// the forward-looking Replacement Mode analysis this implements.
 //
 // `data-testid` attributes below exist so E2E functional/interaction tests
 // never depend on visible copy or CSS class names, which change frequently
@@ -47,12 +45,11 @@ import {
 	type DragEvent,
 	type KeyboardEvent,
 	type MouseEvent,
-	useEffect,
-	useRef,
 	useState,
 } from "react";
 import { useLocale } from "../i18n/LocaleContext";
 import type { WorkspaceState } from "../lib/workspace-state";
+import WorkspaceActive from "./WorkspaceActive";
 
 // SameView's own two-frame glyph — the product's identity, not a generic
 // cloud-upload icon (this product never uploads anything;
@@ -93,56 +90,7 @@ export default function ImportSection({
 }: ImportSectionProps) {
 	const { t } = useLocale();
 	const [isDragActive, setIsDragActive] = useState(false);
-	const activeSectionRef = useRef<HTMLElement>(null);
-	const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
-	const previousStatusRef = useRef(workspaceState.status);
-	const previousWorkspaceRef = useRef(
-		workspaceState.status === "active" ? workspaceState.workspace : null,
-	);
 	const isBusy = isImporting || importSucceeded;
-
-	// Scrolls smoothly to the beginning of the workspace exactly once, the
-	// moment the *initial* import commits (docs/APPLICATION_LAYOUT.md "Import
-	// Succeeded": "the page then scrolls smoothly to the beginning of the
-	// active workspace"). Detected as a `no-workspace` -> `active` transition
-	// rather than "workspace is active" alone, so a later Replace Export
-	// commit (`active` -> `active`) never re-triggers it — that transition
-	// has its own, separate rules below.
-	useEffect(() => {
-		const wasNoWorkspace = previousStatusRef.current === "no-workspace";
-		const isNowActive = workspaceState.status === "active";
-		if (wasNoWorkspace && isNowActive) {
-			const prefersReducedMotion = window.matchMedia(
-				"(prefers-reduced-motion: reduce)",
-			).matches;
-			activeSectionRef.current?.scrollIntoView({
-				behavior: prefersReducedMotion ? "auto" : "smooth",
-				block: "start",
-			});
-		}
-		previousStatusRef.current = workspaceState.status;
-	}, [workspaceState.status]);
-
-	// Moves focus (not scroll) to the workspace heading exactly once a
-	// Replace Export commit lands (`active` -> a *different* `active`
-	// workspace object), since the app shell's ReplacementModeOverlay has
-	// just closed and the workspace it decided about has changed under it.
-	// Never fires for the initial `no-workspace` -> `active` commit (there is
-	// no previous workspace object to differ from), which keeps its own
-	// scroll-based orientation above.
-	useEffect(() => {
-		const currentWorkspace =
-			workspaceState.status === "active" ? workspaceState.workspace : null;
-		const previousWorkspace = previousWorkspaceRef.current;
-		if (
-			currentWorkspace &&
-			previousWorkspace &&
-			currentWorkspace !== previousWorkspace
-		) {
-			workspaceHeadingRef.current?.focus();
-		}
-		previousWorkspaceRef.current = currentWorkspace;
-	}, [workspaceState]);
 
 	function handleStageKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === "Enter" || event.key === " ") {
@@ -187,37 +135,10 @@ export default function ImportSection({
 
 	if (workspaceState.status === "active") {
 		return (
-			<section
-				className="workspace-active"
-				aria-labelledby="workspace-active-title"
-				data-testid="workspace-active"
-				ref={activeSectionRef}
-			>
-				<h1
-					id="workspace-active-title"
-					className="workspace-active__title"
-					ref={workspaceHeadingRef}
-					tabIndex={-1}
-				>
-					{t.workspace.title}
-				</h1>
-				<p
-					className="workspace-active__session"
-					data-testid="workspace-session"
-				>
-					{t.workspace.sessionLabel}{" "}
-					{workspaceState.workspace.currentWorkingState.sessionDirectory}
-				</p>
-				{errorMessage && (
-					<p
-						className="import-section__alert"
-						data-testid="import-error"
-						role="alert"
-					>
-						{errorMessage}
-					</p>
-				)}
-			</section>
+			<WorkspaceActive
+				currentWorkingState={workspaceState.workspace.currentWorkingState}
+				errorMessage={errorMessage}
+			/>
 		);
 	}
 

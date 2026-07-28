@@ -464,22 +464,181 @@ main {
 	color: #4caf50;
 }
 
-/* Workspace Active (minimal placeholder; the viewer/comparison/output
-   regions are later iterations, see docs/IMPLEMENTATION_PLAN_V1.md). */
+/* Workspace Active (docs/APPLICATION_LAYOUT.md "State B — Workspace Active",
+   "Viewer", "Comparison Section"; docs/FEATURE_SPECIFICATION.md F-002). The
+   Output Section and Editor controls are later iterations — see
+   src/components/WorkspaceActive.tsx and src/components/ComparisonInfo.tsx
+   for where they extend this layout without restructuring it. Max width is
+   generous (unlike the earlier one-line placeholder's 32rem): this is now a
+   real application workspace, not a short status message. */
 
 .workspace-active {
 	width: 100%;
-	max-width: 32rem;
+	max-width: 80rem;
 	margin-inline: auto;
-	text-align: center;
 }
 
-.workspace-active__session {
-	color: #c7ccd6;
+.workspace-active__title {
+	margin-block-end: 1rem;
+	font-size: 1.5rem;
 }
 
 .workspace-active .import-section__alert {
+	margin-block-end: 1.25rem;
+}
+
+/* Single column, Viewer first, on narrow screens
+   (docs/APPLICATION_LAYOUT.md "Responsive Layout": "Mobile: Single column...
+   Viewer ↓ Comparison"). Becomes two columns at the shared tablet/desktop
+   breakpoint below — the project's first deliberate `@media` breakpoint
+   besides reduced-motion, since this specific column-count change needs a
+   layout-axis flip that fluid sizing alone cannot express. */
+.workspace-active__layout {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1.5rem;
+}
+
+@media (min-width: 48rem) {
+	.workspace-active__layout {
+		grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+		align-items: start;
+		gap: 2rem;
+	}
+}
+
+/* Comparison Viewer (docs/APPLICATION_LAYOUT.md "Viewer"). The frame's
+   aspect ratio is set inline once real image dimensions are known
+   (src/components/ComparisonSlider.tsx) — never guessed as portrait or
+   landscape beforehand, hence the plain `--loading` treatment below instead
+   of a default `aspect-ratio`. */
+
+.comparison-slider__frame {
+	position: relative;
+	width: 100%;
+	margin-inline: auto;
+	border-radius: 0.75rem;
+	overflow: hidden;
+	/* Surface color (docs/BRAND_GUIDE.md): "compare viewports... compare
+	   letterbox background" — the same established treatment for the area
+	   behind/around the comparison images. */
+	background: #17202f;
+	/* Prevents the browser's own touch-scroll/zoom gestures from fighting
+	   the slider's own pointer-drag handling. */
+	touch-action: none;
+}
+
+.comparison-slider__frame--loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 16rem;
+}
+
+.comparison-slider__frame--ready {
+	aspect-ratio: var(--comparison-ratio, auto);
+	/* Height-constrained viewports: caps the frame's height at roughly 65% of
+	   the viewport (a deliberately conservative fixed fraction, leaving room
+	   for the header/footer chrome around it, rather than a precise
+	   measurement) by capping width to whatever value would produce that
+	   height at the real aspect ratio — width and height then shrink
+	   together, preserving the ratio and centering via `margin-inline: auto`
+	   above, instead of distorting, cropping or exceeding the viewport. */
+	max-width: calc(65vh * var(--comparison-ratio, 1));
+}
+
+.comparison-slider__image {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+.comparison-slider__handle {
+	position: absolute;
+	inset-block: 0;
+	width: 0.1875rem;
+	margin-inline-start: -0.09375rem;
+	background: #4f8cff;
+	cursor: ew-resize;
+}
+
+.comparison-slider__handle::after {
+	content: "";
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-start: 50%;
+	width: 2.75rem;
+	height: 2.75rem;
+	transform: translate(-50%, -50%);
+	border-radius: 50%;
+	background: #4f8cff;
+	box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.3);
+}
+
+.comparison-slider__handle:focus-visible {
+	outline: 0.1875rem solid #ffffff;
+	outline-offset: 0.1875rem;
+}
+
+.comparison-slider__loading {
+	color: #c7ccd6;
+	font-size: 0.875rem;
+}
+
+/* Comparison Section / info panel (docs/APPLICATION_LAYOUT.md "Comparison
+   Section"). One block per item, deliberately not one paragraph — the seam
+   later editing controls (Phase 5) extend without restructuring this. */
+
+.comparison-info__description {
+	color: #c7ccd6;
+}
+
+.comparison-info__labels {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin: 1rem 0 0;
+	padding: 0.875rem 1rem;
+	border: 1px solid #2a3445;
+	border-radius: 0.5rem;
+	background: #17202f;
+}
+
+.comparison-info__label-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.comparison-info__label-row dt {
+	color: #c7ccd6;
+}
+
+.comparison-info__label-row dd {
+	margin: 0;
+	font-weight: 600;
+	text-align: end;
+}
+
+.comparison-info__location {
+	margin-block-start: 1rem;
+}
+
+.comparison-info__location-heading {
+	margin-block-end: 0.25rem;
+	color: #c7ccd6;
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.comparison-info__session {
 	margin-block-start: 1.25rem;
+	color: #c7ccd6;
+	font-size: 0.8125rem;
 }
 
 /* Replacement Mode (docs/APPLICATION_LAYOUT.md "Replace Export";

@@ -43,6 +43,14 @@ export interface Translations {
 	readonly workspace: {
 		readonly title: string;
 		readonly sessionLabel: string;
+		readonly referenceFallbackLabel: string;
+		readonly referenceHeading: string;
+		readonly captureHeading: string;
+		readonly locationHeading: string;
+		readonly loadingLabel: string;
+		readonly sliderLabel: string;
+		readonly referenceImageAlt: string;
+		readonly captureImageAlt: string;
 	};
 	readonly replacementMode: {
 		readonly validatingHeading: string;
@@ -88,6 +96,14 @@ export const translations: Record<Locale, Translations> = {
 		workspace: {
 			title: "Comparison imported",
 			sessionLabel: "Session",
+			referenceFallbackLabel: "Then",
+			referenceHeading: "Reference",
+			captureHeading: "Capture",
+			locationHeading: "Location",
+			loadingLabel: "Loading comparison…",
+			sliderLabel: "Comparison position",
+			referenceImageAlt: "Reference photo",
+			captureImageAlt: "New photo",
 		},
 		replacementMode: {
 			validatingHeading: "Preparing replacement…",
@@ -133,6 +149,14 @@ export const translations: Record<Locale, Translations> = {
 		workspace: {
 			title: "Vergleich importiert",
 			sessionLabel: "Sitzung",
+			referenceFallbackLabel: "Damals",
+			referenceHeading: "Referenz",
+			captureHeading: "Aufnahme",
+			locationHeading: "Ort",
+			loadingLabel: "Vergleich wird geladen…",
+			sliderLabel: "Vergleichsposition",
+			referenceImageAlt: "Referenzfoto",
+			captureImageAlt: "Neues Foto",
 		},
 		replacementMode: {
 			validatingHeading: "Ersetzung wird vorbereitet…",

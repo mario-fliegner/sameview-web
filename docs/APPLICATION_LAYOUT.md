@@ -414,9 +414,10 @@ The viewer is the primary workspace.
 
 It receives the largest available space.
 
+An interactive comparison slider is part of the current Viewer, revealing one image over the other.
+
 Future iterations will introduce:
 
-- comparison slider
 - markers
 - editing
 - synchronization
@@ -426,6 +427,8 @@ The surrounding layout should not need to change.
 ---
 
 # Viewer Toolbar
+
+Deferred to a later iteration.
 
 A small toolbar is displayed below the viewer.
 
@@ -440,6 +443,8 @@ Future viewer actions may be added without restructuring the page.
 ---
 
 # Fullscreen Mode
+
+Deferred to a later iteration.
 
 Fullscreen displays only the viewer.
 
