@@ -106,6 +106,30 @@ This document defines engineering quality standards for the project.
 - Stable APIs
 - Progressive enhancement
 
+## Pre-Implementation Review
+
+Performed after analysis, before implementation begins. Concise yes/no questions.
+
+### Product (Pre-Implementation)
+
+- Is the user's actual problem clearly understood?
+- Is the planned behavior defined by the approved specifications?
+
+### Scope
+
+- Is the implementation limited to the approved scope?
+- Can the solution be simplified further without losing required functionality?
+
+### Decisions
+
+- Are all required product decisions already made?
+- Are any assumptions being introduced that should instead be clarified first?
+
+### Engineering (Pre-Implementation)
+
+- Does the planned solution follow the existing architecture?
+- Are the required tests identified before implementation begins?
+
 ## Quality Gate
 
 Before completion verify as applicable:
@@ -121,6 +145,45 @@ Before completion verify as applicable:
 - information hierarchy
 - copy clarity
 - test selector stability
+
+## Completion Review
+
+Performed after implementation, before considering the work complete. Concise yes/no questions that operationalize the principles and Quality Gate above — not a restatement of them.
+
+### Product (Completion)
+
+- Does the implementation match the approved specifications?
+- Does it solve the user's problem from the user's perspective?
+
+### UI / UX
+
+- Does every visible UI element provide unique value?
+- Can any UI, copy or interaction be removed or simplified?
+
+### Copy
+
+- Is product terminology used consistently?
+- Is the wording clear, concise and consistent with the Brand Guide?
+
+### Engineering (Completion)
+
+- Is the implementation proportionate?
+- Were unnecessary abstractions, dependencies or architectural changes avoided?
+
+### Testing
+
+- Are the implemented tests appropriate for the change?
+- Are functional tests independent from mutable UI text?
+
+### Documentation
+
+- Were only the approved files changed?
+- Do any specifications require updating?
+- Are remaining risks explicitly documented?
+
+### Product Value
+
+- Does every increase in implementation complexity provide demonstrable product value?
 
 ## Proportionality
 
