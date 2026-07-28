@@ -81,7 +81,16 @@ test("switching language updates the UI immediately, without navigating or losin
 
 	const urlBeforeSwitch = page.url();
 
-	await page.getByRole("button", { name: "DE", exact: true }).click();
+	// Force: the language selector now renders in the footer while a
+	// workspace is active, which the Astro dev server's own dev-only
+	// toolbar (astro-dev-toolbar, fixed to the bottom of the viewport, never
+	// present in a production build) visually overlaps and intercepts
+	// pointer events for — confirmed via the actionability-retry log, not
+	// assumed. This is a test-environment artifact of where the button now
+	// sits, not a real product interaction problem.
+	await page
+		.getByRole("button", { name: "DE", exact: true })
+		.click({ force: true });
 
 	// Proves both requirements at once: if the switch had reloaded the page,
 	// the in-memory workspace would be gone and this testid would disappear.
@@ -175,4 +184,69 @@ test("the import failure message uses the expected product wording", async ({
 	await expect(page.getByTestId("import-error")).toContainText(
 		/doesn't look like a SameView Export/i,
 	);
+});
+
+// Header/footer language-selector placement (docs/APPLICATION_LAYOUT.md
+// Header Actions, Language Selector): once a workspace is active, the
+// language selector is no longer part of the header at all — it moves to
+// the footer instead — so `Replace Export` becomes the header's only
+// right-aligned control. "DE"/"EN" are locale codes, not translated
+// wording, so using them to locate the language buttons is a stable
+// functional selector here.
+test("the language selector is not part of the Workspace Active header; Replace Export is its only right-aligned control", async ({
+	page,
+}) => {
+	await page
+		.locator("#import-zip-input")
+		.setInputFiles(join(fixturesDir, "archives", "valid-with-real-images.zip"));
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+
+	const header = page.locator("header.app-header");
+	await expect(page.getByTestId("replace-export-button")).toBeVisible();
+	await expect(
+		header.getByRole("button", { name: "DE", exact: true }),
+	).toHaveCount(0);
+	await expect(
+		header.getByRole("button", { name: "EN", exact: true }),
+	).toHaveCount(0);
+});
+
+test("the language selector appears in the footer once a workspace is active", async ({
+	page,
+}) => {
+	await page
+		.locator("#import-zip-input")
+		.setInputFiles(join(fixturesDir, "archives", "valid-with-real-images.zip"));
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+
+	const footer = page.locator("footer.app-footer");
+	await expect(
+		footer.getByRole("button", { name: "DE", exact: true }),
+	).toBeVisible();
+	await expect(
+		footer.getByRole("button", { name: "EN", exact: true }),
+	).toBeVisible();
+});
+
+test("the Workspace Active header stays a compact single row at mobile width", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 780 });
+	await page
+		.locator("#import-zip-input")
+		.setInputFiles(join(fixturesDir, "archives", "valid-with-real-images.zip"));
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+
+	const header = page.locator("header.app-header");
+	const headerBox = await header.boundingBox();
+	expect(headerBox).not.toBeNull();
+	// A single row stays near the header's own minimum height; a second,
+	// wrapped row (as previously happened when the language selector shared
+	// this header with Replace Export) would roughly double it.
+	expect(headerBox?.height ?? 0).toBeLessThan(80);
+
+	await expect(page.getByTestId("replace-export-button")).toBeVisible();
+	await expect(
+		header.getByRole("button", { name: "DE", exact: true }),
+	).toHaveCount(0);
 });
