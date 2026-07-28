@@ -110,6 +110,8 @@ It must not consume unnecessary vertical space.
 
 No primary actions are displayed.
 
+The language selector remains the header's sole right-aligned control (see Language Selector).
+
 ### Workspace Active
 
 The header provides workspace-related actions.
@@ -118,13 +120,13 @@ Initially:
 
 - Replace Export
 
-Workspace actions and the language selector are visually separate control groups.
+`Replace Export` is right-aligned in the header.
 
-`Replace Export` appears to the left of the language selector, separated by clear spacing.
+The language selector is not shown in this header. It is available in the footer instead while a workspace is active (see Footer, Language Selector).
 
-The language selector remains the rightmost control in the header.
+Additional actions may be added in future versions without changing the overall layout; any additional workspace action joins `Replace Export` on the right side of the header.
 
-Additional actions may be added in future versions without changing the overall layout.
+On mobile, this header remains a single row whenever reasonably possible. It must not wrap onto a second row solely to accommodate language selection — the language selector is no longer part of this header.
 
 ---
 
@@ -139,6 +141,8 @@ Initially:
 - Privacy
 - Terms
 - Imprint
+
+While a workspace is active, the footer also provides the language selector (see Language Selector). This is the only difference in footer content between `No Workspace` and `Workspace Active`; the legal navigation itself is unchanged.
 
 The footer should visually resemble the footer used on the public SameView website to create a consistent product identity.
 
@@ -332,6 +336,8 @@ The focus becomes working with the comparison.
 The transition into the workspace preserves the user's orientation.
 
 The workspace becomes the new visual focus automatically, without requiring further navigation.
+
+The header narrows to brand identity and workspace actions only; the language selector moves to the footer while a workspace is active (see Header Actions, Footer, Language Selector).
 
 Desktop layout:
 
@@ -545,7 +551,7 @@ Replace Export is intentionally a secondary workspace action.
 
 It remains easily accessible, but never competes visually with the active workspace.
 
-It appears to the left of the language selector, as defined under Header Actions and Language Selector.
+It is right-aligned in the `Workspace Active` header, as defined under Header Actions.
 
 Once a workspace is active, the workspace itself — not the import action — remains the primary focus.
 
@@ -624,25 +630,62 @@ The existing localization architecture shall be reused.
 
 The application provides the same language selector used by the public SameView website.
 
-The selector is part of the global header.
+Language switching remains available in both `No Workspace` and `Workspace Active`. Only its location differs between the two states.
 
-Desktop example (`Workspace Active`, showing `Replace Export` to the left of the language selector):
+**No Workspace.** The selector is part of the global header. No workspace actions are displayed, so the language selector remains the header's rightmost control on its own.
+
+Desktop header:
 
 ```
 +--------------------------------------------------------------+
-| Logo  SameView Web            Replace Export      DE | EN     |
+| Logo  SameView Web                                DE | EN     |
 +--------------------------------------------------------------+
 ```
 
-Mobile example (`Workspace Active`):
+Mobile header:
 
 ```
 +-------------------------------------------+
-| Logo   SameView Web  Replace Export DE|EN  |
+| Logo   SameView Web              DE | EN   |
 +-------------------------------------------+
 ```
 
-In `No Workspace`, no workspace actions are displayed and the language selector remains the rightmost control on its own.
+**Workspace Active.** The selector is not part of the header. The header shows only brand identity and `Replace Export`, right-aligned (see Header Actions).
+
+The selector is part of the footer instead (see Footer).
+
+Desktop header:
+
+```
++--------------------------------------------------------------+
+| Logo  SameView Web                            Replace Export |
++--------------------------------------------------------------+
+```
+
+Desktop footer:
+
+```
++--------------------------------------------------------------+
+| Privacy   Terms   Imprint                          DE | EN    |
++--------------------------------------------------------------+
+```
+
+Mobile header:
+
+```
++-------------------------------------------+
+| Logo   SameView Web        Replace Export |
++-------------------------------------------+
+```
+
+Mobile footer:
+
+```
++-------------------------------------------+
+| Privacy  Terms  Imprint                    |
+|                 DE | EN                    |
++-------------------------------------------+
+```
 
 Changing the language updates the complete application UI.
 
