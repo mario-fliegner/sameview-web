@@ -45,6 +45,10 @@ This document defines engineering quality standards for the project.
 - Clear primary actions
 - Intentional loading/error states
 - No unnecessary dialogs
+- Reason from the user's perspective first: what they are trying to accomplish, what they must understand right now, what the simplest experience looks like — as a product designer and user first, an engineer second
+- Technical implementation supports the product experience; it does not define it. Do not let architecture, data structures, transport formats or developer terminology dictate what the user sees
+- Every visible element must communicate something distinct or provide a distinct interaction; merge or remove elements that duplicate what another already communicates
+- Fix unclear hierarchy with structure, not with more text or more UI
 
 ## Responsive Design
 - Fluid layouts
@@ -79,6 +83,8 @@ This document defines engineering quality standards for the project.
 - Keep DE/EN consistent
 - Natural translations
 - Preserve established terminology
+- Describe the product and the user's action, not the internal implementation — e.g. "SameView Export" is product terminology; "ZIP" is a transport detail and appears only when the user genuinely needs that technical fact
+- Calm, precise, direct language; no marketing slogans, exaggerated emotional language, generic SaaS wording or unnecessary technical explanation
 
 ## Database
 - Server-side access only
@@ -92,6 +98,9 @@ This document defines engineering quality standards for the project.
 - Manual verification is supplementary only, reserved for what cannot realistically be automated: native OS dialogs, real assistive technologies, limited real-device spot checks.
 - Browser automation stays proportional and targeted at critical user workflows; it does not duplicate deterministic unit tests.
 - Introduce browser automation when a capability genuinely has no Node equivalent, not merely when UI exists — e.g. Phase 2's image-decode validation (`createImageBitmap`), which is unavailable in Node and was the actual trigger for introducing Playwright, earlier than the workspace-UI phase originally assumed.
+- Functional and workflow tests verify behavior through stable `data-testid` attributes, not through translated labels, button copy, headings, status messages or other mutable UI text, and not through presentational CSS classes. A copy or translation change must never break an otherwise unchanged functional test.
+- Dedicated copy/localization tests may intentionally assert visible wording; dedicated accessibility tests may use roles, accessible names and other accessibility APIs where the test is specifically about accessibility. Keep these responsibilities separate from functional/workflow tests.
+- Use the smallest reasonable number of `data-testid` attributes; they complement, not replace, semantic HTML and accessibility.
 
 ## Browser Compatibility
 - Stable APIs
@@ -109,6 +118,9 @@ Before completion verify as applicable:
 - SEO
 - i18n
 - documentation consistency
+- information hierarchy
+- copy clarity
+- test selector stability
 
 ## Proportionality
 
@@ -117,6 +129,8 @@ Before completion verify as applicable:
 - Prefer the simplest solution that fully satisfies the approved requirements.
 - Do not introduce additional layers, abstractions, architecture or complexity unless they solve a demonstrated need.
 - Grow architecture and documentation only when increasing product complexity genuinely requires it.
+- Before adding a UI element, copy, interaction or abstraction, verify it provides unique value the user needs.
+- Do not add explanatory UI merely because the underlying implementation is complex; do not expose technical complexity to the user unless it is necessary for understanding, control, trust or error recovery.
 
 ## Specification Discipline
 
