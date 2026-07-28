@@ -23,6 +23,7 @@ export interface Translations {
 		readonly languageSelectorLabel: string;
 		readonly switchToGerman: string;
 		readonly switchToEnglish: string;
+		readonly replaceExportButton: string;
 	};
 	readonly footer: {
 		readonly legalNavigationLabel: string;
@@ -36,11 +37,22 @@ export interface Translations {
 		readonly chooseExportButton: string;
 		readonly helperCaption: string;
 		readonly importing: string;
+		readonly importSucceeded: string;
 		readonly importFailed: string;
 	};
 	readonly workspace: {
 		readonly title: string;
 		readonly sessionLabel: string;
+	};
+	readonly replacementMode: {
+		readonly validatingHeading: string;
+		readonly validatingMessage: string;
+		readonly confirmHeading: string;
+		readonly confirmDescription: string;
+		readonly currentSessionLabel: string;
+		readonly newSessionLabel: string;
+		readonly confirmButton: string;
+		readonly cancelButton: string;
 	};
 }
 
@@ -55,6 +67,7 @@ export const translations: Record<Locale, Translations> = {
 			languageSelectorLabel: "Language",
 			switchToGerman: "Switch to German",
 			switchToEnglish: "Switch to English",
+			replaceExportButton: "Replace Export",
 		},
 		footer: {
 			legalNavigationLabel: "Legal",
@@ -68,12 +81,24 @@ export const translations: Record<Locale, Translations> = {
 			chooseExportButton: "Choose Export",
 			helperCaption: "Processed on your device. Nothing is uploaded.",
 			importing: "Setting up your workspace…",
+			importSucceeded: "Workspace ready.",
 			importFailed:
 				"That doesn't look like a SameView Export — try another file.",
 		},
 		workspace: {
 			title: "Comparison imported",
 			sessionLabel: "Session",
+		},
+		replacementMode: {
+			validatingHeading: "Preparing replacement…",
+			validatingMessage: "Validating your selected export…",
+			confirmHeading: "Replace your workspace?",
+			confirmDescription:
+				"Your current workspace will be discarded and replaced with this export.",
+			currentSessionLabel: "Current session",
+			newSessionLabel: "New session",
+			confirmButton: "Replace",
+			cancelButton: "Cancel",
 		},
 	},
 	de: {
@@ -86,6 +111,7 @@ export const translations: Record<Locale, Translations> = {
 			languageSelectorLabel: "Sprache",
 			switchToGerman: "Auf Deutsch umschalten",
 			switchToEnglish: "Auf Englisch umschalten",
+			replaceExportButton: "Export ersetzen",
 		},
 		footer: {
 			legalNavigationLabel: "Rechtliches",
@@ -100,12 +126,24 @@ export const translations: Record<Locale, Translations> = {
 			helperCaption:
 				"Wird auf deinem Gerät verarbeitet. Nichts wird hochgeladen.",
 			importing: "Arbeitsbereich wird eingerichtet…",
+			importSucceeded: "Arbeitsbereich bereit.",
 			importFailed:
 				"Das sieht nicht nach einem SameView-Export aus — versuche es mit einer anderen Datei.",
 		},
 		workspace: {
 			title: "Vergleich importiert",
 			sessionLabel: "Sitzung",
+		},
+		replacementMode: {
+			validatingHeading: "Ersetzung wird vorbereitet…",
+			validatingMessage: "Der ausgewählte Export wird validiert…",
+			confirmHeading: "Arbeitsbereich ersetzen?",
+			confirmDescription:
+				"Dein aktueller Arbeitsbereich wird verworfen und durch diesen Export ersetzt.",
+			currentSessionLabel: "Aktuelle Sitzung",
+			newSessionLabel: "Neue Sitzung",
+			confirmButton: "Ersetzen",
+			cancelButton: "Abbrechen",
 		},
 	},
 };

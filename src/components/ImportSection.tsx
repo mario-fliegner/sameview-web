@@ -1,7 +1,9 @@
 // Implements docs/APPLICATION_LAYOUT.md's "Import Section" and "Import
-// States" for State A (`No Workspace`), and the minimal State B
+// States" for State A (`No Workspace`), the minimal State B
 // (`Workspace Active`) placeholder pending later phases (viewer, editing,
-// branding, output — see docs/IMPLEMENTATION_PLAN_V1.md Phases 4+).
+// branding, output — see docs/IMPLEMENTATION_PLAN_V1.md Phases 4+), and the
+// transient green "Import Succeeded" confirmation with its automatic scroll
+// into the workspace.
 //
 // The `No Workspace` composition is deliberately not a bordered/shadowed
 // "card": the entire region between header and footer is one open stage —
@@ -19,11 +21,21 @@
 // composition instead; assistive technology and the document outline still
 // get exactly one heading.
 //
-// This component owns only the presentational states (idle, drag-active,
-// importing, import-failed) and the existing workspace-creation logic; it
-// does not change docs/FEATURE_SPECIFICATION.md F-001 behavior. Workspace
-// replacement is a separate, later iteration — once a workspace is active,
-// this component no longer offers an import entry point.
+// Workspace/import state and the shared hidden file input are owned by the
+// app shell (src/components/App.tsx), not by this component — the header's
+// "Replace Export" action needs to trigger the same input and pipeline, so
+// the smallest common owner is the shared parent, not this component or a
+// new store. This component renders two mutually exclusive top-level views
+// driven by props: the `No Workspace` stage, and the `Workspace Active`
+// placeholder — each with exactly one H1, matching the established pattern.
+//
+// The Replace Export validate/confirm decision (docs/FEATURE_SPECIFICATION.md
+// F-001 step 2) is deliberately NOT rendered here: it is an application-level
+// modal owned by the app shell (src/components/ReplacementModeOverlay.tsx),
+// independent of whatever this component (or its future Viewer/Editor/Output
+// successors) currently renders — see the forward-looking Replacement Mode
+// analysis this implements. This component only reacts to a replacement's
+// atomic commit by moving focus to the workspace heading (below).
 //
 // `data-testid` attributes below exist so E2E functional/interaction tests
 // never depend on visible copy or CSS class names, which change frequently
@@ -32,20 +44,15 @@
 // or translation (see test/e2e/app-shell.spec.ts).
 
 import {
-	type ChangeEvent,
 	type DragEvent,
 	type KeyboardEvent,
 	type MouseEvent,
+	useEffect,
 	useRef,
 	useState,
 } from "react";
 import { useLocale } from "../i18n/LocaleContext";
-import { createSourceDataFromZip } from "../lib/import-source-data";
-import {
-	createWorkspace,
-	initialWorkspaceState,
-	type WorkspaceState,
-} from "../lib/workspace-state";
+import type { WorkspaceState } from "../lib/workspace-state";
 
 // SameView's own two-frame glyph — the product's identity, not a generic
 // cloud-upload icon (this product never uploads anything;
@@ -67,50 +74,80 @@ function StageIcon() {
 	);
 }
 
-export default function ImportSection() {
+interface ImportSectionProps {
+	readonly workspaceState: WorkspaceState;
+	readonly isImporting: boolean;
+	readonly importSucceeded: boolean;
+	readonly errorMessage: string | null;
+	readonly onOpenFilePicker: () => void;
+	readonly onFileDropped: (file: File) => void;
+}
+
+export default function ImportSection({
+	workspaceState,
+	isImporting,
+	importSucceeded,
+	errorMessage,
+	onOpenFilePicker,
+	onFileDropped,
+}: ImportSectionProps) {
 	const { t } = useLocale();
-	const [workspaceState, setWorkspaceState] = useState<WorkspaceState>(
-		initialWorkspaceState,
-	);
-	const [isImporting, setIsImporting] = useState(false);
 	const [isDragActive, setIsDragActive] = useState(false);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
+	const activeSectionRef = useRef<HTMLElement>(null);
+	const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
+	const previousStatusRef = useRef(workspaceState.status);
+	const previousWorkspaceRef = useRef(
+		workspaceState.status === "active" ? workspaceState.workspace : null,
+	);
+	const isBusy = isImporting || importSucceeded;
 
-	async function processFile(file: File) {
-		setIsImporting(true);
-		setErrorMessage(null);
-
-		const zipBytes = new Uint8Array(await file.arrayBuffer());
-		const result = await createSourceDataFromZip(zipBytes);
-
-		setIsImporting(false);
-
-		if (!result.ok) {
-			setErrorMessage(t.importSection.importFailed);
-			return;
+	// Scrolls smoothly to the beginning of the workspace exactly once, the
+	// moment the *initial* import commits (docs/APPLICATION_LAYOUT.md "Import
+	// Succeeded": "the page then scrolls smoothly to the beginning of the
+	// active workspace"). Detected as a `no-workspace` -> `active` transition
+	// rather than "workspace is active" alone, so a later Replace Export
+	// commit (`active` -> `active`) never re-triggers it — that transition
+	// has its own, separate rules below.
+	useEffect(() => {
+		const wasNoWorkspace = previousStatusRef.current === "no-workspace";
+		const isNowActive = workspaceState.status === "active";
+		if (wasNoWorkspace && isNowActive) {
+			const prefersReducedMotion = window.matchMedia(
+				"(prefers-reduced-motion: reduce)",
+			).matches;
+			activeSectionRef.current?.scrollIntoView({
+				behavior: prefersReducedMotion ? "auto" : "smooth",
+				block: "start",
+			});
 		}
+		previousStatusRef.current = workspaceState.status;
+	}, [workspaceState.status]);
 
-		setWorkspaceState(createWorkspace(result.value));
-	}
-
-	function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-		const file = event.target.files?.[0];
-		// Reset so selecting the same file again still fires a change event.
-		event.target.value = "";
-		if (!file) return;
-		void processFile(file);
-	}
-
-	function openFilePicker() {
-		if (isImporting) return;
-		inputRef.current?.click();
-	}
+	// Moves focus (not scroll) to the workspace heading exactly once a
+	// Replace Export commit lands (`active` -> a *different* `active`
+	// workspace object), since the app shell's ReplacementModeOverlay has
+	// just closed and the workspace it decided about has changed under it.
+	// Never fires for the initial `no-workspace` -> `active` commit (there is
+	// no previous workspace object to differ from), which keeps its own
+	// scroll-based orientation above.
+	useEffect(() => {
+		const currentWorkspace =
+			workspaceState.status === "active" ? workspaceState.workspace : null;
+		const previousWorkspace = previousWorkspaceRef.current;
+		if (
+			currentWorkspace &&
+			previousWorkspace &&
+			currentWorkspace !== previousWorkspace
+		) {
+			workspaceHeadingRef.current?.focus();
+		}
+		previousWorkspaceRef.current = currentWorkspace;
+	}, [workspaceState]);
 
 	function handleStageKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === "Enter" || event.key === " ") {
 			event.preventDefault();
-			openFilePicker();
+			onOpenFilePicker();
 		}
 	}
 
@@ -118,12 +155,12 @@ export default function ImportSection() {
 		// Prevents the stage's own onClick from also firing for the same
 		// interaction (the button is nested inside the stage).
 		event.stopPropagation();
-		openFilePicker();
+		onOpenFilePicker();
 	}
 
 	function handleDragEnter(event: DragEvent<HTMLDivElement>) {
 		event.preventDefault();
-		if (!isImporting) setIsDragActive(true);
+		if (!isBusy) setIsDragActive(true);
 	}
 
 	function handleDragOver(event: DragEvent<HTMLDivElement>) {
@@ -143,9 +180,9 @@ export default function ImportSection() {
 	function handleDrop(event: DragEvent<HTMLDivElement>) {
 		event.preventDefault();
 		setIsDragActive(false);
-		if (isImporting) return;
+		if (isBusy) return;
 		const file = event.dataTransfer.files?.[0];
-		if (file) void processFile(file);
+		if (file) onFileDropped(file);
 	}
 
 	if (workspaceState.status === "active") {
@@ -154,8 +191,14 @@ export default function ImportSection() {
 				className="workspace-active"
 				aria-labelledby="workspace-active-title"
 				data-testid="workspace-active"
+				ref={activeSectionRef}
 			>
-				<h1 id="workspace-active-title" className="workspace-active__title">
+				<h1
+					id="workspace-active-title"
+					className="workspace-active__title"
+					ref={workspaceHeadingRef}
+					tabIndex={-1}
+				>
 					{t.workspace.title}
 				</h1>
 				<p
@@ -165,6 +208,15 @@ export default function ImportSection() {
 					{t.workspace.sessionLabel}{" "}
 					{workspaceState.workspace.currentWorkingState.sessionDirectory}
 				</p>
+				{errorMessage && (
+					<p
+						className="import-section__alert"
+						data-testid="import-error"
+						role="alert"
+					>
+						{errorMessage}
+					</p>
+				)}
 			</section>
 		);
 	}
@@ -173,9 +225,14 @@ export default function ImportSection() {
 		"import-stage",
 		isDragActive && "import-stage--drag-active",
 		isImporting && "import-stage--importing",
+		importSucceeded && "import-stage--succeeded",
 	]
 		.filter(Boolean)
 		.join(" ");
+
+	let statusText = "";
+	if (isImporting) statusText = t.importSection.importing;
+	else if (importSucceeded) statusText = t.importSection.importSucceeded;
 
 	return (
 		<section
@@ -208,9 +265,9 @@ export default function ImportSection() {
 				data-testid="import-stage"
 				role="button"
 				tabIndex={0}
-				aria-disabled={isImporting}
+				aria-disabled={isBusy}
 				aria-describedby="import-stage-status"
-				onClick={openFilePicker}
+				onClick={onOpenFilePicker}
 				onKeyDown={handleStageKeyDown}
 				onDragEnter={handleDragEnter}
 				onDragOver={handleDragOver}
@@ -228,7 +285,7 @@ export default function ImportSection() {
 					type="button"
 					className="import-stage__button"
 					data-testid="import-choose-button"
-					disabled={isImporting}
+					disabled={isBusy}
 					onClick={handleChooseButtonClick}
 				>
 					{t.importSection.chooseExportButton}
@@ -239,18 +296,8 @@ export default function ImportSection() {
 					data-testid="import-status"
 					aria-live="polite"
 				>
-					{isImporting ? t.importSection.importing : ""}
+					{statusText}
 				</p>
-				<input
-					ref={inputRef}
-					id="import-zip-input"
-					className="visually-hidden"
-					type="file"
-					accept=".zip"
-					tabIndex={-1}
-					disabled={isImporting}
-					onChange={handleFileChange}
-				/>
 			</div>
 
 			<p className="import-section__caption">{t.importSection.helperCaption}</p>
