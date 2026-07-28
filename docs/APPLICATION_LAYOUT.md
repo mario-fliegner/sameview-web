@@ -118,6 +118,12 @@ Initially:
 
 - Replace Export
 
+Workspace actions and the language selector are visually separate control groups.
+
+`Replace Export` appears to the left of the language selector, separated by clear spacing.
+
+The language selector remains the rightmost control in the header.
+
 Additional actions may be added in future versions without changing the overall layout.
 
 ---
@@ -288,11 +294,13 @@ A loading indicator communicates ongoing processing.
 
 ## Import Succeeded
 
-A short visual confirmation communicates that the import completed successfully.
+The import area briefly enters a visually green success state, confirming that the import completed successfully.
 
-No additional user interaction is required to continue.
+This is a transient confirmation. No additional user interaction is required to continue.
 
-The workspace then becomes the primary focus.
+The page then scrolls smoothly to the beginning of the active workspace, so the workspace becomes the new visual focus automatically. This preserves the user's orientation during the transition.
+
+This transition applies to the initial import from `No Workspace` into `Workspace Active`. Replacing an already active workspace follows the separate rules defined under "Replace Export".
 
 ---
 
@@ -537,6 +545,8 @@ Replace Export is intentionally a secondary workspace action.
 
 It remains easily accessible, but never competes visually with the active workspace.
 
+It appears to the left of the language selector, as defined under Header Actions and Language Selector.
+
 Once a workspace is active, the workspace itself — not the import action — remains the primary focus.
 
 Future iterations define:
@@ -616,21 +626,23 @@ The application provides the same language selector used by the public SameView 
 
 The selector is part of the global header.
 
-Desktop example:
+Desktop example (`Workspace Active`, showing `Replace Export` to the left of the language selector):
 
 ```
 +--------------------------------------------------------------+
-| Logo  SameView Web                DE | EN      Actions        |
+| Logo  SameView Web            Replace Export      DE | EN     |
 +--------------------------------------------------------------+
 ```
 
-Mobile example:
+Mobile example (`Workspace Active`):
 
 ```
 +-------------------------------------------+
-| Logo   SameView Web    DE | EN            |
+| Logo   SameView Web  Replace Export DE|EN  |
 +-------------------------------------------+
 ```
+
+In `No Workspace`, no workspace actions are displayed and the language selector remains the rightmost control on its own.
 
 Changing the language updates the complete application UI.
 
