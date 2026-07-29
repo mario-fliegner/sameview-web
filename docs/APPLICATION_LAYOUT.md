@@ -146,8 +146,6 @@ Initially:
 
 While a workspace is active, the footer also provides the language selector (see Language Selector). This is the only difference in footer content between `No Workspace` and `Workspace Active`; the legal navigation itself is unchanged.
 
-While the Import Stage is shown for a replacement (see "Replace Export"), the footer uses the same state as `No Workspace` above: no language selector in the footer. This keeps the language selector's existing rule intact — it appears in exactly one of header or footer, never both at once (see Header Actions, Language Selector).
-
 The footer should visually resemble the footer used on the public SameView website to create a consistent product identity.
 
 ---
