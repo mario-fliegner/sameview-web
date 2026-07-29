@@ -122,8 +122,6 @@ Initially:
 
 `Replace Export` is right-aligned in the header.
 
-While the Import Stage is shown for a replacement (see "Replace Export"), the header uses the same state as `No Workspace` above: `Replace Export` is not shown, and the `No Workspace` header actions apply instead. There is no separate, third header state for this case.
-
 The language selector is not shown in this header. It is available in the footer instead while a workspace is active (see Footer, Language Selector).
 
 Additional actions may be added in future versions without changing the overall layout; any additional workspace action joins `Replace Export` on the right side of the header.
@@ -183,14 +181,14 @@ Header
 
 ↓
 
-Import Stage
+Centered Import Section
 
 ↓
 
 Footer
 ```
 
-The Import Stage becomes the visual focus.
+The import area becomes the visual focus.
 
 The surrounding interface intentionally remains minimal.
 
@@ -300,11 +298,11 @@ A loading indicator communicates ongoing processing.
 
 ## Import Succeeded
 
-The Import Stage briefly enters a clearly perceivable green success state, confirming that the import completed successfully. Icon, frame/glow and confirmation message change together into this success treatment.
+The import area briefly enters a visually green success state, confirming that the import completed successfully.
 
 This is a transient confirmation. No additional user interaction is required to continue.
 
-The application then performs a stage transition (see "Stage Transition") from the Import Stage to `Workspace Active`. Once the transition completes, only `Workspace Active` is visible and interactive.
+The page then scrolls smoothly to the beginning of the active workspace, so the workspace becomes the new visual focus automatically. This preserves the user's orientation during the transition.
 
 This transition applies to the initial import from `No Workspace` into `Workspace Active`. Replacing an already active workspace follows the separate rules defined under "Replace Export".
 
@@ -327,37 +325,17 @@ The layout must not jump excessively.
 
 ---
 
-# Stage Transition
-
-The Import Stage and `Workspace Active` are mutually exclusive. Exactly one of the two is visible and interactive at any time; the other is neither visible nor interactive.
-
-Moving between them is a stage transition, not a page scroll. The stage leaving view moves out of the visible area; the stage entering view appears in its place, within the same main area.
-
-The transition is brief, calm and purposeful — a confirmation of what just happened, not a decorative effect.
-
-It never leaves the page taller than its content requires, never introduces a scrollbar that would not otherwise be needed, and never leaves an empty or invisible remainder of the stage that just left.
-
-The transition does not depend on and does not cause a document scroll.
-
-`prefers-reduced-motion` is respected: the transition still happens, but without pronounced movement.
-
-Neither stage is interactive while the transition is in progress. Only once the transition has fully completed does the target stage become interactive; the stage that was left remains inactive.
-
-Keyboard focus and keyboard navigation are handed over to the target stage only after the transition has fully completed. The stage that just left is removed from the tab order and from assistive technology exposure until it becomes active again.
-
-This transition applies both when `Workspace Active` first appears (see "Import Succeeded") and when `Replace Export` returns the user to the Import Stage and back (see "Replace Export").
-
----
-
 # State B — Workspace Active
 
-Once a comparison has been successfully imported, the application switches completely into workspace mode via the stage transition described under "Import Succeeded" and "Stage Transition".
+Once a comparison has been successfully imported, the application switches completely into workspace mode.
 
-The Import Stage is no longer visible or interactive.
+The large import area disappears.
 
 The focus becomes working with the comparison.
 
-`Workspace Active` is the new visual focus, without requiring further navigation.
+The transition into the workspace preserves the user's orientation.
+
+The workspace becomes the new visual focus automatically, without requiring further navigation.
 
 The header narrows to brand identity and workspace actions only; the language selector moves to the footer while a workspace is active (see Header Actions, Footer, Language Selector).
 
@@ -568,27 +546,25 @@ These controls are intentionally outside the comparison workspace.
 
 # Replace Export
 
-When a workspace already exists, importing another export is initiated as a dedicated workspace action, not as the original landing-page import.
+When a workspace already exists, importing another export becomes a dedicated workspace action.
 
-`Replace Export` is right-aligned in the `Workspace Active` header, as defined under Header Actions.
+It is not presented as the original large landing-page import area.
 
-Selecting `Replace Export` starts the reverse stage transition described under "Stage Transition": `Workspace Active` moves out of the visible area and the Import Stage appears in its place. No document scroll occurs. Once the transition completes, only the Import Stage is visible and interactive; `Workspace Active` remains fully intact internally, but is neither visible nor interactive.
+Replacement is initiated from the header.
 
-While the Import Stage is shown for a replacement, `Replace Export` is not offered again in the header.
+Replace Export is intentionally a secondary workspace action.
 
-The Import Stage shows the replacement state already defined for Import Comparison (docs/FEATURE_SPECIFICATION.md F-001): the user selects a candidate export, and the application obtains the user's explicit decision before replacing the existing workspace.
+It remains easily accessible, but never competes visually with the active workspace.
 
-## Cancelling
+It is right-aligned in the `Workspace Active` header, as defined under Header Actions.
 
-If the user cancels the replacement, the existing workspace remains completely unchanged. The application performs the same forward stage transition used after a successful import: the Import Stage moves out of the visible area, `Workspace Active` reappears, and `Replace Export` is offered again in the header.
+Once a workspace is active, the workspace itself — not the import action — remains the primary focus.
 
-## Invalid Replacement
+Future iterations define:
 
-If the selected replacement export is invalid, the Import Stage remains visible and shows the existing "Import Failed" state. The existing workspace remains completely unchanged and available. The user may choose a different file, or cancel the replacement as described above.
-
-## Successful Replacement
-
-Once the replacement export is fully validated and the user has confirmed the replacement, the Import Stage briefly shows the same green success state described under "Import Succeeded". Only then does the new workspace replace the previous one. The application then performs the same forward stage transition to `Workspace Active`, which now reflects the new comparison. `Replace Export` is offered again in the header.
+- confirmation flow
+- cancellation
+- atomic replacement
 
 ---
 
