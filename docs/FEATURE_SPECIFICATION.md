@@ -267,11 +267,26 @@ Additional comparison output types may be introduced in future versions.
 
 ### Functional Behavior
 
-1. The user selects one supported comparison output type.
-2. The selected comparison output is generated exclusively from the Current Working State.
-3. Every generated output represents the same comparison associated with the active workspace.
-4. Each output type may define its own generation, processing and delivery behavior.
-5. Successful generation creates a new comparison output artifact.
+1. The user explicitly enters the output-selection context while remaining in the same active workspace.
+2. The user selects one supported comparison output type.
+3. The selected comparison output is generated exclusively from the Current Working State.
+4. Every generated output represents the same comparison associated with the active workspace.
+5. Each output type may define its own generation, processing and delivery behavior.
+6. Successful generation creates a new comparison output artifact.
+7. Returning to comparison editing never discards the Current Working State or previously generated outputs.
+
+
+
+### Standalone HTML
+
+For Version 1, Standalone HTML is generated and immediately handed to the browser as a download.
+
+No additional output-specific configuration is required beyond the Current Working State.
+
+The generated HTML reproduces the current Workspace Preview as closely as technically possible.
+
+Generation and browser download form one continuous user action.
+
 
 ### Result
 

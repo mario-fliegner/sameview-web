@@ -45,7 +45,7 @@ Only controls relevant to the current task should be visible.
 
 # Global Layout
 
-The application consists of five major regions.
+The application consists of three major regions.
 
 ```
 Header
@@ -56,20 +56,22 @@ Main Workspace
 
 ↓
 
-Comparison Section
-
-↓
-
-Output Section
-
-↓
-
 Footer
 ```
 
-These regions remain stable throughout Version 1.
+The Main Workspace permanently consists of two regions:
 
-Features are added inside these regions instead of changing the overall application structure.
+- Presentation Preview
+- Context Inspector
+
+The Presentation Preview always remains visible while working.
+
+The Context Inspector changes depending on the current workflow step:
+
+- Edit Inspector
+- Output Inspector
+
+No separate Output Section exists in Version 1.
 
 ---
 
@@ -395,15 +397,11 @@ Mobile:
 Single column.
 
 ```
-Viewer
+Presentation Preview
 
 ↓
 
-Comparison
-
-↓
-
-Output
+Context Inspector
 ```
 
 ---
@@ -511,38 +509,86 @@ The layout should therefore remain expandable.
 
 ---
 
-# Output Section
+# Output Inspector
 
-The output section is dedicated to creating the final result.
+The Output Inspector replaces the Edit Inspector after the user selects **Create Output**.
 
-It is visually separated from the comparison workspace.
+The Presentation Preview remains visible and unchanged.
 
----
+A back action (`← Edit`) returns to the Edit Inspector without losing any workspace or output configuration.
 
-## Live Preview
+## Output Cards
 
-The output section always contains a live preview.
+Version 1 provides three output cards:
 
-The preview represents the final exported result using the current configuration.
+- Standalone HTML (available)
+- Micro HTML Site (Coming Soon)
+- CMS Package (Coming Soon)
 
-Users should never need to generate an export just to see the expected appearance.
+Hosted Comparison is not presented in Version 1.
 
----
+Each card contains:
 
-## Future Output Controls
+- output name
+- short explanation
+- optional status badge (Coming Soon)
 
-Examples include:
+Only Standalone HTML can be selected.
 
-- layout selection
-- branding
-- metadata visibility
-- title placement
-- description placement
-- watermark options
+## Standalone HTML
 
-These controls are intentionally outside the comparison workspace.
+Standalone HTML requires no additional output settings.
 
----
+The generated file represents the current Presentation Preview exactly at the moment of download.
+
+The export consists of:
+
+- a single HTML file
+- inline CSS
+- inline JavaScript
+- embedded Base64 images
+- no external resources
+- complete offline functionality
+
+## Download Flow
+
+The primary action is:
+
+`Download HTML`
+
+Internally the application generates the HTML document and immediately starts the browser download.
+
+Generation and download are presented as one continuous user action.
+
+## Progress
+
+During generation the Output Inspector displays:
+
+- progress indicator
+- progress bar
+- processing phase
+
+Examples:
+
+- Preparing comparison
+- Processing images
+- Building HTML
+- Starting download
+
+The Presentation Preview remains visible.
+
+Workspace interactions are temporarily disabled until generation completes.
+
+## Completion
+
+After the browser download starts:
+
+- the progress UI disappears
+- Download HTML becomes available again
+- the Output Inspector remains open
+- the current workspace remains unchanged
+
+No dedicated success screen is displayed.
 
 # Replace Export
 
@@ -744,3 +790,184 @@ Possible future extensions include:
 - account-specific functionality
 
 These additions should extend existing regions instead of introducing new primary layout levels.
+
+---
+
+# Edit Inspector
+
+The Edit Inspector is the primary control panel of the active workspace.
+
+Its purpose is to edit comparison information, presentation settings and branding before selecting an output.
+
+All changes update the comparison preview immediately.
+
+No Apply or Save action exists.
+
+The inspector should fit into the supported desktop viewport without requiring vertical scrolling. If additional functionality is introduced in future versions, collapsible sections should be used before introducing an internally scrollable inspector.
+
+## Structure
+
+The inspector consists of three collapsible sections:
+
+- Comparison Information
+- Presentation
+- Branding
+
+All sections are expanded by default.
+
+Users may collapse individual sections to reduce visual complexity.
+
+The expanded/collapsed state should be preserved while the workspace remains open.
+
+## Common Control Rules
+
+### Input Fields
+
+All text inputs use a modern outlined field design.
+
+The field label is integrated into the outline instead of occupying a separate row.
+
+Each field supports:
+
+- default
+- focus
+- error
+- disabled / read-only (where applicable)
+
+Validation messages are displayed below the corresponding field.
+
+### Visibility Switches
+
+Visibility switches are aligned to the far right.
+
+All switches share a common vertical alignment independent of label length.
+
+Changes are reflected immediately in the viewer.
+
+---
+
+## Comparison Information
+
+### Title
+
+Controls:
+
+- Title input
+- Show Title
+
+The visibility switch is displayed in the same row as the field label.
+
+### Description
+
+Controls:
+
+- Description input
+- Show Description
+
+Rules:
+
+- approximately three visible text rows
+- visibility default: OFF
+- switch aligned to the top-right
+
+### Time
+
+Controls:
+
+- Show Time
+- Show Time Difference
+
+Rules:
+
+- Show Time controls visibility of the complete rendered time block.
+- Show Time Difference is only available when Show Time is enabled.
+- When Show Time is disabled, Show Time Difference becomes disabled.
+
+Below the switches the dates are displayed side by side.
+
+Left:
+
+- Reference Date (currently editable)
+
+Right:
+
+- Capture Date (currently read-only)
+
+Both fields use identical widths.
+
+### Location
+
+Controls:
+
+- Display Name
+- City
+- Country
+- Show Location
+
+Only one visibility switch exists.
+
+The switch controls the complete rendered location.
+
+Individual location components cannot be hidden separately.
+
+---
+
+## Presentation
+
+### Image Labels
+
+Control:
+
+- Show Image Labels
+
+The comparison preview updates immediately.
+
+### Background
+
+Single-row option group.
+
+Options:
+
+- Light
+- Dark
+- Custom
+
+When Custom is selected, the color picker is displayed inline within the same row.
+
+### Frame
+
+Single-row option group.
+
+Options:
+
+- None
+- White
+- Black
+- Custom
+
+When Custom is selected, the color picker is displayed inline within the same row.
+
+### Corners
+
+Single-row option group.
+
+Options:
+
+- Rounded
+- Square
+
+---
+
+## Branding
+
+Single-row option group.
+
+Options:
+
+- None
+- SameView
+- Custom
+
+When Custom is selected, the image selector appears inline.
+
+Changes update the preview immediately.

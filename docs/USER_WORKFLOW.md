@@ -151,6 +151,34 @@ The selected outcome is generated using the Current Working State and the config
 
 The generated outcome is made available for its intended use. The form of availability depends on the selected outcome and is outside the scope of this chapter.
 
+
+### Inspector Transition
+
+Selecting **Create Output** does not leave the active workspace.
+
+Instead, the Context Inspector changes from the Edit Inspector to the Output Inspector while the same Workspace Preview remains visible.
+
+The user may return to editing at any time through the dedicated **Edit** action. Returning to editing never discards the Current Working State or previously selected output.
+
+### Outcome Selection
+
+Choosing an output establishes the current outcome-generation context without replacing or recreating the workspace.
+
+Version 1 currently provides one available outcome type:
+
+- Standalone HTML
+
+Additional outcome types may be introduced in future versions without changing the overall workflow model.
+
+### Download
+
+For the Standalone HTML outcome, generation and browser download form one continuous user action.
+
+The workflow cycle concludes when the generated HTML has been handed to the browser for download.
+
+The workspace remains available for further editing or additional outcome generation.
+
+
 ### Workflow-Wide Rules
 
 - **Continuous Workspace:** The same workspace remains in use throughout the workflow.

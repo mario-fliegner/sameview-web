@@ -84,6 +84,75 @@ Workspace Preview.
 Generated outputs reproduce the Workspace Preview as closely as technically
 possible.
 
+
+
+## Workspace Preview
+
+The Workspace Preview is the authoritative live representation of the Current
+Working State.
+
+It always remains visible while editing the comparison and while configuring
+outputs. Changing workflow context never replaces or hides the Workspace
+Preview.
+
+The preview immediately reflects every presentation change defined by this
+specification. No manual refresh or regeneration step exists.
+
+## Preview Consistency
+
+Changing from the Edit Inspector to the Output Inspector does not alter the
+presentation itself.
+
+Only the surrounding application controls change. The rendered comparison
+remains visually identical unless the user explicitly changes the Current
+Working State.
+
+## Preview Scaling
+
+The entire Presentation Canvas remains visible across supported screen sizes.
+
+The preview scales proportionally to the available space while preserving:
+
+- aspect ratio,
+- configured padding,
+- configured frame,
+- configured corner radius, and
+- the relative positioning of all rendered presentation elements.
+
+Scaling never crops or stretches the comparison.
+
+## Generation
+
+When an outcome is generated, the Workspace Preview remains the visual
+reference throughout the generation process.
+
+Temporary progress information belongs to the application interface rather
+than to the Presentation Canvas itself.
+
+Generation never replaces the Workspace Preview with a separate success,
+loading or result presentation.
+
+## Standalone HTML Fidelity
+
+The Version 1 Standalone HTML output reproduces the Workspace Preview as
+closely as technically possible.
+
+The generated HTML contains the same visual presentation, including:
+
+- comparison stage,
+- comparison information,
+- presentation configuration,
+- branding,
+- colors,
+- frame,
+- corner radius, and
+- visibility configuration.
+
+The output is intended to be WYSIWYG. Any unavoidable technical differences
+between browser rendering environments should be minimized but do not alter
+the presentation model defined by this specification.
+
+
 ------------------------------------------------------------------------
 
 # Part 2 — Presentation Model
