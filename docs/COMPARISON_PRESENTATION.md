@@ -41,8 +41,7 @@ the future. Such examples are not themselves part of the approved Version 1
 or Version 2 product scope.
 
 The Workspace Preview is the visual reference for this presentation model. It
-corresponds to the Live Preview described in APPLICATION_LAYOUT.md's Output
-Section. Every generated output should reproduce the Workspace Preview as
+corresponds to the Presentation Preview described in APPLICATION_LAYOUT.md. Every generated output should reproduce the Workspace Preview as
 closely as technically possible (WYSIWYG).
 
 ------------------------------------------------------------------------
@@ -207,7 +206,7 @@ The Comparison Stage is the presentation element that renders the two
 compared images and the divider/handle interaction inside the Presentation
 Canvas.
 
-It is distinct from APPLICATION_LAYOUT.md's "Comparison Section", which is
+It is distinct from APPLICATION_LAYOUT.md's "Context Inspector", which is
 an application layout region, not a presentation element.
 
 The Comparison Stage always occupies the maximum possible space inside the

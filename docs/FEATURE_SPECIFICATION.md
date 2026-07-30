@@ -304,7 +304,6 @@ After successful generation:
 - Every generated output represents the Current Working State at the time of generation.
 - Previously generated outputs remain unchanged.
 - Output-type-specific behavior may be defined by dedicated specifications.
-- This feature does not describe downloading an output.
 - This feature does not describe publishing an output.
 - This feature does not describe hosted comparison management.
 - This feature does not describe public URLs, QR codes or embed codes.

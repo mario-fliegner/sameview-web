@@ -10,14 +10,14 @@ Version 1 ends with a browser-local workflow whose only output is downloadable S
 
 The repository is not an empty Astro starter. The following is present and verified in code:
 
-- `package.json`, `astro.config.mjs` and `tsconfig.json` provide Astro 7, React 19, strict TypeScript and the Node middleware adapter. React is installed, but no React component or hydrated island exists yet.
+- `package.json`, `astro.config.mjs` and `tsconfig.json` provide Astro 7, React 19, strict TypeScript and the Node middleware adapter. React is used throughout the interactive application.
 - `src/pages/index.astro` and `src/layouts/AppLayout.astro` render only the document shell (`<html>`/`<head>`/skip link); the interactive application — header with SameView identity and DE/EN language selector, the polished `No Workspace` import section, and the footer with legal navigation to `sameview.app` — is a single hydrated React root (`src/components/App.tsx`), per `docs/APPLICATION_LAYOUT.md`. Localization uses ordinary React context (`src/i18n/LocaleContext.tsx`, `src/i18n/translations.ts`), not routing, so switching language never reloads the page or resets the active workspace.
 - `src/styles/global.css` provides a responsive dark foundation, visible keyboard focus, a skip link and colors aligned with the current web values in `BRAND_GUIDE.md`. It now also styles the header, footer and import dropzone; it is not yet a viewer or editor UI.
 - `app.js` and `astro.config.mjs` implement the proven Netcup/Plesk Passenger startup and static-asset delivery path.
-- `test/app.test.mjs` and `test/passenger-boot.test.mjs` use Node's built-in test runner to cover request failure containment and Passenger-style boot. There are no parser, workspace, component or browser tests.
+- `test/app.test.mjs` and `test/passenger-boot.test.mjs` use Node's built-in test runner to cover request failure containment and Passenger-style boot. Parser, workspace, component and browser tests are part of the current repository.
 - The existing scripts are `build`, `typecheck`, `lint`, `test` and database commands. Biome covers TypeScript, JavaScript and the existing tests.
 - `src/lib/db-health.ts`, `src/db/**`, Drizzle migrations, `compose.yaml` and the database panel on `index.astro` are an existing publication-oriented technical/smoke-test foundation. They do not implement any current V1 feature and must not become a dependency of import, workspace editing, viewing or Standalone HTML generation.
-- No ZIP reader, imported-comparison model, workspace state, image-processing pipeline, comparison viewer, editor, branding control, outcome snapshot, Standalone HTML generator or download behavior exists.
+- ZIP import, imported comparison model, workspace state, comparison viewer and replacement workflow are implemented. Remaining work focuses on editing, presentation configuration, branding and output generation.
 - The planned `src/features/**` structure from `ARCHITECTURE.md` does not exist and is not treated as implemented or as a mandatory target structure.
 
 ## 3. Implementation Principles
@@ -35,7 +35,7 @@ The repository is not an empty Astro starter. The following is present and verif
 
 ## 4. Implementation Phases
 
-### Phase 1 – Establish the V1 Browser Boundary
+### Phase 1 – (Completed) Establish the V1 Browser Boundary
 
 - **Goal:** Make the existing shell an accurate starting point for the browser-local V1 workflow.
 - **Specs/features:** `PRODUCT_SCOPE.md`, `ARCHITECTURE.md`, `DATA_AND_PRIVACY.md`, User Workflow `No Workspace`.
@@ -48,7 +48,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** Import logic, DB deletion/refactoring, viewer, publishing.
 - **Risk/open decision:** None; existing DB files may remain dormant and are not V1 product dependencies.
 
-### Phase 2 – Define and Validate Imported Comparison Data (F-001)
+### Phase 2 – (Completed) Define and Validate Imported Comparison Data (F-001)
 
 - **Goal:** Accept only a structurally valid SameView export while preserving supported and unknown metadata.
 - **Specs/features:** F-001; `IMPORTED_COMPARISON_V1.md` Supported Metadata Versions, Import Validity, Metadata Preservation; `ARCHITECTURE.md` Upload Limits and Export Structure.
@@ -61,7 +61,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** Workspace creation, UI editing, image optimization, uploads.
 - **Risks/open decisions:** None remaining for this phase; the ZIP library and fixture-provenance decisions noted in Section 9 are resolved.
 
-### Phase 3 – Create the Atomic Single Workspace (F-001)
+### Phase 3 – (Completed) Create the Atomic Single Workspace (F-001)
 
 - **Goal:** Turn one fully accepted import into immutable Source Data and an editable Current Working State.
 - **Specs/features:** F-001; User Workflow Workspace Model, Operational States and Error Handling; `IMPORTED_COMPARISON_V1.md` terminology and ownership.
@@ -74,7 +74,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** Multiple workspaces, autosave, server persistence, viewer behavior.
 - **Risks/open decisions:** The specifications leave browser persistence technology undefined; decide whether V1 is session-memory only or survives reload before this phase is finalized.
 
-### Phase 3b – Establish the Permanent Application Shell and Polished `No Workspace` Experience
+### Phase 3b – (Completed) Establish the Permanent Application Shell and Polished `No Workspace` Experience
 
 - **Goal:** Bring the always-visible application shell and the `No Workspace` state up to `docs/APPLICATION_LAYOUT.md` before further workspace features are built on top of it.
 - **Specs/features:** `APPLICATION_LAYOUT.md` Header, Footer, State A (`No Workspace`), Import Section, Import States, Internationalization, Language Selector, Reference Implementation.
@@ -87,7 +87,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** Comparison viewer, fullscreen, editing, branding, output section, replace-export flow, workspace persistence.
 - **Risks/open decisions:** None remaining; the React-architecture and localization-strategy questions for this phase are resolved (single React root, ordinary context — no cross-island store).
 
-### Phase 4 – Render the Interactive Comparison (F-002)
+### Phase 4 – (Completed) Render the Interactive Comparison (F-002)
 
 - **Goal:** Display and interact with both required images from Current Working State without mutating it.
 - **Specs/features:** F-002; User Workflow Review and Responsive Principles; engineering accessibility and performance rules.
@@ -103,23 +103,23 @@ The repository is not an empty Astro starter. The following is present and verif
 ### Phase 5 – Edit Comparison Information and Visibility (F-003)
 
 - **Goal:** Edit exactly the supported values and independent presentation visibility in Current Working State.
-- **Specs/features:** F-003; `IMPORTED_COMPARISON_V1.md` Web-Editable Fields, text normalization, Reference Date, Capture Timestamp and Location Metadata.
+- **Specs/features:** F-003; `IMPORTED_COMPARISON_V1.md` Web-Editable Fields, text normalization, Reference Date, Capture Timestamp and Location Metadata; `APPLICATION_LAYOUT.md` Edit Inspector, Comparison Information.
 - **Existing basis:** Shared workspace state and live viewer from Phases 3–4.
 - **Implement:** Title, description, reference date and three user-authored location fields; visibility controls for the specified information; read-only capture date; normalization and reference-date semantics; immediate viewer updates. Preserve unknown, immutable and unrelated metadata.
-- **Likely areas:** Workspace state transitions, editor UI, viewer presentation.
+- **Likely areas:** Workspace state transitions, the Edit Inspector's Comparison Information section, viewer presentation.
 - **Dependencies:** Phases 3–4; explicit Current Working State representation for presentation visibility.
 - **Definition of Done:** Supported changes are reflected live; hide differs from remove; capture timestamp and Source Data remain unchanged; invalid edits cannot partially apply.
 - **Tests/manual:** Unit tests for normalization, date validation/mutation and immutable-field preservation; automated Playwright E2E tests for value/visibility changes; manual accessibility and responsive form spot checks.
-- **Not included:** Tags, favorite/source metadata, GPS derivation, reverse geocoding, image replacement or alignment.
+- **Not included:** Tags, favorite/source metadata, GPS derivation, reverse geocoding, image replacement or alignment, or the Edit Inspector's Presentation section (Canvas Background/Frame, Corner Radius, Show Slider Date Labels, Show Map Preview per `COMPARISON_PRESENTATION.md` Part 3).
 - **Risks/open decisions:** The web visibility state is explicitly independent of imported `additional.visibility`, but its concrete working-state representation is unspecified and must be chosen before implementation.
 
 ### Phase 6 – Configure Branding (F-004)
 
 - **Goal:** Support No Branding, Built-in Symbol and Custom Image as Current Working State choices reflected in the viewer.
-- **Specs/features:** F-004; `IMPORTED_COMPARISON_V1.md` Session Branding; `BRAND_GUIDE.md`.
+- **Specs/features:** F-004; `IMPORTED_COMPARISON_V1.md` Session Branding; `BRAND_GUIDE.md`; `APPLICATION_LAYOUT.md` Edit Inspector, Branding; `COMPARISON_PRESENTATION.md` Comparison Stage → Handle.
 - **Existing basis:** Viewer and shared state; favicon assets are not evidence of a complete built-in-symbol catalog.
 - **Implement:** Import existing branding when present; switch among the three specified options; select a supported built-in ID; select/replace a custom image with safe decode/validation; update only Current Working State and preserve the selected asset for later outcomes.
-- **Likely areas:** Branding state transitions, controls, viewer presentation and client asset handling.
+- **Likely areas:** Branding state transitions, the Edit Inspector's Branding section, viewer Handle presentation and client asset handling.
 - **Dependencies:** Phases 3–5; supported built-in symbol/asset decision.
 - **Definition of Done:** Every option switches cleanly and updates the viewer; Source Data stays unchanged; invalid custom images leave the previous branding intact.
 - **Tests/manual:** Unit tests for transitions and imported branding; automated Playwright E2E tests for switching/replacement/error paths; manual visual checks for scaling and contrast.
@@ -129,10 +129,10 @@ The repository is not an empty Astro starter. The following is present and verif
 ### Phase 7 – Create an Immutable Standalone Outcome Snapshot (F-005)
 
 - **Goal:** Capture all and only the data needed for one Standalone HTML generation cycle.
-- **Specs/features:** F-005; User Workflow Outcome Rules; `IMPORTED_COMPARISON_V1.md` Derived Slider Labels, Snapshot Semantics and outcome allowlist.
+- **Specs/features:** F-005; User Workflow Outcome Rules, Inspector Transition, Outcome Selection; `IMPORTED_COMPARISON_V1.md` Derived Slider Labels, Snapshot Semantics and outcome allowlist; `APPLICATION_LAYOUT.md` Output Inspector, Output Cards.
 - **Existing basis:** Valid Current Working State, viewer presentation and branding.
-- **Implement:** Select the sole V1 output type; derive localized reference/capture labels at generation time; copy allowlisted presentation data, visibility, configuration and required assets into an immutable Outcome Snapshot; keep prior snapshots independent.
-- **Likely areas:** Pure label derivation, snapshot builder and minimal outcome state in the workspace UI.
+- **Implement:** Enter the output-selection context through the Edit Inspector's **Create Output** action, switching the Context Inspector from the Edit Inspector to the Output Inspector while the Presentation Preview stays unchanged; select the sole available V1 output type (Standalone HTML); derive localized reference/capture labels at generation time; copy allowlisted presentation data, visibility, configuration and required assets into an immutable Outcome Snapshot; keep prior snapshots independent. A dedicated **Edit** action returns to the Edit Inspector without discarding the Current Working State or the selected output.
+- **Likely areas:** Pure label derivation, snapshot builder and the Output Inspector's minimal outcome-selection state in the workspace UI.
 - **Dependencies:** Phases 5–6.
 - **Definition of Done:** Snapshots reflect generation-time state; later edits do not change them; unknown metadata, device URIs, GPS blocks, provenance and unused originals are excluded.
 - **Tests/manual:** Unit tests across date precision, locale/time-zone seams and allowlist exclusion; snapshot immutability tests.
@@ -155,14 +155,14 @@ The repository is not an empty Astro starter. The following is present and verif
 ### Phase 9 – Generate and Download Standalone HTML (F-005)
 
 - **Goal:** Generate one self-contained interactive HTML artifact entirely in the browser and download it.
-- **Specs/features:** V1 Product Scope and Outputs; F-005; User Workflow Generate/Make Outcome Available; privacy rules.
+- **Specs/features:** V1 Product Scope and Outputs; F-005; User Workflow Generate/Make Outcome Available, Download; `APPLICATION_LAYOUT.md` Output Inspector, Download Flow, Progress, Completion; privacy rules.
 - **Existing basis:** Immutable snapshot, processed assets and reusable comparison behavior.
-- **Implement:** Serialize a self-contained, safe HTML document from the snapshot; embed required styles, behavior and assets; prevent user text from executing as markup; create a browser download; keep each generated artifact unchanged and independent from subsequent edits or generations.
-- **Likely areas:** Standalone document renderer, client download orchestration and reusable viewer behavior with no dependency on the workspace page.
+- **Implement:** Serialize a self-contained, safe HTML document from the snapshot; embed required styles, behavior and assets; prevent user text from executing as markup; drive the Output Inspector's progress indicator through its generation phases (preparing the comparison, processing images, building the HTML, starting the download) while workspace interactions stay temporarily disabled; create a browser download as one continuous action with generation; keep each generated artifact unchanged and independent from subsequent edits or generations; after the download starts, re-enable **Download HTML** and leave the Output Inspector open with no separate success screen.
+- **Likely areas:** Standalone document renderer, client download orchestration, Output Inspector progress presentation and reusable viewer behavior with no dependency on the workspace page.
 - **Dependencies:** Phases 7–8; standalone artifact contract decision.
 - **Definition of Done:** Downloaded HTML opens without network/server access, presents the snapshot interactively and accessibly, contains only allowlisted data, and remains unchanged after workspace edits.
 - **Tests/manual:** Unit tests for escaping, allowlist serialization and deterministic document structure; build/typecheck/lint; automated Playwright E2E tests for download, offline execution and responsive/keyboard checks inside the artifact; manual spot checks in additional real browsers/devices.
-- **Not included:** Hosted output, URL, QR/iframe code, upload or management.
+- **Not included:** Hosted output, URL, QR/iframe code, upload or management; the two other Output Cards remain visible as non-selectable "Coming Soon" placeholders and are not implemented as functioning outputs.
 - **Risks/open decisions:** The specs do not define filename, exact self-contained document contract or code-sharing/build mechanism; settle these before this phase while preserving fully client-side generation.
 
 ### Phase 10 – V1 Integration and Release Readiness

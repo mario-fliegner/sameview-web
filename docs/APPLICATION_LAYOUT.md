@@ -304,9 +304,11 @@ The import area briefly enters a visually green success state, confirming that t
 
 This is a transient confirmation. No additional user interaction is required to continue.
 
-The page then scrolls smoothly to the beginning of the active workspace, so the workspace becomes the new visual focus automatically. This preserves the user's orientation during the transition.
+After the brief success confirmation, the application transitions directly from `No Workspace` into `Workspace Active`.
 
-This transition applies to the initial import from `No Workspace` into `Workspace Active`. Replacing an already active workspace follows the separate rules defined under "Replace Export".
+The transition is performed within the application layout. The document itself does not scroll. The workspace becomes the new visual focus automatically while preserving the user's orientation.
+
+This transition applies only to the initial import. Replacing an already active workspace follows the separate rules defined under "Replace Export".
 
 ---
 
@@ -352,16 +354,12 @@ Desktop layout:
 |                           |                               |
 |                           |                               |
 |                           |                               |
-|                           |       Comparison              |
-|         Viewer            |                               |
+|                           |    Context Inspector         |
+|  Presentation Preview     |                               |
 |                           |                               |
 |                           |                               |
 |                           |                               |
 +---------------------------+-------------------------------+
-
-↓
-
-Output
 
 ↓
 
@@ -449,8 +447,7 @@ Fullscreen displays only the viewer.
 The following elements disappear:
 
 - header
-- comparison panel
-- output section
+- context inspector
 - footer
 - surrounding application UI
 
@@ -497,15 +494,16 @@ No artificial upscaling is performed.
 
 ---
 
-# Comparison Section
+# Context Inspector
 
-The comparison section contains comparison-related information and editing controls.
+The Context Inspector is the secondary workspace region beside the Presentation Preview.
 
-Initially this includes imported comparison information.
+Depending on the current workflow step it displays either:
 
-Later iterations may introduce editing controls directly inside this region.
+- Edit Inspector
+- Output Inspector
 
-The layout should therefore remain expandable.
+The Presentation Preview always remains visible while only the inspector content changes.
 
 ---
 
@@ -522,7 +520,7 @@ A back action (`← Edit`) returns to the Edit Inspector without losing any work
 Version 1 provides three output cards:
 
 - Standalone HTML (available)
-- Micro HTML Site (Coming Soon)
+- Static Microsite (Coming Soon)
 - CMS Package (Coming Soon)
 
 Hosted Comparison is not presented in Version 1.
