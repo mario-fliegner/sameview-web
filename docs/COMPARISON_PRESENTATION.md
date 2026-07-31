@@ -59,6 +59,17 @@ The comparison is always the primary element.
 All presentation elements support the comparison and must never visually
 dominate it.
 
+## One Cohesive Card
+
+The Comparison Stage and Comparison Information are perceived as a single,
+unified Presentation Card — a high-quality photo card, not a comparison
+image with a separate footer attached beneath it.
+
+Comparison Information reads as a natural continuation of the Comparison
+Stage immediately above it, not as an independent block. See Part 2
+"Comparison Information Rendering" for the concrete spacing and
+typographic rules this principle governs.
+
 ## Complete Presentation
 
 The entire Presentation Canvas must always remain visible.
@@ -186,15 +197,15 @@ Default layout:
 
     ↓
 
+    Description (optional)
+
+    ↓
+
     Reference Date → Capture Date
 
     ↓
 
     Location
-
-    ↓
-
-    Description
 
 The Map Preview belongs visually to the Comparison Stage as an overlay on
 the Presentation Canvas. It is **not** part of the Comparison Information
@@ -266,11 +277,81 @@ defines rendering only.
 -   All items are left-aligned.
 -   Rich text is not supported.
 -   Emojis are not supported.
+-   Comparison Information is visually cohesive with the Comparison Stage
+    above it, not a separate footer: only a small padding separates the two,
+    Comparison Information begins visually immediately below the Stage, and
+    together they read as one Presentation Card. No large empty area is
+    introduced between the Stage and Comparison Information, or within
+    Comparison Information itself.
+
+### Typographic Hierarchy
+
+Title, Time and Location form a fixed three-level typographic hierarchy,
+each level immediately below the previous with only a small, consistent
+vertical gap — perceivable as one cohesive block rather than as
+independent, loosely related lines:
+
+1. **Title** — the most important item: the largest size and the
+   strongest weight of the three.
+2. **Time** — smaller than Title, and lower contrast than Title.
+   Positioned directly below Title, or directly below Description when
+   Description is shown (see below).
+3. **Location** — the smallest size and the lowest contrast of the three.
+   Positioned directly below Time.
+
+Each level has exactly one standard size — arbitrary or one-off sizes are
+not used. The hierarchy must be perceivable at a glance, without reading
+the text.
+
+Description belongs to Level 1 together with Title, rather than forming an
+additional hierarchy level:
+
+-   Description appears only when enabled; it reserves no space otherwise.
+-   Description keeps its own, already-specified typography (see
+    "### Description" below) — it does not take on Title's size or weight.
+-   Description is positioned directly below Title, separated only by a
+    small gap, and reads as visually belonging to Title, together forming
+    one associated information block.
+-   Description never introduces a fourth hierarchy level.
+
+The full rendering order is therefore: Title → Description (when shown) →
+Time → Location.
+
+### Adaptive Sizing
+
+Adaptive Sizing is evaluated independently per rendered item — Title,
+Description, Time and Location are each assessed on their own, never as
+one shared calculation for the whole block:
+
+    Standard size
+    ↓ (only if this item requires it)
+    Defined smaller size
+    ↓ (only if this item still requires it)
+    Ellipsis
+
+A longer Location never causes Title, Description or Time to render
+smaller. A longer Title never changes the size of Description, Time or
+Location — and correspondingly for every other item. There is no
+synchronized or shared scaling of the Presentation Information block as a
+whole.
+
+No further automatic sizes exist beyond this one additional step per item
+— no continuous scaling and no arbitrarily computed size. Ellipsis remains
+the last resort for that item, used only once its own smaller defined size
+still cannot fully display its content.
 
 ### Title
 
--   Maximum one line
--   Ellipsis on overflow
+-   Maximum two lines
+-   Ellipsis on overflow, after Adaptive Sizing's smaller defined size has
+    already been attempted
+-   No reserved space when hidden or unavailable
+
+### Description
+
+-   Maximum three lines
+-   Ellipsis on overflow, after Adaptive Sizing's smaller defined size has
+    already been attempted
 -   No reserved space when hidden or unavailable
 
 ### Time
@@ -297,12 +378,6 @@ Displayed using the application format.
 Example:
 
     Marienplatz · Munich, Germany
-
-### Description
-
--   Maximum three lines
--   Ellipsis on overflow
--   No reserved space when hidden or unavailable
 
 ## Map Preview
 
