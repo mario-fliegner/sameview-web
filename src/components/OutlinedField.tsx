@@ -27,6 +27,11 @@ interface OutlinedFieldProps {
 	readonly rows?: number;
 	readonly readOnly?: boolean;
 	readonly error?: string | null;
+	// docs/COMPARISON_PRESENTATION.md "Custom Color Editing": an invalid HEX
+	// value receives "only a subtle error state — no explanatory error text".
+	// Every other existing caller always wants the text, hence opt-in rather
+	// than a behavior change for them.
+	readonly hideErrorText?: boolean;
 	readonly testId?: string;
 }
 
@@ -39,9 +44,10 @@ export default function OutlinedField({
 	rows,
 	readOnly,
 	error,
+	hideErrorText,
 	testId,
 }: OutlinedFieldProps) {
-	const errorId = error ? `${id}-error` : undefined;
+	const errorId = error && !hideErrorText ? `${id}-error` : undefined;
 	const className = [
 		"outlined-field",
 		error && "outlined-field--error",
@@ -76,7 +82,7 @@ export default function OutlinedField({
 			<label htmlFor={id} className="outlined-field__label">
 				{label}
 			</label>
-			{error && (
+			{error && !hideErrorText && (
 				<p id={errorId} className="outlined-field__error" role="alert">
 					{error}
 				</p>

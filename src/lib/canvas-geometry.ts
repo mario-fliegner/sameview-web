@@ -32,6 +32,14 @@ export interface CanvasGeometryInput {
 	readonly metadataHeight: number;
 	readonly canvasPadding: number;
 	readonly contentGap: number;
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Frame": 0 when Frame is "None".
+	// Proven necessary empirically, not added speculatively — with
+	// `box-sizing: border-box` (global reset) and a real border width, the
+	// border draws inside the already-fixed canvas box, so the content area
+	// left for padding + Stage shrinks by `2 * frameWidth` on each axis; when
+	// this wasn't accounted for here, the Stage measurably overflowed the
+	// intended padding on the trailing/bottom edge by exactly that amount.
+	readonly frameWidth: number;
 }
 
 export interface CanvasGeometryResult {
@@ -70,8 +78,9 @@ export function deriveImageRatio(
 export function initialMetadataWidth(
 	previewWidth: number,
 	canvasPadding: number,
+	frameWidth: number,
 ): number {
-	return Math.max(0, previewWidth - 2 * canvasPadding);
+	return Math.max(0, previewWidth - 2 * canvasPadding - 2 * frameWidth);
 }
 
 // docs/COMPARISON_PRESENTATION.md Part 2 "Comparison Stage": "always
@@ -90,6 +99,7 @@ export function computeCanvasGeometry(
 		metadataHeight,
 		canvasPadding,
 		contentGap,
+		frameWidth,
 	} = input;
 
 	if (
@@ -107,10 +117,13 @@ export function computeCanvasGeometry(
 	// visible to separate the Stage from.
 	const gap = metadataHeight > 0 ? contentGap : 0;
 
-	const availableWidth = Math.max(0, previewWidth - 2 * canvasPadding);
+	const availableWidth = Math.max(
+		0,
+		previewWidth - 2 * canvasPadding - 2 * frameWidth,
+	);
 	const availableHeight = Math.max(
 		0,
-		previewHeight - 2 * canvasPadding - gap - metadataHeight,
+		previewHeight - 2 * canvasPadding - 2 * frameWidth - gap - metadataHeight,
 	);
 
 	let stageHeight = availableHeight;
@@ -124,7 +137,8 @@ export function computeCanvasGeometry(
 	return {
 		stageWidth,
 		stageHeight,
-		canvasWidth: stageWidth + 2 * canvasPadding,
-		canvasHeight: stageHeight + gap + metadataHeight + 2 * canvasPadding,
+		canvasWidth: stageWidth + 2 * canvasPadding + 2 * frameWidth,
+		canvasHeight:
+			stageHeight + gap + metadataHeight + 2 * canvasPadding + 2 * frameWidth,
 	};
 }

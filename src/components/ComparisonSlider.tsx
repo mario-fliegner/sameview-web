@@ -54,6 +54,12 @@ interface ComparisonSliderProps {
 	readonly loadingLabel: string;
 	readonly leftLabel: string;
 	readonly rightLabel: string;
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Comparison Stage": "Show Slider
+	// Date Labels", default On. Gates the same auto-hide-at-edge labels below
+	// as one additional condition — it never changes the edge-collision math
+	// itself, only whether a label already eligible to show is actually
+	// rendered.
+	readonly showDateLabels: boolean;
 	// Additive and optional. Reports the natural pixel dimensions already
 	// held in this component's own `dimensions` state below (the same value
 	// `--comparison-ratio` is derived from) — fires exactly once both images
@@ -126,6 +132,7 @@ export default function ComparisonSlider({
 	loadingLabel,
 	leftLabel,
 	rightLabel,
+	showDateLabels,
 	onDimensionsChange,
 }: ComparisonSliderProps) {
 	const frameRef = useRef<HTMLDivElement>(null);
@@ -287,9 +294,11 @@ export default function ComparisonSlider({
 	// cross the corresponding Viewer edge, not at an arbitrary percentage.
 	const dividerXPx = (position / 100) * frameWidthPx;
 	const showLeftLabel =
+		showDateLabels &&
 		frameWidthPx > 0 &&
 		dividerXPx - RING_RADIUS_PX - LABEL_GAP_PX - leftLabelWidthPx >= 0;
 	const showRightLabel =
+		showDateLabels &&
 		frameWidthPx > 0 &&
 		dividerXPx + RING_RADIUS_PX + LABEL_GAP_PX + rightLabelWidthPx <=
 			frameWidthPx;

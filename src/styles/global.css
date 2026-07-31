@@ -588,6 +588,21 @@ main {
 	padding: var(--canvas-padding, 1rem);
 	margin-inline: auto;
 	visibility: hidden;
+	/* Canvas Background and Frame (docs/COMPARISON_PRESENTATION.md Part 3
+	   "Canvas"): both custom properties are always set by
+	   src/components/WorkspaceActive.tsx's `PresentationCanvas`
+	   (`--frame-width` is "0px" for Frame "None"), so the box-sizing:
+	   border-box reset (top of this file) draws the frame border fully
+	   inside the already-computed `--canvas-width`/`--canvas-height` rather
+	   than growing the box further. */
+	background: var(--canvas-background, transparent);
+	border: var(--frame-width, 0) solid var(--frame-color, transparent);
+	/* Corner Radius (docs/COMPARISON_PRESENTATION.md Part 3 "Corner Radius"):
+	   "applies to the entire Presentation Canvas … as one continuous visual
+	   unit" — set once here and inherited by `.comparison-slider__frame`
+	   below (a descendant), rather than threaded through as a second prop,
+	   since a plain CSS custom property already inherits down the DOM tree. */
+	border-radius: var(--corner-radius, 0.75rem);
 }
 
 .presentation-canvas--ready {
@@ -613,7 +628,10 @@ main {
 	position: relative;
 	width: 100%;
 	margin-inline: auto;
-	border-radius: 0.75rem;
+	/* Inherits `--corner-radius` from `.presentation-canvas` above — see that
+	   rule's own comment for why Corner Radius is set once there rather than
+	   threaded through as a component prop. */
+	border-radius: var(--corner-radius, 0.75rem);
 	overflow: hidden;
 	/* Surface color (docs/BRAND_GUIDE.md): "compare viewports... compare
 	   letterbox background" — the same established treatment for the area
@@ -781,23 +799,32 @@ main {
 	overflow: hidden;
 }
 
-/* Edit Inspector (docs/APPLICATION_LAYOUT.md "Edit Inspector") — the Context
-   Inspector column's only content for this iteration. A quiet panel matching
-   the existing dark surface language (`#17202f` panels, `#2a3445` borders)
-   used elsewhere in the workspace. */
+/* Edit Inspector (docs/APPLICATION_LAYOUT.md "Edit Inspector", "Structure").
+   `.edit-inspector` itself is only a vertical layout container for its
+   sections — it has no panel styling of its own ("does not present a single
+   shared bordered panel around all of them"); `gap` is what creates the
+   "clear visual gap" the same doc requires between sections. */
 
 .edit-inspector {
 	display: flex;
 	flex-direction: column;
+	gap: 1rem;
 	min-width: 0;
+}
+
+/* Each section is its own quiet panel, matching the existing dark surface
+   language (`#17202f` panels, `#2a3445` borders) used elsewhere in the
+   workspace — previously this styling sat on `.edit-inspector` itself,
+   which made both sections read as one shared panel. */
+.edit-inspector__section {
 	padding: 1rem;
 	border: 1px solid #2a3445;
 	border-radius: 0.75rem;
 	background: #131a29;
 	/* The label of every .outlined-field inside this panel masks the panel's
 	   own background where it overlaps the field's border (see
-	   .outlined-field__label below) — defined once here so the two visual
-	   layers can never drift apart. */
+	   .outlined-field__label below) — defined once here, per section, so the
+	   two visual layers can never drift apart. */
 	--outlined-field-label-bg: #131a29;
 }
 
@@ -915,6 +942,122 @@ main {
 }
 
 .field-row--split > .outlined-field {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Show Slider Date Labels (docs/APPLICATION_LAYOUT.md "Presentation"): a
+   plain text label paired with a switch, no accompanying field to grow via
+   `.field-row > .outlined-field` above — this fills that same role for a
+   bare label instead. */
+.presentation-toggle-label {
+	flex: 1;
+}
+
+/* Presentation section (docs/APPLICATION_LAYOUT.md "Presentation";
+   docs/COMPARISON_PRESENTATION.md Part 3) — src/components/
+   PresentationSection.tsx. Kept visually consistent with the Comparison
+   Information section above rather than introducing a second spacing
+   scale. */
+.presentation-section {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.presentation-option-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.presentation-option-group__legend {
+	color: #c7ccd6;
+	font-size: 0.8125rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+/* "Visual segmented option group with color chips" (Background/Frame) and
+   the plain "Single-row option group" (Corners) share this one row layout
+   — see src/components/PresentationSection.tsx's `OptionGroup`. */
+.presentation-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.presentation-options__button {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.presentation-options__button--selected {
+	border-color: #4f8cff;
+	background: rgba(79, 140, 255, 0.16);
+}
+
+.presentation-options__button:focus-visible {
+	outline: 0.1875rem solid #4f8cff;
+	outline-offset: 0.125rem;
+}
+
+.presentation-options__chip {
+	display: block;
+	width: 0.875rem;
+	height: 0.875rem;
+	border: 1px solid #3a4658;
+	border-radius: 50%;
+}
+
+/* The aufklappbare "Custom color" panel (docs/APPLICATION_LAYOUT.md
+   "Background": "a small area expands directly below the option group,
+   headed 'Custom color' … a color field and a HEX input"). Only rendered
+   at all while Custom is selected — src/components/PresentationSection.tsx
+   mounts and unmounts this element rather than hiding it, so "outside of
+   Custom, this area is fully hidden" needs no separate display toggle here. */
+.presentation-custom-color {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.75rem;
+	border: 1px solid #2a3445;
+	border-radius: 0.5rem;
+}
+
+.presentation-custom-color__heading {
+	color: #c7ccd6;
+	font-size: 0.75rem;
+}
+
+.presentation-custom-color__fields {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.presentation-custom-color__swatch {
+	flex-shrink: 0;
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: none;
+	cursor: pointer;
+}
+
+.presentation-custom-color__fields > .outlined-field {
 	flex: 1;
 	min-width: 0;
 }

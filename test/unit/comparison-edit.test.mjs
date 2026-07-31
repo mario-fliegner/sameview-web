@@ -12,6 +12,7 @@ import {
 	applyLocationCity,
 	applyLocationCountry,
 	applyLocationDisplayName,
+	applyPresentationConfiguration,
 	applyReferenceDate,
 	applyTitle,
 	applyVisibility,
@@ -21,9 +22,13 @@ import {
 	getLocationDisplayNameValue,
 	getReferenceDateValue,
 	getTitleValue,
+	normalizeHexColor,
 	validateReferenceDateInput,
 } from "../../src/lib/comparison-edit.ts";
-import { DEFAULT_PRESENTATION_VISIBILITY } from "../../src/lib/workspace-state.ts";
+import {
+	DEFAULT_PRESENTATION_CONFIGURATION,
+	DEFAULT_PRESENTATION_VISIBILITY,
+} from "../../src/lib/workspace-state.ts";
 
 function fakeCurrentWorkingState(raw = {}) {
 	return {
@@ -45,6 +50,7 @@ function fakeCurrentWorkingState(raw = {}) {
 			brandingHandleBytes: undefined,
 		},
 		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
+		presentationConfiguration: DEFAULT_PRESENTATION_CONFIGURATION,
 	};
 }
 
@@ -295,5 +301,65 @@ describe("applyVisibility", () => {
 		const next = applyVisibility(cws, { title: false });
 		assert.equal(next.metadata.raw.additional.visibility, "public");
 		assert.equal(next.presentationVisibility.title, false);
+	});
+});
+
+// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas", "Comparison Stage".
+describe("applyPresentationConfiguration", () => {
+	test("patches only the given keys, leaving the rest at their default value", () => {
+		const cws = fakeCurrentWorkingState();
+		const next = applyPresentationConfiguration(cws, {
+			cornerRadius: "sharp",
+		});
+		assert.deepEqual(next.presentationConfiguration, {
+			...DEFAULT_PRESENTATION_CONFIGURATION,
+			cornerRadius: "sharp",
+		});
+	});
+
+	test("replaces the whole Background value, including its color, in one patch", () => {
+		const cws = fakeCurrentWorkingState();
+		const next = applyPresentationConfiguration(cws, {
+			canvasBackground: { kind: "custom", color: "#FF00FF" },
+		});
+		assert.deepEqual(next.presentationConfiguration.canvasBackground, {
+			kind: "custom",
+			color: "#FF00FF",
+		});
+	});
+
+	test("never touches metadata.raw", () => {
+		const cws = fakeCurrentWorkingState({ content: { title: "Untouched" } });
+		const next = applyPresentationConfiguration(cws, {
+			showSliderDateLabels: false,
+		});
+		assert.equal(next.metadata.raw, cws.metadata.raw);
+	});
+});
+
+// docs/COMPARISON_PRESENTATION.md "Custom Color Editing".
+describe("normalizeHexColor", () => {
+	test("accepts a value with a leading #, uppercased", () => {
+		assert.equal(normalizeHexColor("#ff00ff"), "#FF00FF");
+	});
+
+	test("accepts a value without a leading #, uppercased", () => {
+		assert.equal(normalizeHexColor("ff00ff"), "#FF00FF");
+	});
+
+	test("accepts surrounding whitespace", () => {
+		assert.equal(normalizeHexColor("  #abcabc  "), "#ABCABC");
+	});
+
+	test("rejects a value with the wrong number of digits", () => {
+		assert.equal(normalizeHexColor("#fff"), undefined);
+	});
+
+	test("rejects a non-hex value", () => {
+		assert.equal(normalizeHexColor("not-a-color"), undefined);
+	});
+
+	test("rejects an empty value", () => {
+		assert.equal(normalizeHexColor(""), undefined);
 	});
 });

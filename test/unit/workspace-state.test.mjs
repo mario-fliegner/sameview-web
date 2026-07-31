@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
 	createWorkspace,
+	DEFAULT_PRESENTATION_CONFIGURATION,
 	DEFAULT_PRESENTATION_VISIBILITY,
 	initialWorkspaceState,
 	withCurrentWorkingState,
@@ -75,6 +76,16 @@ describe("createWorkspace", () => {
 			DEFAULT_PRESENTATION_VISIBILITY,
 		);
 		assert.equal(sourceData.presentationVisibility, undefined);
+
+		// docs/COMPARISON_PRESENTATION.md Part 3: Background "Brand", Frame
+		// "None", Corner Radius "Rounded", Show Slider Date Labels "On" —
+		// same Current-Working-State-only reasoning as presentationVisibility
+		// above.
+		assert.deepEqual(
+			cws.presentationConfiguration,
+			DEFAULT_PRESENTATION_CONFIGURATION,
+		);
+		assert.equal(sourceData.presentationConfiguration, undefined);
 	});
 
 	test("mutating the Current Working State's bytes never affects Source Data", () => {

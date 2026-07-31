@@ -79,6 +79,7 @@ import {
 import { useObjectUrl } from "../lib/use-object-url";
 import type {
 	CurrentWorkingState,
+	PresentationConfiguration,
 	PresentationVisibility,
 } from "../lib/workspace-state";
 import ComparisonPresentationInfo from "./ComparisonPresentationInfo";
@@ -226,6 +227,7 @@ export default function WorkspaceActive({
 						rightLabel={presentation.sliderLabels.right}
 						presentation={presentation}
 						visibility={currentWorkingState.presentationVisibility}
+						configuration={currentWorkingState.presentationConfiguration}
 					/>
 				</div>
 				<EditInspector
@@ -254,6 +256,60 @@ interface PresentationCanvasProps {
 	readonly rightLabel: string;
 	readonly presentation: ComparisonPresentation;
 	readonly visibility: PresentationVisibility;
+	readonly configuration: PresentationConfiguration;
+}
+
+// docs/BRAND_GUIDE.md "Brand Accent Color" (#4F8CFF) — already reused as-is
+// elsewhere in this codebase (src/components/ComparisonSlider.tsx's
+// `ACCENT_COLOR`) rather than introducing a second, slightly different
+// blue; the one existing brand-specific color token, and the only sensible
+// reading of Canvas Background's "Brand" option next to the literal
+// "White"/"Black"/"Transparent" options beside it.
+const BRAND_ACCENT_COLOR = "#4F8CFF";
+
+// docs/COMPARISON_PRESENTATION.md Part 3 "Frame": "Frame width is not a user
+// setting … concrete frame width is a rendering concern" — this is that
+// rendering decision, a fixed value applied whenever Frame is not "none".
+const FRAME_WIDTH_PX = 8;
+
+// docs/COMPARISON_PRESENTATION.md Part 3 "Corner Radius": "Sharp"/"Rounded".
+// 0.75rem matches the corner radius this canvas already used unconditionally
+// before this option existed, kept as the concrete "Rounded" value so the
+// documented default reproduces today's existing appearance unchanged.
+const CORNER_RADIUS_ROUNDED_PX = "0.75rem";
+const CORNER_RADIUS_SHARP_PX = "0";
+
+function resolveCanvasBackground(
+	background: PresentationConfiguration["canvasBackground"],
+): string {
+	switch (background.kind) {
+		case "transparent":
+			return "transparent";
+		case "white":
+			return "#FFFFFF";
+		case "black":
+			return "#000000";
+		case "brand":
+			return BRAND_ACCENT_COLOR;
+		case "custom":
+			return background.color;
+	}
+}
+
+function resolveFrame(frame: PresentationConfiguration["frame"]): {
+	readonly color: string;
+	readonly widthPx: number;
+} {
+	switch (frame.kind) {
+		case "none":
+			return { color: "transparent", widthPx: 0 };
+		case "white":
+			return { color: "#FFFFFF", widthPx: FRAME_WIDTH_PX };
+		case "black":
+			return { color: "#000000", widthPx: FRAME_WIDTH_PX };
+		case "custom":
+			return { color: frame.color, widthPx: FRAME_WIDTH_PX };
+	}
 }
 
 // The Presentation Canvas itself (docs/COMPARISON_PRESENTATION.md Part 2).
@@ -275,10 +331,20 @@ function PresentationCanvas({
 	rightLabel,
 	presentation,
 	visibility,
+	configuration,
 }: PresentationCanvasProps) {
 	const infoRef = useRef<HTMLDivElement>(null);
 	const [ratio, setRatio] = useState<number | null>(null);
 	const [metadataHeight, setMetadataHeight] = useState(0);
+	// Resolved once per Frame change and shared between the geometry
+	// calculation below and `presentationStyle` further down, so the exact
+	// same `widthPx` value that shrinks the available Stage area also drives
+	// the rendered border — the two can never drift apart into two different
+	// numbers.
+	const frame = useMemo(
+		() => resolveFrame(configuration.frame),
+		[configuration.frame],
+	);
 	// Forces a render after every measurement (see the effect below for why
 	// this is otherwise not guaranteed): if a measurement reports the exact
 	// same height as before (common — most width changes during the
@@ -346,13 +412,18 @@ function PresentationCanvas({
 			metadataHeight,
 			canvasPadding: CANVAS_PADDING_PX,
 			contentGap: CANVAS_CONTENT_GAP_PX,
+			frameWidth: frame.widthPx,
 		});
-	}, [previewSize, ratio, metadataHeight]);
+	}, [previewSize, ratio, metadataHeight, frame.widthPx]);
 
 	const currentTargetWidth = geometry
 		? geometry.stageWidth
 		: previewSize
-			? initialMetadataWidth(previewSize.width, CANVAS_PADDING_PX)
+			? initialMetadataWidth(
+					previewSize.width,
+					CANVAS_PADDING_PX,
+					frame.widthPx,
+				)
 			: null;
 
 	// docs/COMPARISON_PRESENTATION.md "Complete Presentation": the canvas must
@@ -368,9 +439,30 @@ function PresentationCanvas({
 				GEOMETRY_STABILITY_TOLERANCE_PX);
 	const canvasReady = geometry !== null && isStable;
 
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas"/"Corner Radius":
+	// independent of Stage geometry, so computed once and merged into
+	// whichever geometry branch below applies — these are Current Working
+	// State values, never guessed or defaulted differently across branches.
+	const presentationStyle = useMemo<CSSProperties>(
+		() =>
+			({
+				"--canvas-background": resolveCanvasBackground(
+					configuration.canvasBackground,
+				),
+				"--frame-color": frame.color,
+				"--frame-width": `${frame.widthPx}px`,
+				"--corner-radius":
+					configuration.cornerRadius === "rounded"
+						? CORNER_RADIUS_ROUNDED_PX
+						: CORNER_RADIUS_SHARP_PX,
+			}) as CSSProperties,
+		[configuration, frame],
+	);
+
 	const canvasStyle = useMemo<CSSProperties | undefined>(() => {
 		if (geometry) {
 			return {
+				...presentationStyle,
 				"--stage-width": `${geometry.stageWidth}px`,
 				"--stage-height": `${geometry.stageHeight}px`,
 				"--canvas-width": `${geometry.canvasWidth}px`,
@@ -387,14 +479,19 @@ function PresentationCanvas({
 			} as CSSProperties;
 		}
 		if (previewSize) {
-			const width = initialMetadataWidth(previewSize.width, CANVAS_PADDING_PX);
+			const width = initialMetadataWidth(
+				previewSize.width,
+				CANVAS_PADDING_PX,
+				frame.widthPx,
+			);
 			return {
+				...presentationStyle,
 				"--stage-width": `${width}px`,
 				"--canvas-padding": `${CANVAS_PADDING_PX}px`,
 			} as CSSProperties;
 		}
-		return undefined;
-	}, [geometry, previewSize, metadataHeight]);
+		return presentationStyle;
+	}, [geometry, previewSize, metadataHeight, presentationStyle, frame]);
 
 	return (
 		<>
@@ -422,6 +519,7 @@ function PresentationCanvas({
 					loadingLabel={loadingLabel}
 					leftLabel={leftLabel}
 					rightLabel={rightLabel}
+					showDateLabels={configuration.showSliderDateLabels}
 					onDimensionsChange={handleDimensionsChange}
 				/>
 				<div ref={infoRef} className="presentation-canvas__info-wrapper">

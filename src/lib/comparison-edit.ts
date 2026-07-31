@@ -21,6 +21,7 @@
 
 import type {
 	CurrentWorkingState,
+	PresentationConfiguration,
 	PresentationVisibility,
 } from "./workspace-state.ts";
 
@@ -270,4 +271,35 @@ export function applyVisibility(
 		...cws,
 		presentationVisibility: { ...cws.presentationVisibility, ...patch },
 	};
+}
+
+// --- Presentation Configuration (docs/COMPARISON_PRESENTATION.md Part 3
+// "Canvas", "Comparison Stage"; independent of Source Data, see
+// src/lib/workspace-state.ts) ---
+
+export function applyPresentationConfiguration(
+	cws: CurrentWorkingState,
+	patch: Partial<PresentationConfiguration>,
+): CurrentWorkingState {
+	return {
+		...cws,
+		presentationConfiguration: {
+			...cws.presentationConfiguration,
+			...patch,
+		},
+	};
+}
+
+// docs/COMPARISON_PRESENTATION.md "Custom Color Editing": accepts a value
+// with or without a leading `#`; the stored value is always normalized to
+// `#RRGGBB` in uppercase. No error code is returned — the same section is
+// explicit that an invalid value receives "only a subtle error state — no
+// explanatory error text", so callers need only a valid/invalid distinction,
+// never a specific reason.
+const HEX_COLOR = /^#?([0-9a-fA-F]{6})$/;
+
+export function normalizeHexColor(rawInput: string): string | undefined {
+	const match = HEX_COLOR.exec(rawInput.trim());
+	if (!match) return undefined;
+	return `#${(match[1] as string).toUpperCase()}`;
 }

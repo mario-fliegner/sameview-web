@@ -68,13 +68,56 @@ export const DEFAULT_PRESENTATION_VISIBILITY: PresentationVisibility = {
 	location: true,
 };
 
-// Adds only the one new concept Phase 5 introduces (see the module comment
-// above for why visibility is a sibling field here rather than folded into
-// `metadata`). Editable values have no separate representation: they live in
-// `metadata.raw`, identical in shape to Source Data, and are changed in
-// place on a cloned Current Working State by src/lib/comparison-edit.ts.
+// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas"/"Comparison Stage": the
+// four Presentation Configuration options this iteration implements.
+// Background and Frame are each a closed set of named options, with
+// "custom" carrying the one additional value (a normalized `#RRGGBB` hex
+// string — see src/lib/comparison-edit.ts `normalizeHexColor`) the other
+// options don't need; modeled as a discriminated union rather than an
+// always-present optional `color` field so a non-custom selection can never
+// carry a stale or meaningless color value.
+export type CanvasBackground =
+	| { readonly kind: "transparent" | "white" | "black" | "brand" }
+	| { readonly kind: "custom"; readonly color: string };
+
+export type PresentationFrame =
+	| { readonly kind: "none" | "white" | "black" }
+	| { readonly kind: "custom"; readonly color: string };
+
+export type CornerRadius = "sharp" | "rounded";
+
+// Like `PresentationVisibility` above, this has no Source Data counterpart
+// (docs/COMPARISON_PRESENTATION.md "Where Presentation Configuration
+// Belongs": "part of the Current Working State, using the same model as
+// Session Branding") — a fresh import always starts from the documented
+// defaults below, never from a preserved prior value.
+export interface PresentationConfiguration {
+	readonly canvasBackground: CanvasBackground;
+	readonly frame: PresentationFrame;
+	readonly cornerRadius: CornerRadius;
+	readonly showSliderDateLabels: boolean;
+}
+
+// docs/COMPARISON_PRESENTATION.md Part 3: Background default "Brand", Frame
+// default "None", Corner Radius default "Rounded", Show Slider Date Labels
+// default "On".
+export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
+	canvasBackground: { kind: "brand" },
+	frame: { kind: "none" },
+	cornerRadius: "rounded",
+	showSliderDateLabels: true,
+};
+
+// Adds only the two new concepts Phase 5 and this Presentation Configuration
+// iteration introduce (see the module comment above for why visibility is a
+// sibling field here rather than folded into `metadata`; Presentation
+// Configuration follows the identical reasoning). Editable values have no
+// separate representation: they live in `metadata.raw`, identical in shape
+// to Source Data, and are changed in place on a cloned Current Working
+// State by src/lib/comparison-edit.ts.
 export interface CurrentWorkingState extends SourceData {
 	readonly presentationVisibility: PresentationVisibility;
+	readonly presentationConfiguration: PresentationConfiguration;
 }
 
 export interface Workspace {
@@ -135,6 +178,7 @@ function cloneAsCurrentWorkingState(
 		// defaults — there is no Source Data value to carry forward (see the
 		// module comment above).
 		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
+		presentationConfiguration: DEFAULT_PRESENTATION_CONFIGURATION,
 	};
 }
 

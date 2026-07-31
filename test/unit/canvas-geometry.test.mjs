@@ -24,6 +24,7 @@ function baseInput(overrides = {}) {
 		metadataHeight: 0,
 		canvasPadding: CANVAS_PADDING_PX,
 		contentGap: CANVAS_CONTENT_GAP_PX,
+		frameWidth: 0,
 		...overrides,
 	};
 }
@@ -52,11 +53,18 @@ describe("deriveImageRatio", () => {
 
 describe("initialMetadataWidth", () => {
 	test("subtracts padding from both sides", () => {
-		assert.equal(initialMetadataWidth(874, 16), 874 - 32);
+		assert.equal(initialMetadataWidth(874, 16, 0), 874 - 32);
 	});
 
 	test("clamps to zero when padding exceeds preview width", () => {
-		assert.equal(initialMetadataWidth(10, 16), 0);
+		assert.equal(initialMetadataWidth(10, 16, 0), 0);
+	});
+
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Frame": proven necessary
+	// (see canvas-geometry.ts's own header comment) once a Frame with a
+	// real width is configured — subtracted the same way as padding.
+	test("also subtracts frame width from both sides", () => {
+		assert.equal(initialMetadataWidth(874, 16, 8), 874 - 32 - 16);
 	});
 });
 
@@ -185,6 +193,59 @@ describe("computeCanvasGeometry", () => {
 
 	test("canvasWidth equals stageWidth plus horizontal padding", () => {
 		const result = computeCanvasGeometry(baseInput({ metadataHeight: 60 }));
+		assert.ok(
+			Math.abs(
+				result.canvasWidth - (result.stageWidth + 2 * CANVAS_PADDING_PX),
+			) < 1e-9,
+		);
+	});
+
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Frame": proven necessary (see
+	// canvas-geometry.ts's own header comment) — with `box-sizing: border-box`
+	// a real Frame border draws inside the already-fixed canvas box, so it
+	// must be subtracted from the available Stage area exactly like padding,
+	// and added back into canvasWidth/canvasHeight so those still describe
+	// the full outer box.
+	test("a non-zero frame width shrinks the available Stage area on both axes", () => {
+		const withoutFrame = computeCanvasGeometry(
+			baseInput({ metadataHeight: 0, frameWidth: 0 }),
+		);
+		const withFrame = computeCanvasGeometry(
+			baseInput({ metadataHeight: 0, frameWidth: 8 }),
+		);
+		assert.ok(withFrame.stageHeight < withoutFrame.stageHeight);
+		assert.ok(withFrame.stageWidth < withoutFrame.stageWidth);
+		assert.ok(
+			Math.abs(withoutFrame.stageHeight - withFrame.stageHeight - 2 * 8) < 1e-9,
+		);
+	});
+
+	test("canvasWidth/canvasHeight include the frame width on top of padding", () => {
+		const result = computeCanvasGeometry(
+			baseInput({ metadataHeight: 60, frameWidth: 8 }),
+		);
+		assert.ok(
+			Math.abs(
+				result.canvasWidth -
+					(result.stageWidth + 2 * CANVAS_PADDING_PX + 2 * 8),
+			) < 1e-9,
+		);
+		assert.ok(
+			Math.abs(
+				result.canvasHeight -
+					(result.stageHeight +
+						CANVAS_CONTENT_GAP_PX +
+						60 +
+						2 * CANVAS_PADDING_PX +
+						2 * 8),
+			) < 1e-9,
+		);
+	});
+
+	test("zero frame width reproduces the exact pre-Frame geometry", () => {
+		const result = computeCanvasGeometry(
+			baseInput({ metadataHeight: 60, frameWidth: 0 }),
+		);
 		assert.ok(
 			Math.abs(
 				result.canvasWidth - (result.stageWidth + 2 * CANVAS_PADDING_PX),

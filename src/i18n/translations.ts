@@ -93,6 +93,33 @@ export interface Translations {
 		readonly locationDisplayNameLabel: string;
 		readonly locationCityLabel: string;
 		readonly locationCountryLabel: string;
+		readonly presentation: {
+			readonly heading: string;
+			readonly backgroundLegend: string;
+			readonly backgroundOptions: {
+				readonly transparent: string;
+				readonly white: string;
+				readonly black: string;
+				readonly brand: string;
+				readonly custom: string;
+			};
+			readonly frameLegend: string;
+			readonly frameOptions: {
+				readonly none: string;
+				readonly white: string;
+				readonly black: string;
+				readonly custom: string;
+			};
+			readonly cornersLegend: string;
+			readonly cornerOptions: {
+				readonly sharp: string;
+				readonly rounded: string;
+			};
+			readonly customColorHeading: string;
+			readonly customColorSwatchLabel: string;
+			readonly customColorHexLabel: string;
+			readonly showSliderDateLabelsLabel: string;
+		};
 	};
 }
 
@@ -174,6 +201,33 @@ export const translations: Record<Locale, Translations> = {
 			locationDisplayNameLabel: "Place name",
 			locationCityLabel: "City",
 			locationCountryLabel: "Country",
+			presentation: {
+				heading: "Presentation",
+				backgroundLegend: "Background",
+				backgroundOptions: {
+					transparent: "Transparent",
+					white: "White",
+					black: "Black",
+					brand: "Brand",
+					custom: "Custom",
+				},
+				frameLegend: "Frame",
+				frameOptions: {
+					none: "None",
+					white: "White",
+					black: "Black",
+					custom: "Custom",
+				},
+				cornersLegend: "Corners",
+				cornerOptions: {
+					sharp: "Sharp",
+					rounded: "Rounded",
+				},
+				customColorHeading: "Custom color",
+				customColorSwatchLabel: "Color",
+				customColorHexLabel: "HEX",
+				showSliderDateLabelsLabel: "Show slider date labels",
+			},
 		},
 	},
 	de: {
@@ -255,6 +309,33 @@ export const translations: Record<Locale, Translations> = {
 			locationDisplayNameLabel: "Ortsname",
 			locationCityLabel: "Stadt",
 			locationCountryLabel: "Land",
+			presentation: {
+				heading: "Präsentation",
+				backgroundLegend: "Hintergrund",
+				backgroundOptions: {
+					transparent: "Transparent",
+					white: "Weiß",
+					black: "Schwarz",
+					brand: "Markenfarbe",
+					custom: "Benutzerdefiniert",
+				},
+				frameLegend: "Rahmen",
+				frameOptions: {
+					none: "Kein",
+					white: "Weiß",
+					black: "Schwarz",
+					custom: "Benutzerdefiniert",
+				},
+				cornersLegend: "Ecken",
+				cornerOptions: {
+					sharp: "Eckig",
+					rounded: "Abgerundet",
+				},
+				customColorHeading: "Eigene Farbe",
+				customColorSwatchLabel: "Farbe",
+				customColorHexLabel: "HEX",
+				showSliderDateLabelsLabel: "Datumsangaben am Regler anzeigen",
+			},
 		},
 	},
 };
