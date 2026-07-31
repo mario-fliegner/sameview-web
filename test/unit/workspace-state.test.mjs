@@ -6,7 +6,9 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
 	createWorkspace,
+	DEFAULT_PRESENTATION_VISIBILITY,
 	initialWorkspaceState,
+	withCurrentWorkingState,
 } from "../../src/lib/workspace-state.ts";
 
 function fakeSourceData() {
@@ -50,17 +52,29 @@ describe("createWorkspace", () => {
 		);
 	});
 
-	test("Current Working State is structurally equal but reference-distinct from Source Data", () => {
+	test("Current Working State mirrors Source Data's own fields, reference-distinct, plus default presentation visibility", () => {
 		const sourceData = fakeSourceData();
 		const state = createWorkspace(sourceData);
 		const cws = state.workspace.currentWorkingState;
 
-		assert.deepEqual(cws, sourceData);
+		// Structurally equal to Source Data on every Source-Data-shaped field —
+		// presentationVisibility is Current-Working-State-only (see
+		// src/lib/workspace-state.ts) and deliberately excluded from this
+		// comparison rather than expected to also exist on sourceData.
+		assert.deepEqual(cws.sessionDirectory, sourceData.sessionDirectory);
+		assert.deepEqual(cws.metadata, sourceData.metadata);
+		assert.deepEqual(cws.files, sourceData.files);
 		assert.notEqual(cws, sourceData);
 		assert.notEqual(cws.files, sourceData.files);
 		assert.notEqual(cws.files.referenceBytes, sourceData.files.referenceBytes);
 		assert.notEqual(cws.metadata.raw, sourceData.metadata.raw);
 		assert.notEqual(cws.metadata.raw.nested, sourceData.metadata.raw.nested);
+
+		assert.deepEqual(
+			cws.presentationVisibility,
+			DEFAULT_PRESENTATION_VISIBILITY,
+		);
+		assert.equal(sourceData.presentationVisibility, undefined);
 	});
 
 	test("mutating the Current Working State's bytes never affects Source Data", () => {
@@ -84,5 +98,25 @@ describe("createWorkspace", () => {
 			state.workspace.currentWorkingState.files.brandingHandleBytes,
 			undefined,
 		);
+	});
+});
+
+describe("withCurrentWorkingState", () => {
+	test("replaces only currentWorkingState, leaving sourceData untouched", () => {
+		const sourceData = fakeSourceData();
+		const state = createWorkspace(sourceData);
+		const edited = {
+			...state.workspace.currentWorkingState,
+			presentationVisibility: {
+				...state.workspace.currentWorkingState.presentationVisibility,
+				description: true,
+			},
+		};
+
+		const nextWorkspace = withCurrentWorkingState(state.workspace, edited);
+
+		assert.equal(nextWorkspace.sourceData, state.workspace.sourceData);
+		assert.equal(nextWorkspace.currentWorkingState, edited);
+		assert.equal(nextWorkspace.sourceData.presentationVisibility, undefined);
 	});
 });

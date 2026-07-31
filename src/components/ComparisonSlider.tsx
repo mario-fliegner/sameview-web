@@ -54,6 +54,15 @@ interface ComparisonSliderProps {
 	readonly loadingLabel: string;
 	readonly leftLabel: string;
 	readonly rightLabel: string;
+	// Additive and optional. Reports the natural pixel dimensions already
+	// held in this component's own `dimensions` state below (the same value
+	// `--comparison-ratio` is derived from) — fires exactly once both images
+	// have loaded, never earlier, so a parent never has to separately track
+	// or reconcile its own "images ready" signal against this one.
+	readonly onDimensionsChange?: (dimensions: {
+		readonly width: number;
+		readonly height: number;
+	}) => void;
 }
 
 const KEYBOARD_STEP = 5;
@@ -117,6 +126,7 @@ export default function ComparisonSlider({
 	loadingLabel,
 	leftLabel,
 	rightLabel,
+	onDimensionsChange,
 }: ComparisonSliderProps) {
 	const frameRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState(50);
@@ -130,6 +140,16 @@ export default function ComparisonSlider({
 		readonly height: number;
 	} | null>(null);
 	const bothLoaded = referenceLoaded && captureLoaded;
+
+	// Reports the natural dimensions outward once both images have loaded —
+	// deliberately not earlier: `dimensions` alone already settles after just
+	// the first of the two images loads (see `handleImageLoad` below), which
+	// is not yet the same thing as this component actually being ready.
+	useEffect(() => {
+		if (bothLoaded && dimensions) {
+			onDimensionsChange?.(dimensions);
+		}
+	}, [bothLoaded, dimensions, onDimensionsChange]);
 
 	// Tracks the frame's own rendered width without ever calling
 	// getBoundingClientRect() from a pointermove handler: a forced layout

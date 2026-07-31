@@ -17,10 +17,12 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { LocaleProvider, useLocale } from "../i18n/LocaleContext";
 import { createSourceDataFromZip } from "../lib/import-source-data";
 import {
+	type CurrentWorkingState,
 	createWorkspace,
 	initialWorkspaceState,
 	type SourceData,
 	type WorkspaceState,
+	withCurrentWorkingState,
 } from "../lib/workspace-state";
 import AppFooter from "./AppFooter";
 import AppHeader from "./AppHeader";
@@ -137,6 +139,22 @@ function AppShell() {
 		wasCancelledRef.current = true;
 	}
 
+	// The sole place that commits an F-003 edit (docs/FEATURE_SPECIFICATION.md
+	// F-003) into the active workspace: replaces only `currentWorkingState`,
+	// leaving `sourceData` untouched, exactly as withCurrentWorkingState
+	// documents. A no-op if the workspace was replaced/closed between the
+	// edit being made and this handler running (state is stale).
+	function handleCurrentWorkingStateChange(next: CurrentWorkingState) {
+		setWorkspaceState((previous) =>
+			previous.status !== "active"
+				? previous
+				: {
+						status: "active",
+						workspace: withCurrentWorkingState(previous.workspace, next),
+					},
+		);
+	}
+
 	// Returns focus to the control that opened Replacement Mode once Cancel
 	// has actually taken effect — not synchronously inside cancelReplacement
 	// itself, since the "Replace Export" button is still disabled
@@ -186,6 +204,7 @@ function AppShell() {
 						errorMessage={errorMessage}
 						onOpenFilePicker={openFilePicker}
 						onFileDropped={(file) => void processFile(file)}
+						onCurrentWorkingStateChange={handleCurrentWorkingStateChange}
 					/>
 				</main>
 				<AppFooter showLanguageSelector={workspaceState.status === "active"} />

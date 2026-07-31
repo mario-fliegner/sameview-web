@@ -2,15 +2,24 @@
 // "Workspace Model" and "Operational States", and docs/IMPORTED_COMPARISON_V1.md
 // terminology (Source Data, Current Working State). No async, no browser API.
 //
-// This iteration only implements workspace creation from `no-workspace`.
-// Replacing an already-active workspace (confirmation, atomic replace,
-// cancel/failure preservation) is a separate, later iteration — this module
-// deliberately does not encode replacement-specific rules yet.
-//
 // State is held in memory only (component state); it does not persist
 // across a page reload. Local workspace retention remains an explicitly
 // open decision (docs/IMPLEMENTATION_PLAN_V1.md Section 9) that this module
 // does not resolve.
+//
+// Presentation visibility (docs/FEATURE_SPECIFICATION.md F-003; per-item
+// visibility is independent of each item's value) is a Current-Working-State
+// concept with no Source Data equivalent — it does not exist in an imported
+// comparison and is never derived from the preserved, inoperative
+// `additional.visibility` metadata field (docs/IMPORTED_COMPARISON_V1.md
+// "Preserved but Not Editable in Web V1"). It is kept here, as a sibling of
+// `metadata`/`files` rather than folded into either, for exactly that
+// reason: it has no Source Data counterpart to mirror. Editable comparison
+// *values* (title, description, reference date, location text), by
+// contrast, are not duplicated into a separate edit model — F-003 edits
+// target the corresponding known fields directly inside a cloned
+// `metadata.raw` (see src/lib/comparison-edit.ts), the same structure the
+// existing derivation/display code already reads.
 
 import type { ResolvedImportedMetadata } from "./import-metadata.ts";
 
@@ -32,15 +41,55 @@ export interface SourceData {
 	readonly files: AcceptedComparisonFiles;
 }
 
-// Structurally identical to SourceData for V1: no editable fields exist yet
-// (Phase 5 introduces them). Kept as a distinct type alias — and always
-// constructed as a genuinely independent object, see cloneAsCurrentWorkingState
-// below — so future edits can never alias or mutate Source Data.
-export type CurrentWorkingState = SourceData;
+// docs/APPLICATION_LAYOUT.md "Comparison Information": Title, Time
+// (Reference Date + Capture Date together) and Location are each shown by
+// default; Description defaults to hidden. `time` and `location` each
+// control one combined, indivisible rendered block — APPLICATION_LAYOUT.md
+// is explicit that "Show Time controls visibility of the complete rendered
+// time block" and a single Location switch "controls the complete rendered
+// location"; there are no separate per-date or per-location-field switches.
+// "Show Time Difference" (docs/COMPARISON_PRESENTATION.md Part 3) is
+// intentionally not represented here — it is presentation-only, not part of
+// the F-003 comparison information this model owns (see Part 2's "Time":
+// "not part of the comparison information owned by F-003"), and is deferred
+// to the later Presentation section iteration (docs/IMPLEMENTATION_PLAN_V1.md
+// Phase 5 "Not included").
+export interface PresentationVisibility {
+	readonly title: boolean;
+	readonly description: boolean;
+	readonly time: boolean;
+	readonly location: boolean;
+}
+
+export const DEFAULT_PRESENTATION_VISIBILITY: PresentationVisibility = {
+	title: true,
+	description: false,
+	time: true,
+	location: true,
+};
+
+// Adds only the one new concept Phase 5 introduces (see the module comment
+// above for why visibility is a sibling field here rather than folded into
+// `metadata`). Editable values have no separate representation: they live in
+// `metadata.raw`, identical in shape to Source Data, and are changed in
+// place on a cloned Current Working State by src/lib/comparison-edit.ts.
+export interface CurrentWorkingState extends SourceData {
+	readonly presentationVisibility: PresentationVisibility;
+}
 
 export interface Workspace {
 	readonly sourceData: SourceData;
 	readonly currentWorkingState: CurrentWorkingState;
+}
+
+// The one seam an edit (src/lib/comparison-edit.ts) or a future feature uses
+// to commit a new Current Working State into an existing workspace, without
+// ever touching `sourceData`.
+export function withCurrentWorkingState(
+	workspace: Workspace,
+	currentWorkingState: CurrentWorkingState,
+): Workspace {
+	return { sourceData: workspace.sourceData, currentWorkingState };
 }
 
 export type WorkspaceState =
@@ -82,6 +131,10 @@ function cloneAsCurrentWorkingState(
 				sourceData.files.brandingHandleBytes,
 			),
 		},
+		// A fresh import (or a replacement) always starts from the documented
+		// defaults — there is no Source Data value to carry forward (see the
+		// module comment above).
+		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
 	};
 }
 

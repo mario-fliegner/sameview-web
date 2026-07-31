@@ -66,16 +66,13 @@ test("both comparison images render, and the loading state clears once both are 
 	await expect(page.getByRole("slider")).toBeVisible();
 });
 
-test("title, description and location are derived and presented from the imported metadata", async ({
+test("title and location are derived and presented from the imported metadata", async ({
 	page,
 }) => {
 	await importFullFixture(page);
 
 	await expect(page.locator("#workspace-active-title")).toHaveText(
 		"White and black wall portait",
-	);
-	await expect(page.getByTestId("comparison-description")).toHaveText(
-		"This is a description. Portrait format.",
 	);
 	await expect(page.getByTestId("comparison-location")).toContainText(
 		"This Is A Place Name",
@@ -91,6 +88,23 @@ test("title, description and location are derived and presented from the importe
 		"2024",
 	);
 	await expect(page.getByTestId("comparison-capture-label")).not.toBeEmpty();
+});
+
+test("description is derived from the imported metadata but hidden until Show Description is enabled (docs/APPLICATION_LAYOUT.md default)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	// docs/APPLICATION_LAYOUT.md "Comparison Information" > "Description":
+	// "visibility default: OFF" — even though content.description is present
+	// in this fixture, it must not render until explicitly shown.
+	await expect(page.getByTestId("comparison-description")).toHaveCount(0);
+
+	await page.getByTestId("edit-show-description").click();
+
+	await expect(page.getByTestId("comparison-description")).toHaveText(
+		"This is a description. Portrait format.",
+	);
 });
 
 test("the reference fallback label is used when no comparison title or reference date exist", async ({
@@ -478,9 +492,11 @@ test("the Viewer appears before the comparison information in visual order on a 
 	await importFullFixture(page);
 
 	const sliderBox = await page.getByTestId("comparison-slider").boundingBox();
-	const infoBox = await page
-		.getByTestId("comparison-description")
-		.boundingBox();
+	// docs/APPLICATION_LAYOUT.md "Description": "visibility default: OFF" —
+	// comparison-location is visible by default and, like description,
+	// belongs to the same Presentation Preview column beneath the Comparison
+	// Stage, so it is an equally valid signal for this ordering check.
+	const infoBox = await page.getByTestId("comparison-location").boundingBox();
 	expect(sliderBox).not.toBeNull();
 	expect(infoBox).not.toBeNull();
 	expect(sliderBox?.y ?? 0).toBeLessThan(infoBox?.y ?? 0);

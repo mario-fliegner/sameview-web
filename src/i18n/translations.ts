@@ -71,6 +71,29 @@ export interface Translations {
 		readonly confirmButton: string;
 		readonly cancelButton: string;
 	};
+	readonly editInspector: {
+		readonly heading: string;
+		readonly comparisonInformationHeading: string;
+		readonly titleLabel: string;
+		readonly showTitleLabel: string;
+		readonly descriptionLabel: string;
+		readonly showDescriptionLabel: string;
+		readonly timeLegend: string;
+		readonly showTimeLabel: string;
+		readonly referenceDateLabel: string;
+		readonly captureDateLabel: string;
+		readonly referenceDateErrors: {
+			readonly "invalid-format": string;
+			readonly "invalid-year": string;
+			readonly "invalid-month": string;
+			readonly "invalid-day": string;
+		};
+		readonly locationLegend: string;
+		readonly showLocationLabel: string;
+		readonly locationDisplayNameLabel: string;
+		readonly locationCityLabel: string;
+		readonly locationCountryLabel: string;
+	};
 }
 
 export const translations: Record<Locale, Translations> = {
@@ -129,6 +152,29 @@ export const translations: Record<Locale, Translations> = {
 			confirmButton: "Replace",
 			cancelButton: "Cancel",
 		},
+		editInspector: {
+			heading: "Edit Inspector",
+			comparisonInformationHeading: "Comparison information",
+			titleLabel: "Title",
+			showTitleLabel: "Show title",
+			descriptionLabel: "Description",
+			showDescriptionLabel: "Show description",
+			timeLegend: "Photo dates",
+			showTimeLabel: "Show photo dates",
+			referenceDateLabel: "Reference photo date",
+			captureDateLabel: "Capture photo date",
+			referenceDateErrors: {
+				"invalid-format": "Use YYYY, YYYY-MM or YYYY-MM-DD.",
+				"invalid-year": "Enter a year between 1826 and the current year.",
+				"invalid-month": "Enter a month between 01 and 12.",
+				"invalid-day": "Enter a valid day for that month.",
+			},
+			locationLegend: "Location",
+			showLocationLabel: "Show place",
+			locationDisplayNameLabel: "Place name",
+			locationCityLabel: "City",
+			locationCountryLabel: "Country",
+		},
 	},
 	de: {
 		meta: {
@@ -185,6 +231,30 @@ export const translations: Record<Locale, Translations> = {
 			newSessionLabel: "Neue Sitzung",
 			confirmButton: "Ersetzen",
 			cancelButton: "Abbrechen",
+		},
+		editInspector: {
+			heading: "Bearbeitungsbereich",
+			comparisonInformationHeading: "Vergleichsinformationen",
+			titleLabel: "Titel",
+			showTitleLabel: "Titel anzeigen",
+			descriptionLabel: "Beschreibung",
+			showDescriptionLabel: "Beschreibung anzeigen",
+			timeLegend: "Datumsangaben",
+			showTimeLabel: "Datumsangaben anzeigen",
+			referenceDateLabel: "Referenzdatum",
+			captureDateLabel: "Aufnahmedatum",
+			referenceDateErrors: {
+				"invalid-format": "Verwende JJJJ, JJJJ-MM oder JJJJ-MM-TT.",
+				"invalid-year":
+					"Gib ein Jahr zwischen 1826 und dem aktuellen Jahr ein.",
+				"invalid-month": "Gib einen Monat zwischen 01 und 12 ein.",
+				"invalid-day": "Gib einen gültigen Tag für diesen Monat ein.",
+			},
+			locationLegend: "Ort",
+			showLocationLabel: "Ort anzeigen",
+			locationDisplayNameLabel: "Ortsname",
+			locationCityLabel: "Stadt",
+			locationCountryLabel: "Land",
 		},
 	},
 };

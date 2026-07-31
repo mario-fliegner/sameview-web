@@ -36,7 +36,8 @@ export default defineConfig({
 		},
 		{
 			name: "app",
-			testMatch: /(workspace-creation|app-shell|comparison-viewer)\.spec\.ts/,
+			testMatch:
+				/(workspace-creation|app-shell|comparison-viewer|comparison-editing)\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"], baseURL: APP_URL },
 		},
 	],

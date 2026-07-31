@@ -374,21 +374,24 @@ Desktop:
 
 Two-column layout.
 
-Viewer receives the larger portion of available width.
-
 Comparison occupies the secondary column.
 
 Suggested proportion:
 
 ```
-Viewer
-
-≈ 65–70 %
-
-Comparison
-
-≈ 30–35 %
+Viewer      50 %
+Comparison  50 %
 ```
+
+This split is fixed and independent of the comparison image orientation (portrait, landscape or square).
+
+Orientation does not affect the column split. It affects only how the Presentation Canvas uses the space available to it within the Presentation Preview column (see docs/COMPARISON_PRESENTATION.md "Preview Scaling"):
+
+- Portrait primarily uses the available height.
+- Landscape primarily uses the available width.
+- Square is fitted proportionally within that same 50 % Preview column.
+
+The Presentation Preview column itself never changes width because of orientation.
 
 Mobile:
 
@@ -408,7 +411,7 @@ Context Inspector
 
 The viewer is the primary workspace.
 
-It receives the largest available space.
+It receives an equal share of the available width alongside the Context Inspector (see "Responsive Layout"). Within that space, the Presentation Canvas scales to use as much of it as the comparison's aspect ratio and orientation allow.
 
 An interactive comparison slider is part of the current Viewer, revealing one image over the other.
 
@@ -807,7 +810,7 @@ The inspector should fit into the supported desktop viewport without requiring v
 
 The inspector consists of three collapsible sections:
 
-- Comparison Information
+- Comparison information
 - Presentation
 - Branding
 
@@ -844,7 +847,7 @@ Changes are reflected immediately in the viewer.
 
 ---
 
-## Comparison Information
+## Comparison information
 
 ### Title
 
@@ -868,39 +871,39 @@ Rules:
 - visibility default: OFF
 - switch aligned to the top-right
 
-### Time
+### Photo dates
 
 Controls:
 
-- Show Time
+- Show photo dates
 - Show Time Difference
 
 Rules:
 
-- Show Time controls visibility of the complete rendered time block.
-- Show Time Difference is only available when Show Time is enabled.
-- When Show Time is disabled, Show Time Difference becomes disabled.
+- Show photo dates controls visibility of the complete rendered time block.
+- Show Time Difference is only available when Show photo dates is enabled.
+- When Show photo dates is disabled, Show Time Difference becomes disabled.
 
 Below the switches the dates are displayed side by side.
 
 Left:
 
-- Reference Date (currently editable)
+- Reference photo date (currently editable)
 
 Right:
 
-- Capture Date (currently read-only)
+- Capture photo date (currently read-only)
 
 Both fields use identical widths.
 
-### Location
+### Place
 
 Controls:
 
-- Display Name
+- Place name
 - City
 - Country
-- Show Location
+- Show place
 
 Only one visibility switch exists.
 

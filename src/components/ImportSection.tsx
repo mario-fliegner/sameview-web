@@ -48,7 +48,10 @@ import {
 	useState,
 } from "react";
 import { useLocale } from "../i18n/LocaleContext";
-import type { WorkspaceState } from "../lib/workspace-state";
+import type {
+	CurrentWorkingState,
+	WorkspaceState,
+} from "../lib/workspace-state";
 import WorkspaceActive from "./WorkspaceActive";
 
 // SameView's own two-frame glyph — the product's identity, not a generic
@@ -78,6 +81,7 @@ interface ImportSectionProps {
 	readonly errorMessage: string | null;
 	readonly onOpenFilePicker: () => void;
 	readonly onFileDropped: (file: File) => void;
+	readonly onCurrentWorkingStateChange: (next: CurrentWorkingState) => void;
 }
 
 export default function ImportSection({
@@ -87,6 +91,7 @@ export default function ImportSection({
 	errorMessage,
 	onOpenFilePicker,
 	onFileDropped,
+	onCurrentWorkingStateChange,
 }: ImportSectionProps) {
 	const { t } = useLocale();
 	const [isDragActive, setIsDragActive] = useState(false);
@@ -138,6 +143,7 @@ export default function ImportSection({
 			<WorkspaceActive
 				currentWorkingState={workspaceState.workspace.currentWorkingState}
 				errorMessage={errorMessage}
+				onCurrentWorkingStateChange={onCurrentWorkingStateChange}
 			/>
 		);
 	}
