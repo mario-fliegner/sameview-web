@@ -153,60 +153,86 @@ export default function ComparisonPresentationInfo({
 		stableWidthPx,
 	);
 
+	const showTitle = visibility.title && Boolean(presentation.title);
+	const showDescription =
+		visibility.description && Boolean(presentation.description);
+	const showTime = visibility.time;
+	const showLocation = visibility.location && Boolean(locationText);
+
+	// Purely presentational grouping (docs/COMPARISON_PRESENTATION.md
+	// "Typographic Hierarchy"): Title/Description form the Primary Cluster
+	// (Level 1), Time/Location form the Context Cluster — a wrapper is
+	// omitted entirely when none of its own items are visible, so it never
+	// contributes an empty box or a stray gap.
+	const hasPrimaryCluster = showTitle || showDescription;
+	const hasContextCluster = showTime || showLocation;
+
 	return (
 		<div
 			className="presentation-info"
 			data-testid="comparison-presentation-info"
 		>
-			{visibility.title && presentation.title && (
-				<p
-					className={`presentation-info__title${
-						titleSize === "compact" ? " presentation-info__title--compact" : ""
-					}`}
-					data-testid="comparison-title"
-				>
-					{presentation.title}
-				</p>
+			{hasPrimaryCluster && (
+				<div className="presentation-info__primary">
+					{showTitle && (
+						<p
+							className={`presentation-info__title${
+								titleSize === "compact"
+									? " presentation-info__title--compact"
+									: ""
+							}`}
+							data-testid="comparison-title"
+						>
+							{presentation.title}
+						</p>
+					)}
+					{showDescription && (
+						<p
+							className={`presentation-info__description${
+								descriptionSize === "compact"
+									? " presentation-info__description--compact"
+									: ""
+							}`}
+							data-testid="comparison-description"
+						>
+							{presentation.description}
+						</p>
+					)}
+				</div>
 			)}
-			{visibility.description && presentation.description && (
-				<p
-					className={`presentation-info__description${
-						descriptionSize === "compact"
-							? " presentation-info__description--compact"
-							: ""
-					}`}
-					data-testid="comparison-description"
-				>
-					{presentation.description}
-				</p>
-			)}
-			{visibility.time && (
-				<p
-					className={`presentation-info__time${
-						timeSize === "compact" ? " presentation-info__time--compact" : ""
-					}`}
-					data-testid="comparison-time"
-				>
-					<span data-testid="comparison-reference-label">
-						{presentation.referenceLabel}
-					</span>
-					{" → "}
-					<span data-testid="comparison-capture-label">
-						{presentation.captureLabel}
-					</span>
-				</p>
-			)}
-			{visibility.location && locationText && (
-				<p
-					className={`presentation-info__location${
-						locationSize === "compact"
-							? " presentation-info__location--compact"
-							: ""
-					}`}
-					data-testid="comparison-location"
-				>
-					{locationText}
-				</p>
+			{hasContextCluster && (
+				<div className="presentation-info__context">
+					{showTime && (
+						<p
+							className={`presentation-info__time${
+								timeSize === "compact"
+									? " presentation-info__time--compact"
+									: ""
+							}`}
+							data-testid="comparison-time"
+						>
+							<span data-testid="comparison-reference-label">
+								{presentation.referenceLabel}
+							</span>
+							{" → "}
+							<span data-testid="comparison-capture-label">
+								{presentation.captureLabel}
+							</span>
+						</p>
+					)}
+					{showLocation && (
+						<p
+							className={`presentation-info__location${
+								locationSize === "compact"
+									? " presentation-info__location--compact"
+									: ""
+							}`}
+							data-testid="comparison-location"
+						>
+							{locationText}
+						</p>
+					)}
+				</div>
 			)}
 		</div>
 	);

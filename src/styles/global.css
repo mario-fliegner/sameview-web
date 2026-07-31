@@ -761,14 +761,28 @@ main {
    component, so no `display: none` handling is needed here. */
 
 /* Typographic Hierarchy (docs/COMPARISON_PRESENTATION.md "Typographic
-   Hierarchy"): Title/Description (Level 1), Time (Level 2) and Location
-   (Level 3) sit only a small, consistent gap apart — "One Cohesive Card",
-   not a footer — rather than the looser spacing a plain footer-style list
-   would use. */
+   Hierarchy"): two visual clusters, not one uniform list — a Primary
+   Cluster (Title, Description) and a Context Cluster (Time, Location),
+   src/components/ComparisonPresentationInfo.tsx's `__primary`/`__context`
+   wrappers. This gap is the deliberately larger space *between* the two
+   clusters; each cluster's own, smaller internal spacing is set on the
+   wrapper rules below instead. A wrapper is only ever rendered when at
+   least one of its own items is visible, so this gap correctly collapses
+   to nothing when one whole cluster is absent, and correctly applies
+   whenever both clusters are present — regardless of which individual
+   items within them are visible. */
 .presentation-info {
 	display: flex;
 	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.presentation-info__primary,
+.presentation-info__context {
+	display: flex;
+	flex-direction: column;
 	gap: 0.25rem;
+	min-width: 0;
 }
 
 /* Text (docs/COMPARISON_PRESENTATION.md Part 3 "Text"): all four rendered
@@ -790,6 +804,10 @@ main {
 	color: var(--text-color, #ffffff);
 	font-size: 1.125rem;
 	font-weight: 600;
+	/* Compact, heading-style line-height — matches this file's own `h1, h2`
+	   treatment (line-height: 1.2) rather than the looser `body` default
+	   (1.5) Title would otherwise inherit. */
+	line-height: 1.2;
 	/* "Maximum two lines, ellipsis on overflow." */
 	display: -webkit-box;
 	-webkit-line-clamp: 2;

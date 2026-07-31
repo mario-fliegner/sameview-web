@@ -354,6 +354,120 @@ test("the Edit Inspector still fills nearly the full width of its own column, fl
 	expect(inspectorBox.width / layoutBox.width).toBeLessThan(0.51);
 });
 
+// Typographic Hierarchy clustering (docs/COMPARISON_PRESENTATION.md
+// "Typographic Hierarchy"): Title/Description form the Primary Cluster,
+// Time/Location form the Context Cluster, separated by a deliberately
+// larger gap than the spacing within each cluster.
+
+// The actual visual gap between two stacked elements' bounding boxes —
+// distinct from a `y` delta, which would also include the first element's
+// own height.
+function verticalGap(
+	upper: { readonly y: number; readonly height: number },
+	lower: { readonly y: number },
+): number {
+	return lower.y - (upper.y + upper.height);
+}
+
+const GAP_TOLERANCE_PX = 2;
+
+test("Typographic Hierarchy: with Description visible, the Primary Cluster (Title/Description) and Context Cluster (Time/Location) each sit closer together than the gap between the two clusters", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+
+	const titleBox = await page.getByTestId("comparison-title").boundingBox();
+	const descriptionBox = await page
+		.getByTestId("comparison-description")
+		.boundingBox();
+	const timeBox = await page.getByTestId("comparison-time").boundingBox();
+	const locationBox = await page
+		.getByTestId("comparison-location")
+		.boundingBox();
+	if (!titleBox || !descriptionBox || !timeBox || !locationBox) {
+		throw new Error(
+			"one or more Comparison Information items has no bounding box",
+		);
+	}
+
+	const titleToDescription = verticalGap(titleBox, descriptionBox);
+	const descriptionToTime = verticalGap(descriptionBox, timeBox);
+	const timeToLocation = verticalGap(timeBox, locationBox);
+
+	expect(titleToDescription).toBeLessThan(descriptionToTime);
+	expect(timeToLocation).toBeLessThan(descriptionToTime);
+});
+
+test("Typographic Hierarchy: without Description, the cluster gap moves directly between Title and Time", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// Show Description defaults to off (docs/APPLICATION_LAYOUT.md) — left
+	// untouched here, so Title is the Primary Cluster's only member.
+
+	const titleBox = await page.getByTestId("comparison-title").boundingBox();
+	const timeBox = await page.getByTestId("comparison-time").boundingBox();
+	const locationBox = await page
+		.getByTestId("comparison-location")
+		.boundingBox();
+	if (!titleBox || !timeBox || !locationBox) {
+		throw new Error(
+			"one or more Comparison Information items has no bounding box",
+		);
+	}
+
+	const titleToTime = verticalGap(titleBox, timeBox);
+	const timeToLocation = verticalGap(timeBox, locationBox);
+
+	// 0.75rem (src/styles/global.css `.presentation-info`).
+	expect(Math.abs(titleToTime - 12)).toBeLessThanOrEqual(GAP_TOLERANCE_PX);
+	expect(timeToLocation).toBeLessThan(titleToTime);
+});
+
+test("Typographic Hierarchy: Time hidden, Location visible — the Context Cluster still sits the full cluster gap away, with no leftover or doubled spacing", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-time").click();
+	await expect(page.getByTestId("comparison-time")).toHaveCount(0);
+
+	const titleBox = await page.getByTestId("comparison-title").boundingBox();
+	const locationBox = await page
+		.getByTestId("comparison-location")
+		.boundingBox();
+	if (!titleBox || !locationBox) {
+		throw new Error("Title or Location has no bounding box");
+	}
+
+	const titleToLocation = verticalGap(titleBox, locationBox);
+
+	// 0.75rem (src/styles/global.css `.presentation-info`) — Location is the
+	// Context Cluster's only member, so its own internal 0.25rem gap never
+	// applies; no special-case selector exists for this, so this also
+	// verifies none is silently needed.
+	expect(Math.abs(titleToLocation - 12)).toBeLessThanOrEqual(GAP_TOLERANCE_PX);
+});
+
+test("Typographic Hierarchy: Presentation Information stays horizontally flush with the Comparison Stage after the Primary/Context wrapper change", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const stageBox = await page.getByTestId("comparison-slider").boundingBox();
+	const infoBox = await page
+		.getByTestId("comparison-presentation-info")
+		.boundingBox();
+	if (!stageBox || !infoBox) {
+		throw new Error(
+			"Comparison Stage or Presentation Information has no bounding box",
+		);
+	}
+
+	expect(Math.abs(infoBox.x - stageBox.x)).toBeLessThanOrEqual(1);
+	expect(Math.abs(infoBox.width - stageBox.width)).toBeLessThanOrEqual(1);
+});
+
 // Adaptive Sizing (docs/COMPARISON_PRESENTATION.md Part 2 "Adaptive
 // Sizing"): each of Title/Description/Time/Location independently steps
 // from its one standard size to exactly one defined smaller "compact" size
