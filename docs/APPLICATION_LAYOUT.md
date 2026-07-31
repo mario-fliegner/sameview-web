@@ -933,7 +933,29 @@ Individual location components cannot be hidden separately.
 
 ## Presentation
 
-### Background
+The Presentation section contains three top-level control groups, in this fixed order:
+
+1. Colors
+2. Shape
+3. Slider
+
+Each top-level group has its own group heading. Within the Presentation section, all three top-level group headings share the same typography, weight, and hierarchy — none is visually subordinate to another.
+
+A uniform vertical spacing separates the top-level groups — greater than the spacing used between the subgroups nested within a top-level group.
+
+Groups do not have their own nested panel surfaces or additional borders; visual separation is achieved through headings and consistent spacing alone.
+
+### Colors
+
+Colors contains the color-related settings of the Presentation Canvas, as three subgroups, in this fixed order:
+
+1. Background
+2. Frame
+3. Text
+
+Background, Frame, and Text share the same subgroup heading — one hierarchy level below the top-level group headings, and equal in hierarchy to one another.
+
+#### Background
 
 Visual segmented option group with color chips.
 
@@ -949,7 +971,7 @@ Default: Brand.
 
 When Custom is selected, a small area expands directly below the option group, headed "Custom color". It contains a color field and a HEX input. Outside of Custom, this area is fully hidden.
 
-### Frame
+#### Frame
 
 Visual segmented option group with color chips, identical in presentation to Background.
 
@@ -964,7 +986,15 @@ Default: None.
 
 When Custom is selected, the same expandable "Custom color" area as Background appears — same structure, same operation.
 
-### Corners
+#### Text
+
+Reserved as the structural location for a future text color control within Colors, alongside Background and Frame. No option, default, or behavior is specified for Text at this time, and no control is displayed for it yet.
+
+### Shape
+
+Shape contains a single subgroup:
+
+#### Corners
 
 Single-row option group.
 
@@ -977,15 +1007,19 @@ Default: Rounded.
 
 Corner Radius applies to the entire Presentation Canvas — background, optional Frame and Comparison Stage together — as one visual unit (see docs/COMPARISON_PRESENTATION.md Part 3).
 
-### Show Slider Date Labels
+### Slider
 
 Control:
 
-- Show Slider Date Labels
+- Show date labels
 
 Default: On.
 
+The switch is right-aligned.
+
 The comparison preview updates immediately.
+
+The label reads "Show date labels" rather than "Show Slider Date Labels" — the group heading "Slider" already establishes the context. The underlying function is unchanged.
 
 ### Map Preview
 

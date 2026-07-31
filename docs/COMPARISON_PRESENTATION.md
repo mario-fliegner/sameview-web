@@ -406,7 +406,7 @@ takes precedence.
 
 ### Custom Color Editing
 
-Background and Frame use identical Custom Color editing behavior.
+Background, Frame and Text use identical Custom Color editing behavior.
 
 This specification describes user-facing behavior only. It does not
 prescribe a browser API or a specific color picker implementation; an
@@ -441,6 +441,57 @@ Default: Rounded.
 Corner Radius applies to the entire Presentation Canvas — Canvas
 Background, the optional Frame and the Comparison Stage together — as one
 continuous visual unit, not to the Comparison Stage alone.
+
+## Text
+
+-   Automatic
+-   Light
+-   Dark
+-   Custom Color
+    -   Color Picker
+    -   HEX Input
+
+Default: Automatic.
+
+Text controls the color of the Comparison Information Rendering text
+elements (Part 2): Title, Time (Reference Date, Capture Date and, when
+enabled, the Duration/Time Difference addition), Location, and
+Description.
+
+Text does not affect: Slider Date Labels, the Handle, the compared images
+of the Comparison Stage, the Edit Inspector UI, Branding, or Map Preview.
+
+### Automatic
+
+Automatic is the default.
+
+The renderer determines a light or dark text tone from the Canvas
+Background actually in effect at render time.
+
+Automatic stores no concrete color. The derivation happens only at render
+time.
+
+This specification intentionally does not define a derivation algorithm, a
+luminance threshold, or a WCAG contrast calculation. The concrete
+derivation remains a renderer concern.
+
+### Light
+
+Light uses the project's existing light presentation text color:
+BRAND_GUIDE.md's Text Colors → Primary (#FFFFFF). No new color value is
+introduced.
+
+### Dark
+
+Dark uses BRAND_GUIDE.md's Brand Identity Color (#0D1424), not pure black
+(#000000), producing a refined dark presentation tone consistent with the
+rest of the brand.
+
+### Custom
+
+Selecting Custom opens the same Custom Color area as Background and Frame
+— see "Custom Color Editing" above. Background, Frame and Text share one
+identical Custom Color editing behavior.
 
 ## Comparison Information
 
@@ -500,6 +551,15 @@ A configured Custom Color's normalized `#RRGGBB` value (see "Custom Color
 Editing" above) is itself such a semantic decision, not a pixel value —
 only the concrete rendered fill or border a given output paints from it is
 a rendering concern.
+
+Text follows this same semantic-state architecture, as established for
+Background and Frame. Automatic, Light and Dark are semantic states; none
+of them stores a concrete color value. Only Custom stores a normalized
+`#RRGGBB` value, exactly as Background's and Frame's Custom Color does.
+Renderers derive the concrete rendered text color — including Automatic's
+light/dark determination — from this semantic state at render time. No
+pixel value and no renderer-specific state become part of the Current
+Working State for Text.
 
 Its goal is a consistent WYSIWYG presentation across the Workspace
 Preview, Standalone HTML and any further approved output type —
