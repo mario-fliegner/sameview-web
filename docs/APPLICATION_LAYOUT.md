@@ -814,7 +814,17 @@ The inspector consists of three collapsible sections:
 - Presentation
 - Branding
 
-All sections are expanded by default.
+The Edit Inspector itself is only a vertical layout container for these sections. It does not present a single shared bordered panel around all of them.
+
+Each section has its own panel surface: its own border, its own background, its own padding, its own heading and its own independent collapse control.
+
+A clear visual gap separates each section from the next.
+
+Initial expanded/collapsed state per section:
+
+- Comparison information: expanded by default
+- Presentation: collapsed by default
+- Branding: expanded by default
 
 Users may collapse individual sections to reduce visual complexity.
 
