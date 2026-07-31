@@ -78,9 +78,9 @@ describe("createWorkspace", () => {
 		assert.equal(sourceData.presentationVisibility, undefined);
 
 		// docs/COMPARISON_PRESENTATION.md Part 3: Background "Brand", Frame
-		// "None", Corner Radius "Rounded", Show Slider Date Labels "On" —
-		// same Current-Working-State-only reasoning as presentationVisibility
-		// above.
+		// "None", Corner Radius "Rounded", Text "Automatic", Show Slider Date
+		// Labels "On" — same Current-Working-State-only reasoning as
+		// presentationVisibility above.
 		assert.deepEqual(
 			cws.presentationConfiguration,
 			DEFAULT_PRESENTATION_CONFIGURATION,

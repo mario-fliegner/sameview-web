@@ -988,7 +988,20 @@ When Custom is selected, the same expandable "Custom color" area as Background a
 
 #### Text
 
-Reserved as the structural location for a future text color control within Colors, alongside Background and Frame. No option, default, or behavior is specified for Text at this time, and no control is displayed for it yet.
+Visual segmented option group, identical in presentation to Background and Frame.
+
+Options:
+
+- Automatic
+- Light
+- Dark
+- Custom
+
+Default: Automatic.
+
+When Custom is selected, the same expandable "Custom color" area as Background and Frame appears — same structure, same operation.
+
+See docs/COMPARISON_PRESENTATION.md Part 3 "Text" for what each option controls.
 
 ### Shape
 

@@ -86,6 +86,13 @@ export type PresentationFrame =
 
 export type CornerRadius = "sharp" | "rounded";
 
+// Same shape as `PresentationFrame` above, for the same reason: "Automatic"/
+// "Light"/"Dark" carry no color of their own, "Custom" is the only kind that
+// needs one (docs/COMPARISON_PRESENTATION.md Part 3 "Text").
+export type PresentationTextColor =
+	| { readonly kind: "automatic" | "light" | "dark" }
+	| { readonly kind: "custom"; readonly color: string };
+
 // Like `PresentationVisibility` above, this has no Source Data counterpart
 // (docs/COMPARISON_PRESENTATION.md "Where Presentation Configuration
 // Belongs": "part of the Current Working State, using the same model as
@@ -95,16 +102,18 @@ export interface PresentationConfiguration {
 	readonly canvasBackground: CanvasBackground;
 	readonly frame: PresentationFrame;
 	readonly cornerRadius: CornerRadius;
+	readonly textColor: PresentationTextColor;
 	readonly showSliderDateLabels: boolean;
 }
 
 // docs/COMPARISON_PRESENTATION.md Part 3: Background default "Brand", Frame
-// default "None", Corner Radius default "Rounded", Show Slider Date Labels
-// default "On".
+// default "None", Corner Radius default "Rounded", Text default "Automatic",
+// Show Slider Date Labels default "On".
 export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
 	canvasBackground: { kind: "brand" },
 	frame: { kind: "none" },
 	cornerRadius: "rounded",
+	textColor: { kind: "automatic" },
 	showSliderDateLabels: true,
 };
 

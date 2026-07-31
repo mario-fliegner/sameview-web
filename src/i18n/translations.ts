@@ -95,6 +95,7 @@ export interface Translations {
 		readonly locationCountryLabel: string;
 		readonly presentation: {
 			readonly heading: string;
+			readonly colorsLegend: string;
 			readonly backgroundLegend: string;
 			readonly backgroundOptions: {
 				readonly transparent: string;
@@ -110,6 +111,14 @@ export interface Translations {
 				readonly black: string;
 				readonly custom: string;
 			};
+			readonly textLegend: string;
+			readonly textOptions: {
+				readonly automatic: string;
+				readonly light: string;
+				readonly dark: string;
+				readonly custom: string;
+			};
+			readonly shapeLegend: string;
 			readonly cornersLegend: string;
 			readonly cornerOptions: {
 				readonly sharp: string;
@@ -118,6 +127,7 @@ export interface Translations {
 			readonly customColorHeading: string;
 			readonly customColorSwatchLabel: string;
 			readonly customColorHexLabel: string;
+			readonly sliderLegend: string;
 			readonly showSliderDateLabelsLabel: string;
 		};
 	};
@@ -203,6 +213,7 @@ export const translations: Record<Locale, Translations> = {
 			locationCountryLabel: "Country",
 			presentation: {
 				heading: "Presentation",
+				colorsLegend: "Colors",
 				backgroundLegend: "Background",
 				backgroundOptions: {
 					transparent: "Transparent",
@@ -218,6 +229,14 @@ export const translations: Record<Locale, Translations> = {
 					black: "Black",
 					custom: "Custom",
 				},
+				textLegend: "Text",
+				textOptions: {
+					automatic: "Automatic",
+					light: "Light",
+					dark: "Dark",
+					custom: "Custom",
+				},
+				shapeLegend: "Shape",
 				cornersLegend: "Corners",
 				cornerOptions: {
 					sharp: "Sharp",
@@ -226,7 +245,8 @@ export const translations: Record<Locale, Translations> = {
 				customColorHeading: "Custom color",
 				customColorSwatchLabel: "Color",
 				customColorHexLabel: "HEX",
-				showSliderDateLabelsLabel: "Show slider date labels",
+				sliderLegend: "Slider",
+				showSliderDateLabelsLabel: "Show date labels",
 			},
 		},
 	},
@@ -311,6 +331,7 @@ export const translations: Record<Locale, Translations> = {
 			locationCountryLabel: "Land",
 			presentation: {
 				heading: "Präsentation",
+				colorsLegend: "Farben",
 				backgroundLegend: "Hintergrund",
 				backgroundOptions: {
 					transparent: "Transparent",
@@ -326,6 +347,14 @@ export const translations: Record<Locale, Translations> = {
 					black: "Schwarz",
 					custom: "Benutzerdefiniert",
 				},
+				textLegend: "Text",
+				textOptions: {
+					automatic: "Automatisch",
+					light: "Hell",
+					dark: "Dunkel",
+					custom: "Benutzerdefiniert",
+				},
+				shapeLegend: "Form",
 				cornersLegend: "Ecken",
 				cornerOptions: {
 					sharp: "Eckig",
@@ -334,7 +363,8 @@ export const translations: Record<Locale, Translations> = {
 				customColorHeading: "Eigene Farbe",
 				customColorSwatchLabel: "Farbe",
 				customColorHexLabel: "HEX",
-				showSliderDateLabelsLabel: "Datumsangaben am Regler anzeigen",
+				sliderLegend: "Regler",
+				showSliderDateLabelsLabel: "Datumsangaben anzeigen",
 			},
 		},
 	},

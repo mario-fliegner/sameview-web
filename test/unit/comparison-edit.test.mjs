@@ -328,6 +328,17 @@ describe("applyPresentationConfiguration", () => {
 		});
 	});
 
+	test("replaces the whole Text value, including its color, in one patch", () => {
+		const cws = fakeCurrentWorkingState();
+		const next = applyPresentationConfiguration(cws, {
+			textColor: { kind: "custom", color: "#00FF00" },
+		});
+		assert.deepEqual(next.presentationConfiguration.textColor, {
+			kind: "custom",
+			color: "#00FF00",
+		});
+	});
+
 	test("never touches metadata.raw", () => {
 		const cws = fakeCurrentWorkingState({ content: { title: "Untouched" } });
 		const next = applyPresentationConfiguration(cws, {

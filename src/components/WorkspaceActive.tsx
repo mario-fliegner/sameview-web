@@ -312,6 +312,55 @@ function resolveFrame(frame: PresentationConfiguration["frame"]): {
 	}
 }
 
+// docs/BRAND_GUIDE.md "Text Colors" → "Primary" — Text's "Light" value
+// (docs/COMPARISON_PRESENTATION.md "Text" → "Light": "the project's existing
+// light presentation text color").
+const LIGHT_TEXT_COLOR = "#FFFFFF";
+// docs/BRAND_GUIDE.md "Brand Identity Color" — Text's "Dark" value
+// (docs/COMPARISON_PRESENTATION.md "Text" → "Dark": "not pure black").
+const DARK_TEXT_COLOR = "#0D1424";
+
+// Relative luminance of a `#RRGGBB` hex color, sRGB-linearized per the
+// standard WCAG/ITU-R BT.709 coefficients — used only to pick a light or
+// dark text tone for "Automatic" (docs/COMPARISON_PRESENTATION.md "Text" →
+// "Automatic": deliberately no algorithm or luminance threshold is
+// specified there, so this is an ordinary, unremarkable renderer choice,
+// not a documented contract).
+function relativeLuminance(hexColor: string): number {
+	const channel = (start: number) => {
+		const value = Number.parseInt(hexColor.slice(start, start + 2), 16) / 255;
+		return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+	};
+	return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+// "Transparent" has no fixed color of its own to derive a tone from — this
+// app's own surrounding surfaces are always dark (docs/BRAND_GUIDE.md
+// "SameView is a dark-only app"), so Automatic treats Transparent the same
+// way it would treat any other dark-enough background: a light text tone.
+const AUTOMATIC_TRANSPARENT_LUMINANCE = 0;
+
+function resolveTextColor(
+	textColor: PresentationConfiguration["textColor"],
+	resolvedBackground: string,
+): string {
+	switch (textColor.kind) {
+		case "light":
+			return LIGHT_TEXT_COLOR;
+		case "dark":
+			return DARK_TEXT_COLOR;
+		case "custom":
+			return textColor.color;
+		case "automatic": {
+			const luminance =
+				resolvedBackground === "transparent"
+					? AUTOMATIC_TRANSPARENT_LUMINANCE
+					: relativeLuminance(resolvedBackground);
+			return luminance > 0.5 ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR;
+		}
+	}
+}
+
 // The Presentation Canvas itself (docs/COMPARISON_PRESENTATION.md Part 2).
 // Deliberately a separate component, always rendered with
 // `key={sessionDirectory}` by WorkspaceActive above: it owns exactly the
@@ -439,25 +488,28 @@ function PresentationCanvas({
 				GEOMETRY_STABILITY_TOLERANCE_PX);
 	const canvasReady = geometry !== null && isStable;
 
-	// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas"/"Corner Radius":
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas"/"Corner Radius"/"Text":
 	// independent of Stage geometry, so computed once and merged into
 	// whichever geometry branch below applies — these are Current Working
 	// State values, never guessed or defaulted differently across branches.
-	const presentationStyle = useMemo<CSSProperties>(
-		() =>
-			({
-				"--canvas-background": resolveCanvasBackground(
-					configuration.canvasBackground,
-				),
-				"--frame-color": frame.color,
-				"--frame-width": `${frame.widthPx}px`,
-				"--corner-radius":
-					configuration.cornerRadius === "rounded"
-						? CORNER_RADIUS_ROUNDED_PX
-						: CORNER_RADIUS_SHARP_PX,
-			}) as CSSProperties,
-		[configuration, frame],
-	);
+	const presentationStyle = useMemo<CSSProperties>(() => {
+		const resolvedBackground = resolveCanvasBackground(
+			configuration.canvasBackground,
+		);
+		return {
+			"--canvas-background": resolvedBackground,
+			"--frame-color": frame.color,
+			"--frame-width": `${frame.widthPx}px`,
+			"--corner-radius":
+				configuration.cornerRadius === "rounded"
+					? CORNER_RADIUS_ROUNDED_PX
+					: CORNER_RADIUS_SHARP_PX,
+			"--text-color": resolveTextColor(
+				configuration.textColor,
+				resolvedBackground,
+			),
+		} as CSSProperties;
+	}, [configuration, frame]);
 
 	const canvasStyle = useMemo<CSSProperties | undefined>(() => {
 		if (geometry) {

@@ -763,8 +763,15 @@ main {
 	gap: 0.5rem;
 }
 
+/* Text (docs/COMPARISON_PRESENTATION.md Part 3 "Text"): all four rendered
+   items resolve from the same `--text-color` custom property, set by
+   src/components/WorkspaceActive.tsx's `PresentationCanvas` on
+   `.presentation-canvas` and inherited down the DOM exactly like
+   `--corner-radius` already is. The fallback values reproduce this
+   component's pre-Text-Color appearance if the variable is ever unset. */
 .presentation-info__title {
 	margin: 0;
+	color: var(--text-color, #ffffff);
 	font-size: 1.125rem;
 	font-weight: 600;
 	/* "Maximum one line, ellipsis on overflow." */
@@ -776,7 +783,7 @@ main {
 .presentation-info__time,
 .presentation-info__location {
 	margin: 0;
-	color: #c7ccd6;
+	color: var(--text-color, #c7ccd6);
 	font-size: 0.875rem;
 	/* Single line, fixed height regardless of content or the width this
 	   block is currently measured at (matching the Title's existing
@@ -790,7 +797,7 @@ main {
 
 .presentation-info__description {
 	margin: 0;
-	color: #c7ccd6;
+	color: var(--text-color, #c7ccd6);
 	/* "Maximum three lines, ellipsis on overflow." */
 	display: -webkit-box;
 	-webkit-line-clamp: 3;
@@ -828,6 +835,18 @@ main {
 	--outlined-field-label-bg: #131a29;
 }
 
+/* The currently open section (docs/APPLICATION_LAYOUT.md "Structure": at
+   most one section open at a time) is highlighted quietly rather than with
+   a Material-style floating card: same 1px border width, only the existing
+   brand accent as its color; a background only a few percent lighter than
+   the resting panel; and a tight, centered, unblurred-looking accent glow
+   instead of a directional drop shadow, so it never reads as "lifted". */
+.edit-inspector__section--active {
+	border-color: #4f8cff;
+	background: #1a2233;
+	box-shadow: 0 0 0.5rem rgba(79, 140, 255, 0.08);
+}
+
 .edit-inspector__section-heading {
 	margin: 0;
 	font-size: 1rem;
@@ -861,6 +880,12 @@ main {
 
 .edit-inspector__chevron--expanded {
 	transform: rotate(-135deg);
+	/* The expanded chevron only ever belongs to the currently active section
+	   (docs/APPLICATION_LAYOUT.md "Structure": at most one section open at a
+	   time) — reusing the same brand accent as its border above, not a new
+	   color. The closed chevron keeps its default color untouched. */
+	border-inline-end-color: #4f8cff;
+	border-block-end-color: #4f8cff;
 }
 
 .edit-inspector__section-body {
@@ -979,9 +1004,37 @@ main {
 	letter-spacing: 0.03em;
 }
 
-/* "Visual segmented option group with color chips" (Background/Frame) and
-   the plain "Single-row option group" (Corners) share this one row layout
-   — see src/components/PresentationSection.tsx's `OptionGroup`. */
+/* Group content sits on a slight indent while the legend above stays flush
+   — a shared vertical axis for the top-level headings, a quieter one for
+   their content. Targets every sibling after the legend so it applies
+   uniformly regardless of which content elements a given group renders
+   (a Colors/Shape group's subgroups, Slider's field-row). */
+.presentation-option-group__legend ~ * {
+	margin-left: 0.875rem;
+}
+
+/* Background/Frame/Text (under "Colors") and Corners (under "Shape") —
+   docs/APPLICATION_LAYOUT.md "Presentation": subgroups "share the same
+   subgroup heading — one hierarchy level below the top-level group
+   headings". `.presentation-option-group`'s existing 0.5rem gap already
+   separates one subgroup from the next; `.presentation-section`'s 1rem gap
+   between top-level groups stays the larger of the two, satisfying "more
+   vertical spacing between top-level groups than between subgroups". */
+.presentation-subgroup {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.presentation-subgroup__legend {
+	color: #c7ccd6;
+	font-size: 0.75rem;
+	font-weight: 600;
+}
+
+/* "Visual segmented option group with color chips" (Background/Frame/Text)
+   and the plain "Single-row option group" (Corners) share this one row
+   layout — see src/components/PresentationSection.tsx's `OptionGroup`. */
 .presentation-options {
 	display: flex;
 	flex-wrap: wrap;

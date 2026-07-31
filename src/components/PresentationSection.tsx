@@ -1,10 +1,11 @@
 // The Edit Inspector's "Presentation" section
 // (docs/APPLICATION_LAYOUT.md "Edit Inspector" > "Presentation";
-// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas", "Comparison Stage").
-// Implements exactly the four options approved for this iteration —
-// Background, Frame, Corner Radius, Show Slider Date Labels. Map Preview is
-// explicitly a separate, later iteration (COMPARISON_PRESENTATION.md Part 3
-// "Map") and has no control here.
+// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas", "Text", "Comparison
+// Stage"). Implements the options approved so far, grouped per
+// APPLICATION_LAYOUT.md's information architecture: Colors (Background,
+// Frame, Text), Shape (Corners), Slider (Show Slider Date Labels). Map
+// Preview is explicitly a separate, later iteration
+// (COMPARISON_PRESENTATION.md Part 3 "Map") and has no control here.
 //
 // Pure editing controls only, mirroring the same split already established
 // by src/components/ComparisonInformationSection.tsx: this component never
@@ -13,8 +14,8 @@
 // src/components/WorkspaceActive.tsx's `PresentationCanvas`.
 //
 // The two local, unexported components below (`OptionGroup`,
-// `CustomColorFields`) exist only because Background and Frame each need
-// the exact same segmented-option-group and Custom Color behavior
+// `CustomColorFields`) exist only because Background, Frame and Text each
+// need the exact same segmented-option-group and Custom Color behavior
 // (docs/APPLICATION_LAYOUT.md: "identical in presentation to Background").
 // They are not exported and not meant to generalize beyond this section.
 
@@ -29,6 +30,7 @@ import type {
 	CornerRadius,
 	CurrentWorkingState,
 	PresentationFrame,
+	PresentationTextColor,
 } from "../lib/workspace-state";
 import OutlinedField from "./OutlinedField";
 import Switch from "./Switch";
@@ -39,8 +41,8 @@ interface PresentationSectionProps {
 }
 
 // A sensible starting value the moment a "Custom" option is first selected,
-// before the user has picked a color of their own — Background and Frame
-// each require a concrete `color` the instant their `kind` becomes
+// before the user has picked a color of their own — Background, Frame and
+// Text each require a concrete `color` the instant their `kind` becomes
 // "custom" (see src/lib/workspace-state.ts's discriminated unions).
 const INITIAL_CUSTOM_COLOR = "#FFFFFF";
 
@@ -63,139 +65,212 @@ export default function PresentationSection({
 		<div className="presentation-section">
 			<div className="presentation-option-group">
 				<span className="presentation-option-group__legend">
-					{t.editInspector.presentation.backgroundLegend}
+					{t.editInspector.presentation.colorsLegend}
 				</span>
-				<OptionGroup
-					legend={t.editInspector.presentation.backgroundLegend}
-					testIdPrefix="edit-presentation-background"
-					selected={configuration.canvasBackground.kind}
-					options={[
-						{
-							value: "transparent",
-							label: t.editInspector.presentation.backgroundOptions.transparent,
-						},
-						{
-							value: "white",
-							label: t.editInspector.presentation.backgroundOptions.white,
-							chipColor: "#FFFFFF",
-						},
-						{
-							value: "black",
-							label: t.editInspector.presentation.backgroundOptions.black,
-							chipColor: "#000000",
-						},
-						{
-							value: "brand",
-							label: t.editInspector.presentation.backgroundOptions.brand,
-							chipColor: "#4F8CFF",
-						},
-						{
-							value: "custom",
-							label: t.editInspector.presentation.backgroundOptions.custom,
-						},
-					]}
-					onSelect={(value) => {
-						const kind = value as CanvasBackground["kind"];
-						updateConfiguration({
-							canvasBackground:
-								kind === "custom"
-									? { kind: "custom", color: INITIAL_CUSTOM_COLOR }
-									: { kind },
-						});
-					}}
-				/>
-				{configuration.canvasBackground.kind === "custom" && (
-					<CustomColorFields
-						idPrefix="edit-presentation-background-custom-color"
-						value={configuration.canvasBackground.color}
-						onChange={(color) =>
+
+				<div className="presentation-subgroup">
+					<span className="presentation-subgroup__legend">
+						{t.editInspector.presentation.backgroundLegend}
+					</span>
+					<OptionGroup
+						legend={t.editInspector.presentation.backgroundLegend}
+						testIdPrefix="edit-presentation-background"
+						selected={configuration.canvasBackground.kind}
+						options={[
+							{
+								value: "transparent",
+								label:
+									t.editInspector.presentation.backgroundOptions.transparent,
+							},
+							{
+								value: "white",
+								label: t.editInspector.presentation.backgroundOptions.white,
+								chipColor: "#FFFFFF",
+							},
+							{
+								value: "black",
+								label: t.editInspector.presentation.backgroundOptions.black,
+								chipColor: "#000000",
+							},
+							{
+								value: "brand",
+								label: t.editInspector.presentation.backgroundOptions.brand,
+								chipColor: "#4F8CFF",
+							},
+							{
+								value: "custom",
+								label: t.editInspector.presentation.backgroundOptions.custom,
+							},
+						]}
+						onSelect={(value) => {
+							const kind = value as CanvasBackground["kind"];
 							updateConfiguration({
-								canvasBackground: { kind: "custom", color },
-							})
-						}
+								canvasBackground:
+									kind === "custom"
+										? { kind: "custom", color: INITIAL_CUSTOM_COLOR }
+										: { kind },
+							});
+						}}
 					/>
-				)}
+					{configuration.canvasBackground.kind === "custom" && (
+						<CustomColorFields
+							idPrefix="edit-presentation-background-custom-color"
+							value={configuration.canvasBackground.color}
+							onChange={(color) =>
+								updateConfiguration({
+									canvasBackground: { kind: "custom", color },
+								})
+							}
+						/>
+					)}
+				</div>
+
+				<div className="presentation-subgroup">
+					<span className="presentation-subgroup__legend">
+						{t.editInspector.presentation.frameLegend}
+					</span>
+					<OptionGroup
+						legend={t.editInspector.presentation.frameLegend}
+						testIdPrefix="edit-presentation-frame"
+						selected={configuration.frame.kind}
+						options={[
+							{
+								value: "none",
+								label: t.editInspector.presentation.frameOptions.none,
+							},
+							{
+								value: "white",
+								label: t.editInspector.presentation.frameOptions.white,
+								chipColor: "#FFFFFF",
+							},
+							{
+								value: "black",
+								label: t.editInspector.presentation.frameOptions.black,
+								chipColor: "#000000",
+							},
+							{
+								value: "custom",
+								label: t.editInspector.presentation.frameOptions.custom,
+							},
+						]}
+						onSelect={(value) => {
+							const kind = value as PresentationFrame["kind"];
+							updateConfiguration({
+								frame:
+									kind === "custom"
+										? { kind: "custom", color: INITIAL_CUSTOM_COLOR }
+										: { kind },
+							});
+						}}
+					/>
+					{configuration.frame.kind === "custom" && (
+						<CustomColorFields
+							idPrefix="edit-presentation-frame-custom-color"
+							value={configuration.frame.color}
+							onChange={(color) =>
+								updateConfiguration({ frame: { kind: "custom", color } })
+							}
+						/>
+					)}
+				</div>
+
+				<div className="presentation-subgroup">
+					<span className="presentation-subgroup__legend">
+						{t.editInspector.presentation.textLegend}
+					</span>
+					<OptionGroup
+						legend={t.editInspector.presentation.textLegend}
+						testIdPrefix="edit-presentation-text"
+						selected={configuration.textColor.kind}
+						options={[
+							{
+								value: "automatic",
+								label: t.editInspector.presentation.textOptions.automatic,
+							},
+							{
+								value: "light",
+								label: t.editInspector.presentation.textOptions.light,
+								chipColor: "#FFFFFF",
+							},
+							{
+								value: "dark",
+								label: t.editInspector.presentation.textOptions.dark,
+								chipColor: "#0D1424",
+							},
+							{
+								value: "custom",
+								label: t.editInspector.presentation.textOptions.custom,
+							},
+						]}
+						onSelect={(value) => {
+							const kind = value as PresentationTextColor["kind"];
+							updateConfiguration({
+								textColor:
+									kind === "custom"
+										? { kind: "custom", color: INITIAL_CUSTOM_COLOR }
+										: { kind },
+							});
+						}}
+					/>
+					{configuration.textColor.kind === "custom" && (
+						<CustomColorFields
+							idPrefix="edit-presentation-text-custom-color"
+							value={configuration.textColor.color}
+							onChange={(color) =>
+								updateConfiguration({ textColor: { kind: "custom", color } })
+							}
+						/>
+					)}
+				</div>
 			</div>
 
 			<div className="presentation-option-group">
-				<OptionGroup
-					legend={t.editInspector.presentation.frameLegend}
-					testIdPrefix="edit-presentation-frame"
-					selected={configuration.frame.kind}
-					options={[
-						{
-							value: "none",
-							label: t.editInspector.presentation.frameOptions.none,
-						},
-						{
-							value: "white",
-							label: t.editInspector.presentation.frameOptions.white,
-							chipColor: "#FFFFFF",
-						},
-						{
-							value: "black",
-							label: t.editInspector.presentation.frameOptions.black,
-							chipColor: "#000000",
-						},
-						{
-							value: "custom",
-							label: t.editInspector.presentation.frameOptions.custom,
-						},
-					]}
-					onSelect={(value) => {
-						const kind = value as PresentationFrame["kind"];
-						updateConfiguration({
-							frame:
-								kind === "custom"
-									? { kind: "custom", color: INITIAL_CUSTOM_COLOR }
-									: { kind },
-						});
-					}}
-				/>
-				{configuration.frame.kind === "custom" && (
-					<CustomColorFields
-						idPrefix="edit-presentation-frame-custom-color"
-						value={configuration.frame.color}
-						onChange={(color) =>
-							updateConfiguration({ frame: { kind: "custom", color } })
-						}
-					/>
-				)}
-			</div>
-
-			<div className="presentation-option-group">
-				<OptionGroup
-					legend={t.editInspector.presentation.cornersLegend}
-					testIdPrefix="edit-presentation-corners"
-					selected={configuration.cornerRadius}
-					options={[
-						{
-							value: "sharp",
-							label: t.editInspector.presentation.cornerOptions.sharp,
-						},
-						{
-							value: "rounded",
-							label: t.editInspector.presentation.cornerOptions.rounded,
-						},
-					]}
-					onSelect={(value) =>
-						updateConfiguration({ cornerRadius: value as CornerRadius })
-					}
-				/>
-			</div>
-
-			<div className="field-row">
-				<span className="presentation-toggle-label">
-					{t.editInspector.presentation.showSliderDateLabelsLabel}
+				<span className="presentation-option-group__legend">
+					{t.editInspector.presentation.shapeLegend}
 				</span>
-				<Switch
-					id="edit-show-slider-date-labels"
-					checked={configuration.showSliderDateLabels}
-					onChange={(checked) =>
-						updateConfiguration({ showSliderDateLabels: checked })
-					}
-					label={t.editInspector.presentation.showSliderDateLabelsLabel}
-				/>
+
+				<div className="presentation-subgroup">
+					<span className="presentation-subgroup__legend">
+						{t.editInspector.presentation.cornersLegend}
+					</span>
+					<OptionGroup
+						legend={t.editInspector.presentation.cornersLegend}
+						testIdPrefix="edit-presentation-corners"
+						selected={configuration.cornerRadius}
+						options={[
+							{
+								value: "sharp",
+								label: t.editInspector.presentation.cornerOptions.sharp,
+							},
+							{
+								value: "rounded",
+								label: t.editInspector.presentation.cornerOptions.rounded,
+							},
+						]}
+						onSelect={(value) =>
+							updateConfiguration({ cornerRadius: value as CornerRadius })
+						}
+					/>
+				</div>
+			</div>
+
+			<div className="presentation-option-group">
+				<span className="presentation-option-group__legend">
+					{t.editInspector.presentation.sliderLegend}
+				</span>
+				<div className="field-row">
+					<span className="presentation-toggle-label">
+						{t.editInspector.presentation.showSliderDateLabelsLabel}
+					</span>
+					<Switch
+						id="edit-show-slider-date-labels"
+						checked={configuration.showSliderDateLabels}
+						onChange={(checked) =>
+							updateConfiguration({ showSliderDateLabels: checked })
+						}
+						label={t.editInspector.presentation.showSliderDateLabelsLabel}
+					/>
+				</div>
 			</div>
 		</div>
 	);
@@ -215,10 +290,10 @@ interface OptionGroupProps {
 	readonly onSelect: (value: string) => void;
 }
 
-// docs/APPLICATION_LAYOUT.md "Background"/"Frame": "Visual segmented option
-// group with color chips"; "Corners": "Single-row option group" (no chips —
-// its options simply carry no `chipColor`, so the same renderer serves
-// both without a separate variant).
+// docs/APPLICATION_LAYOUT.md "Background"/"Frame"/"Text": "Visual segmented
+// option group with color chips"; "Corners": "Single-row option group" (no
+// chips — its options simply carry no `chipColor`, so the same renderer
+// serves all four without a separate variant).
 function OptionGroup({
 	legend,
 	testIdPrefix,
@@ -268,7 +343,7 @@ interface CustomColorFieldsProps {
 }
 
 // docs/COMPARISON_PRESENTATION.md "Custom Color Editing": identical behavior
-// for Background and Frame — a native color field plus a HEX input, no
+// for Background, Frame and Text — a native color field plus a HEX input, no
 // aggressive validation while typing, immediate preview once valid, and an
 // invalid value keeps the last valid color with only a subtle error state
 // (no explanatory text).

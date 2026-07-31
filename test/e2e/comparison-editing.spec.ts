@@ -355,10 +355,10 @@ test("the Edit Inspector still fills nearly the full width of its own column, fl
 });
 
 // Presentation Configuration (docs/COMPARISON_PRESENTATION.md Part 3:
-// Background, Frame, Corner Radius, Show Slider Date Labels only — Map
-// Preview is a separate, later iteration and has no control here).
+// Background, Frame, Corner Radius, Text, Show Slider Date Labels only —
+// Map Preview is a separate, later iteration and has no control here).
 
-test("the Presentation section renders with the documented defaults: Brand background, no Frame, Rounded corners, Show Slider Date Labels on", async ({
+test("the Presentation section renders with the documented defaults: Brand background, no Frame, Rounded corners, Automatic text, Show Slider Date Labels on", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -372,6 +372,9 @@ test("the Presentation section renders with the documented defaults: Brand backg
 	).toHaveAttribute("aria-checked", "true");
 	await expect(
 		page.getByTestId("edit-presentation-corners-rounded"),
+	).toHaveAttribute("aria-checked", "true");
+	await expect(
+		page.getByTestId("edit-presentation-text-automatic"),
 	).toHaveAttribute("aria-checked", "true");
 	await expect(
 		page.getByTestId("edit-show-slider-date-labels"),
@@ -533,6 +536,83 @@ test("a visible Frame does not cause horizontal overflow and keeps the Stage sym
 	expect(overflow).toBe(false);
 });
 
+test("selecting Text updates the Presentation Canvas's rendered text color immediately", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	await page.getByTestId("edit-presentation-text-light").click();
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await expect(
+		page.getByTestId("edit-presentation-text-light"),
+	).toHaveAttribute("aria-checked", "true");
+
+	await page.getByTestId("edit-presentation-text-dark").click();
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"color",
+		"rgb(13, 20, 36)",
+	);
+	await expect(
+		page.getByTestId("edit-presentation-text-light"),
+	).toHaveAttribute("aria-checked", "false");
+});
+
+test("selecting Text: Custom expands a 'Custom color' panel with a color field and a HEX input; other options hide it again", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	await expect(page.locator(".presentation-custom-color")).toHaveCount(0);
+
+	await page.getByTestId("edit-presentation-text-custom").click();
+	await expect(page.locator(".presentation-custom-color")).toBeVisible();
+	await expect(
+		page.getByTestId("edit-presentation-text-custom-color-swatch"),
+	).toBeVisible();
+	await expect(
+		page.getByTestId("edit-presentation-text-custom-color-hex-input"),
+	).toBeVisible();
+
+	await page.getByTestId("edit-presentation-text-light").click();
+	await expect(page.locator(".presentation-custom-color")).toHaveCount(0);
+});
+
+test("the Text HEX input accepts a value with or without a leading #, normalized to uppercase #RRGGBB, and an invalid value keeps the last valid color with only a subtle error state", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+	await page.getByTestId("edit-presentation-text-custom").click();
+
+	const hexInput = page.getByTestId(
+		"edit-presentation-text-custom-color-hex-input",
+	);
+	await hexInput.fill("ff00ff");
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"color",
+		"rgb(255, 0, 255)",
+	);
+
+	await hexInput.fill("#00ff00");
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"color",
+		"rgb(0, 255, 0)",
+	);
+
+	await hexInput.fill("not-a-color");
+	// The preview keeps the last valid color, unchanged.
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"color",
+		"rgb(0, 255, 0)",
+	);
+	await expect(hexInput.locator("..")).toHaveClass(/outlined-field--error/);
+});
+
 test("toggling Show Slider Date Labels off hides the on-image reference/capture labels even when the divider position would otherwise show them", async ({
 	page,
 }) => {
@@ -649,6 +729,95 @@ test("Comparison Information starts expanded and Presentation starts collapsed, 
 	expect(gap).toBeGreaterThan(4);
 });
 
+// docs/APPLICATION_LAYOUT.md "Structure": "The Edit Inspector behaves as a
+// focused accordion: at most one section may be open at a time... Opening a
+// closed section automatically closes whichever section was previously
+// open."
+test("opening Presentation automatically closes Comparison Information, and its own controls remain usable", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await expandPresentationSection(page);
+
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-title-input")).toHaveCount(0);
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	// Presentation's own controls are fully usable after switching to it.
+	await page.getByTestId("edit-presentation-background-black").click();
+	await expect(page.locator(".presentation-canvas")).toHaveCSS(
+		"background-color",
+		"rgb(0, 0, 0)",
+	);
+});
+
+test("opening Comparison Information automatically closes Presentation, and its own controls remain usable", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await page
+		.getByTestId("edit-inspector-comparison-information-toggle")
+		.click();
+
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		page.getByTestId("edit-presentation-background-brand"),
+	).toHaveCount(0);
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	// Comparison Information's own controls are fully usable after switching
+	// back to it.
+	await expect(page.getByTestId("comparison-title")).toHaveText(
+		"White and black wall portait",
+	);
+	await page.getByTestId("edit-title-input").fill("A brand new title");
+	await expect(page.getByTestId("comparison-title")).toHaveText(
+		"A brand new title",
+	);
+});
+
+test("clicking the currently open section again closes it, leaving no section open", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const comparisonInformationToggle = page.getByTestId(
+		"edit-inspector-comparison-information-toggle",
+	);
+	const presentationToggle = page.getByTestId(
+		"edit-inspector-presentation-toggle",
+	);
+
+	await comparisonInformationToggle.click();
+	await expect(comparisonInformationToggle).toHaveAttribute(
+		"aria-expanded",
+		"false",
+	);
+	await expect(presentationToggle).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-title-input")).toHaveCount(0);
+	await expect(
+		page.getByTestId("edit-presentation-background-brand"),
+	).toHaveCount(0);
+});
+
 test("replacing the workspace resets Presentation Configuration to the documented defaults", async ({
 	page,
 }) => {
@@ -657,6 +826,7 @@ test("replacing the workspace resets Presentation Configuration to the documente
 
 	await page.getByTestId("edit-presentation-background-black").click();
 	await page.getByTestId("edit-presentation-corners-sharp").click();
+	await page.getByTestId("edit-presentation-text-dark").click();
 	await expect(
 		page.getByTestId("edit-presentation-background-black"),
 	).toHaveAttribute("aria-checked", "true");
@@ -683,5 +853,8 @@ test("replacing the workspace resets Presentation Configuration to the documente
 	).toHaveAttribute("aria-checked", "true");
 	await expect(
 		page.getByTestId("edit-presentation-corners-rounded"),
+	).toHaveAttribute("aria-checked", "true");
+	await expect(
+		page.getByTestId("edit-presentation-text-automatic"),
 	).toHaveAttribute("aria-checked", "true");
 });
