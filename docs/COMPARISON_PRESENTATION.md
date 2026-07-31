@@ -374,11 +374,15 @@ document.
 
 ### Background
 
--   Light
--   Dark
+-   Transparent
+-   White
+-   Black
+-   Brand
 -   Custom Color
     -   Color Picker
     -   HEX Input
+
+Default: Brand.
 
 ### Frame
 
@@ -389,17 +393,54 @@ document.
     -   Color Picker
     -   HEX Input
 
+Default: None.
+
+Frame width is not a user setting. This specification defines only the
+semantic color selection; concrete frame width is a rendering concern (see
+"Part 4 — Semantic Presentation Configuration" below).
+
 Configured Background and Frame colors are reproduced exactly as
 configured. This presentation model performs no automatic contrast
 adjustment or color correction on user-selected colors; WYSIWYG fidelity
 takes precedence.
 
-## Image
+### Custom Color Editing
+
+Background and Frame use identical Custom Color editing behavior.
+
+This specification describes user-facing behavior only. It does not
+prescribe a browser API or a specific color picker implementation; an
+implementation may use a native browser color input, a custom-built
+picker, or any equivalent.
+
+The HEX input accepts a value with or without a leading `#`. The value is
+always stored internally normalized as `#RRGGBB` in uppercase.
+
+While the user is typing, no aggressive validation and no automatic reset
+of the field occurs.
+
+Once the input holds a valid value, the Workspace Preview updates
+immediately.
+
+An invalid value never changes the preview: the previously valid color
+remains in effect, and the field receives only a subtle error state — no
+explanatory error text is shown.
+
+Not specified for Version 1: an eyedropper/color-sampling tool, RGB/HSL/HSV
+value entry, alpha/transparency, gradients or gradient backgrounds, color
+history, recently used colors, color palettes, or any other
+browser-specific picker detail.
 
 ### Corner Radius
 
--   Square
+-   Sharp
 -   Rounded
+
+Default: Rounded.
+
+Corner Radius applies to the entire Presentation Canvas — Canvas
+Background, the optional Frame and the Comparison Stage together — as one
+continuous visual unit, not to the Comparison Stage alone.
 
 ## Comparison Information
 
@@ -417,6 +458,8 @@ do not define or alter how that visibility is edited.
 
 -   Show Slider Date Labels
 
+Default: On.
+
 Handle rendering configuration is owned entirely by F-004 (Session
 Branding) and is not a separate presentation configuration item; see
 Comparison Stage → Handle in Part 2.
@@ -425,8 +468,43 @@ Comparison Stage → Handle in Part 2.
 
 -   Show Map Preview
 
+Deferred to a later iteration. Show Map Preview remains part of this
+specification, but is not part of the current Edit Inspector Presentation
+section; its control is not yet displayed.
+
 Whether Map Preview is available for a given output type, and how it is
 captured, if at all, into that output's Outcome Snapshot, is defined by the
 specification owning that output type — see Map Preview above. This
 document does not decide inclusion or exclusion for any specific output
 type.
+
+------------------------------------------------------------------------
+
+# Part 4 — Semantic Presentation Configuration
+
+Presentation Configuration stores semantic design decisions, not absolute
+pixel values.
+
+No absolute pixel values become part of the Current Working State for any
+Presentation Configuration property.
+
+Renderers compute the concrete rendering values for a given output —
+dimensions, offsets and any other rendered measurement — proportionally to
+the actual size of the Presentation Canvas being rendered at that moment.
+
+This principle applies to current Presentation Configuration properties
+(Corner Radius, Frame) and equally to any future property this model may
+gain (for example Spacing, Typography, Shadows).
+
+A configured Custom Color's normalized `#RRGGBB` value (see "Custom Color
+Editing" above) is itself such a semantic decision, not a pixel value —
+only the concrete rendered fill or border a given output paints from it is
+a rendering concern.
+
+Its goal is a consistent WYSIWYG presentation across the Workspace
+Preview, Standalone HTML and any further approved output type —
+illustratively including a possible future Image Export or Microsite
+output, in the same illustrative sense as "Purpose" above — regardless of
+that output's own concrete rendered size. Naming an output type here does
+not add it to the approved product scope; PRODUCT_SCOPE.md remains the
+sole authority on that.

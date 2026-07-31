@@ -915,29 +915,25 @@ Individual location components cannot be hidden separately.
 
 ## Presentation
 
-### Image Labels
-
-Control:
-
-- Show Image Labels
-
-The comparison preview updates immediately.
-
 ### Background
 
-Single-row option group.
+Visual segmented option group with color chips.
 
 Options:
 
-- Light
-- Dark
+- Transparent
+- White
+- Black
+- Brand
 - Custom
 
-When Custom is selected, the color picker is displayed inline within the same row.
+Default: Brand.
+
+When Custom is selected, a small area expands directly below the option group, headed "Custom color". It contains a color field and a HEX input. Outside of Custom, this area is fully hidden.
 
 ### Frame
 
-Single-row option group.
+Visual segmented option group with color chips, identical in presentation to Background.
 
 Options:
 
@@ -946,7 +942,9 @@ Options:
 - Black
 - Custom
 
-When Custom is selected, the color picker is displayed inline within the same row.
+Default: None.
+
+When Custom is selected, the same expandable "Custom color" area as Background appears — same structure, same operation.
 
 ### Corners
 
@@ -954,8 +952,26 @@ Single-row option group.
 
 Options:
 
+- Sharp
 - Rounded
-- Square
+
+Default: Rounded.
+
+Corner Radius applies to the entire Presentation Canvas — background, optional Frame and Comparison Stage together — as one visual unit (see docs/COMPARISON_PRESENTATION.md Part 3).
+
+### Show Slider Date Labels
+
+Control:
+
+- Show Slider Date Labels
+
+Default: On.
+
+The comparison preview updates immediately.
+
+### Map Preview
+
+Deferred to a later iteration. Show Map Preview is not part of the current Presentation section; its control is not yet displayed.
 
 ---
 
