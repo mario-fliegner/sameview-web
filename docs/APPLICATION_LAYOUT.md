@@ -820,11 +820,19 @@ Each section has its own panel surface: its own border, its own background, its 
 
 A clear visual gap separates each section from the next.
 
-Initial expanded/collapsed state per section:
+The Edit Inspector behaves as a focused accordion: at most one section may be open at a time. This applies to every section listed above, and to any further section the Edit Inspector may gain in the future.
+
+Opening a closed section automatically closes whichever section was previously open, so only the newly opened section remains open.
+
+The currently open section may be closed again by interacting with it the same way it was opened. Doing so leaves no section open — the accordion never forces exactly one section to stay open at all times, only ever at most one.
+
+Initial expanded/collapsed state per section, subject to the accordion rule above:
 
 - Comparison information: expanded by default
 - Presentation: collapsed by default
-- Branding: expanded by default
+- Branding: expanded by default, once this section exists
+
+Because at most one section may be open at a time, these per-section defaults never apply simultaneously. For the sections currently implemented, only Comparison information starts open.
 
 Users may collapse individual sections to reduce visual complexity.
 
