@@ -614,8 +614,11 @@ main {
 	/* Zero when nothing is visible (docs/COMPARISON_PRESENTATION.md "Hidden
 	   or unavailable items reserve no space") — WorkspaceActive.tsx sets this
 	   custom property to match the same condition computeCanvasGeometry
-	   itself uses internally. */
-	margin-block-start: var(--content-gap, 0.75rem);
+	   itself uses internally. Small — "One Cohesive Card", not a footer —
+	   and must stay numerically equal to CANVAS_CONTENT_GAP_PX in
+	   src/lib/canvas-geometry.ts, which assumes this exact gap when it
+	   computes `--stage-height`/`--canvas-height` above. */
+	margin-block-start: var(--content-gap, 0.5rem);
 }
 
 /* Comparison Viewer (docs/APPLICATION_LAYOUT.md "Viewer"). The frame's
@@ -757,10 +760,15 @@ main {
    "General Rules"; a hidden/absent item is simply not rendered by the
    component, so no `display: none` handling is needed here. */
 
+/* Typographic Hierarchy (docs/COMPARISON_PRESENTATION.md "Typographic
+   Hierarchy"): Title/Description (Level 1), Time (Level 2) and Location
+   (Level 3) sit only a small, consistent gap apart — "One Cohesive Card",
+   not a footer — rather than the looser spacing a plain footer-style list
+   would use. */
 .presentation-info {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: 0.25rem;
 }
 
 /* Text (docs/COMPARISON_PRESENTATION.md Part 3 "Text"): all four rendered
@@ -768,16 +776,30 @@ main {
    src/components/WorkspaceActive.tsx's `PresentationCanvas` on
    `.presentation-canvas` and inherited down the DOM exactly like
    `--corner-radius` already is. The fallback values reproduce this
-   component's pre-Text-Color appearance if the variable is ever unset. */
+   component's pre-Text-Color appearance if the variable is ever unset.
+   Each `__title`/`__description`/`__time`/`__location` rule below carries
+   exactly one standard size; the matching `--compact` modifier class
+   (applied by src/components/ComparisonPresentationInfo.tsx's Adaptive
+   Sizing, docs/COMPARISON_PRESENTATION.md "Adaptive Sizing") is the one
+   additional, smaller defined size — never a third size, never continuous
+   scaling. Line-clamp/ellipsis on both the standard and compact rules is
+   the same, already-existing mechanism; Adaptive Sizing only ever changes
+   which of these two sizes is active. */
 .presentation-info__title {
 	margin: 0;
 	color: var(--text-color, #ffffff);
 	font-size: 1.125rem;
 	font-weight: 600;
-	/* "Maximum one line, ellipsis on overflow." */
+	/* "Maximum two lines, ellipsis on overflow." */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
 	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+}
+
+.presentation-info__title--compact {
+	font-size: 1rem;
 }
 
 .presentation-info__time,
@@ -795,15 +817,25 @@ main {
 	text-overflow: ellipsis;
 }
 
+.presentation-info__time--compact,
+.presentation-info__location--compact {
+	font-size: 0.8125rem;
+}
+
 .presentation-info__description {
 	margin: 0;
 	color: var(--text-color, #c7ccd6);
+	font-size: 1rem;
 	/* "Maximum three lines, ellipsis on overflow." */
 	display: -webkit-box;
 	-webkit-line-clamp: 3;
 	line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
+}
+
+.presentation-info__description--compact {
+	font-size: 0.9375rem;
 }
 
 /* Edit Inspector (docs/APPLICATION_LAYOUT.md "Edit Inspector", "Structure").

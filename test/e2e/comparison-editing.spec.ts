@@ -354,6 +354,113 @@ test("the Edit Inspector still fills nearly the full width of its own column, fl
 	expect(inspectorBox.width / layoutBox.width).toBeLessThan(0.51);
 });
 
+// Adaptive Sizing (docs/COMPARISON_PRESENTATION.md Part 2 "Adaptive
+// Sizing"): each of Title/Description/Time/Location independently steps
+// from its one standard size to exactly one defined smaller "compact" size
+// when its own content would otherwise be truncated — never a shared
+// scaling of the whole block, never more than one additional step.
+
+test("Adaptive Sizing: short content renders every item at its standard size", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+	// The fixture's own default location value is long enough to already
+	// need Adaptive Sizing's compact size at this test's viewport width —
+	// replaced here with something unambiguously short so this test
+	// isolates "short content" specifically.
+	await page.getByTestId("edit-location-display-name-input").fill("Munich");
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-size",
+		"18px",
+	);
+	await expect(page.getByTestId("comparison-description")).toHaveCSS(
+		"font-size",
+		"16px",
+	);
+	await expect(page.getByTestId("comparison-time")).toHaveCSS(
+		"font-size",
+		"14px",
+	);
+	await expect(page.getByTestId("comparison-location")).toHaveCSS(
+		"font-size",
+		"14px",
+	);
+});
+
+test("Adaptive Sizing: a long Title steps down to its defined compact size without affecting Location", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// See the previous test for why the fixture's own default location
+	// value is replaced with something unambiguously short here.
+	await page.getByTestId("edit-location-display-name-input").fill("Munich");
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+
+	await page
+		.getByTestId("edit-title-input")
+		.fill(
+			"This is a deliberately very long title that will not fit on two lines at the standard size no matter how wide the Presentation Canvas happens to be in this test",
+		);
+
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-size",
+		"16px",
+	);
+	// Independent per item (docs/COMPARISON_PRESENTATION.md "Adaptive
+	// Sizing": "evaluated independently per rendered item") — Location's
+	// short, unrelated value is unaffected.
+	await expect(page.getByTestId("comparison-location")).toHaveCSS(
+		"font-size",
+		"14px",
+	);
+});
+
+test("Adaptive Sizing: a long Location steps down to its defined compact size without affecting Title", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page
+		.getByTestId("edit-location-display-name-input")
+		.fill(
+			"A deliberately very long place name that will not fit on a single line at the standard size no matter how wide the Presentation Canvas happens to be",
+		);
+
+	await expect(page.getByTestId("comparison-location")).toHaveCSS(
+		"font-size",
+		"13px",
+	);
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-size",
+		"18px",
+	);
+});
+
+test("Adaptive Sizing: content far too long even for the compact size still renders at exactly the compact size (no further automatic shrinking)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page
+		.getByTestId("edit-title-input")
+		.fill(
+			Array.from(
+				{ length: 40 },
+				(_, index) => `extremelylongunbrokenword${index}`,
+			).join(" "),
+		);
+
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-size",
+		"16px",
+	);
+});
+
 // Presentation Configuration (docs/COMPARISON_PRESENTATION.md Part 3:
 // Background, Frame, Corner Radius, Text, Show Slider Date Labels only —
 // Map Preview is a separate, later iteration and has no control here).

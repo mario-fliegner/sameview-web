@@ -16,7 +16,11 @@
 // testable.
 
 export const CANVAS_PADDING_PX = 16;
-export const CANVAS_CONTENT_GAP_PX = 12;
+// docs/COMPARISON_PRESENTATION.md "One Cohesive Card" / "General Rules":
+// "only a small padding separates" the Comparison Stage from Comparison
+// Information — must stay numerically equal to the `--content-gap`
+// fallback in src/styles/global.css's `.presentation-canvas__info-wrapper`.
+export const CANVAS_CONTENT_GAP_PX = 8;
 export const GEOMETRY_STABILITY_TOLERANCE_PX = 1;
 export const MAX_GEOMETRY_MEASUREMENTS = 5;
 

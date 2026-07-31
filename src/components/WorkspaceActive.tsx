@@ -488,6 +488,63 @@ function PresentationCanvas({
 				GEOMETRY_STABILITY_TOLERANCE_PX);
 	const canvasReady = geometry !== null && isStable;
 
+	// Adaptive Sizing's width input (docs/COMPARISON_PRESENTATION.md "Adaptive
+	// Sizing"; ComparisonPresentationInfo.tsx's `stableWidthPx` prop). `null`
+	// throughout the geometry convergence above (every item renders at its
+	// standard size unconditionally until `canvasReady`), so that existing,
+	// already-proven convergence loop is never touched or influenced by
+	// Adaptive Sizing.
+	//
+	// Once ready, this ratchets *downward only* within a given
+	// (previewSize, presentation) episode — mirroring canvas-geometry.ts's
+	// own monotonicity argument ("a narrower width can only make text wrap
+	// onto equal-or-more lines, never fewer") applied to a second,
+	// independent value. This specifically rules out a real oscillation
+	// Adaptive Sizing could otherwise cause: switching an item to its
+	// smaller "compact" size can only ever make it shorter-or-equal, never
+	// taller (Compact's own line-clamp cap is strictly smaller than
+	// Standard's); a shorter item frees vertical space, which — in the
+	// height-bound geometry branch — can *widen* `stageWidth`; feeding that
+	// wider width straight back into the same item's own decision could
+	// flip it back to Standard, regrowing it, renarrowing `stageWidth`, and
+	// so on indefinitely. Ratcheting the fed-in width to never exceed what
+	// it already was for this exact (size, content) episode makes that
+	// specific cycle impossible: once an item has stepped down to Compact,
+	// it can never see a wider input again within the same episode, so it
+	// can never step back up. A genuine change in `previewSize` (a real
+	// resize) or in `presentation` (edited text) starts a fresh episode and
+	// is never blocked.
+	const adaptiveWidthEpisodeRef = useRef<{
+		readonly previewWidth: number;
+		readonly previewHeight: number;
+		readonly presentation: ComparisonPresentation;
+	} | null>(null);
+	const [stableWidthPx, setStableWidthPx] = useState<number | null>(null);
+	useEffect(() => {
+		if (!canvasReady || !geometry || !previewSize) {
+			adaptiveWidthEpisodeRef.current = null;
+			setStableWidthPx(null);
+			return;
+		}
+		const previousEpisode = adaptiveWidthEpisodeRef.current;
+		const sameEpisode =
+			previousEpisode !== null &&
+			previousEpisode.previewWidth === previewSize.width &&
+			previousEpisode.previewHeight === previewSize.height &&
+			previousEpisode.presentation === presentation;
+		adaptiveWidthEpisodeRef.current = {
+			previewWidth: previewSize.width,
+			previewHeight: previewSize.height,
+			presentation,
+		};
+		const nextStageWidth = geometry.stageWidth;
+		setStableWidthPx((previous) =>
+			sameEpisode && previous !== null
+				? Math.min(previous, nextStageWidth)
+				: nextStageWidth,
+		);
+	}, [canvasReady, geometry, previewSize, presentation]);
+
 	// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas"/"Corner Radius"/"Text":
 	// independent of Stage geometry, so computed once and merged into
 	// whichever geometry branch below applies — these are Current Working
@@ -578,6 +635,7 @@ function PresentationCanvas({
 					<ComparisonPresentationInfo
 						presentation={presentation}
 						visibility={visibility}
+						stableWidthPx={stableWidthPx}
 					/>
 				</div>
 			</div>
