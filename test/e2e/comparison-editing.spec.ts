@@ -443,9 +443,10 @@ test("Typographic Hierarchy: Time hidden, Location visible — the Context Clust
 	const titleToLocation = verticalGap(titleBox, locationBox);
 
 	// 0.75rem (src/styles/global.css `.presentation-info`) — Location is the
-	// Context Cluster's only member, so its own internal 0.25rem gap never
-	// applies; no special-case selector exists for this, so this also
-	// verifies none is silently needed.
+	// Context Cluster's only member, so its own internal 0.1875rem gap
+	// (`.presentation-info__context`) never applies; no special-case
+	// selector exists for this, so this also verifies none is silently
+	// needed.
 	expect(Math.abs(titleToLocation - 12)).toBeLessThanOrEqual(GAP_TOLERANCE_PX);
 });
 
@@ -489,19 +490,19 @@ test("Adaptive Sizing: short content renders every item at its standard size", a
 
 	await expect(page.getByTestId("comparison-title")).toHaveCSS(
 		"font-size",
-		"18px",
+		"16px",
 	);
 	await expect(page.getByTestId("comparison-description")).toHaveCSS(
 		"font-size",
-		"16px",
+		"14px",
 	);
 	await expect(page.getByTestId("comparison-time")).toHaveCSS(
 		"font-size",
-		"14px",
+		"13px",
 	);
 	await expect(page.getByTestId("comparison-location")).toHaveCSS(
 		"font-size",
-		"14px",
+		"12px",
 	);
 });
 
@@ -523,14 +524,14 @@ test("Adaptive Sizing: a long Title steps down to its defined compact size witho
 
 	await expect(page.getByTestId("comparison-title")).toHaveCSS(
 		"font-size",
-		"16px",
+		"14px",
 	);
 	// Independent per item (docs/COMPARISON_PRESENTATION.md "Adaptive
 	// Sizing": "evaluated independently per rendered item") — Location's
 	// short, unrelated value is unaffected.
 	await expect(page.getByTestId("comparison-location")).toHaveCSS(
 		"font-size",
-		"14px",
+		"12px",
 	);
 });
 
@@ -547,11 +548,11 @@ test("Adaptive Sizing: a long Location steps down to its defined compact size wi
 
 	await expect(page.getByTestId("comparison-location")).toHaveCSS(
 		"font-size",
-		"13px",
+		"11px",
 	);
 	await expect(page.getByTestId("comparison-title")).toHaveCSS(
 		"font-size",
-		"18px",
+		"16px",
 	);
 });
 
@@ -571,8 +572,495 @@ test("Adaptive Sizing: content far too long even for the compact size still rend
 
 	await expect(page.getByTestId("comparison-title")).toHaveCSS(
 		"font-size",
-		"16px",
+		"14px",
 	);
+});
+
+// Standard/Compact decision thresholds are deliberately decoupled from each
+// item's own visible clamp (src/components/ComparisonPresentationInfo.tsx
+// `TITLE_STANDARD_MAX_LINES` / `DESCRIPTION_STANDARD_MAX_LINES`): Standard
+// is only used while content still fits one line short of the clamp, not
+// right up to it — the two tests below specifically cover content that
+// needs *more than the standard threshold but still fits the clamp*, which
+// the four tests above never exercise (their "long" content already needs
+// more lines than even the compact size allows).
+
+test("Adaptive Sizing: a Title that needs a second line at the standard size steps down to Compact, even though two lines would still fit the clamp", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page
+		.getByTestId("edit-title-input")
+		.fill("A quiet street corner captured just after the evening rain stopped");
+
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-size",
+		"14px",
+	);
+});
+
+test("Adaptive Sizing: a Description that needs a third line at the standard size steps down to Compact, even though three lines would still fit the clamp", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+
+	await page
+		.getByTestId("edit-description-input")
+		.fill(
+			"A quiet street corner captured just after the evening rain stopped, with the old shopfronts still reflecting the last light of the day",
+		);
+
+	await expect(page.getByTestId("comparison-description")).toHaveCSS(
+		"font-size",
+		"13px",
+	);
+});
+
+// The visible clamp itself (the ceiling Compact is still allowed to use)
+// stays exactly as documented — these two confirm it directly against the
+// rendered box, independent of the font-size assertions above.
+
+test("Adaptive Sizing: a Compact Title never grows past two lines — the remaining overflow is clipped by the existing ellipsis", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page
+		.getByTestId("edit-title-input")
+		.fill(
+			Array.from(
+				{ length: 40 },
+				(_, index) => `extremelylongunbrokenword${index}`,
+			).join(" "),
+		);
+
+	const title = page.getByTestId("comparison-title");
+	await expect(title).toHaveCSS("font-size", "14px");
+	const { clientHeight, scrollHeight } = await title.evaluate((element) => ({
+		clientHeight: element.clientHeight,
+		scrollHeight: element.scrollHeight,
+	}));
+	// Compact line-height is 1.25 at 14px = 17.5px/line; two lines = 35px.
+	// A small tolerance absorbs sub-pixel rounding without allowing a third
+	// line through.
+	expect(clientHeight).toBeLessThanOrEqual(37);
+	// The clamp is genuinely doing something for this content — content
+	// taller than the clamped box confirms truncation actually engaged,
+	// not just that the box happens to be small.
+	expect(scrollHeight).toBeGreaterThan(clientHeight);
+});
+
+test("Adaptive Sizing: a Compact Description never grows past three lines — the remaining overflow is clipped by the existing ellipsis", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+
+	await page
+		.getByTestId("edit-description-input")
+		.fill(
+			Array.from(
+				{ length: 60 },
+				(_, index) => `extremelylongunbrokenword${index}`,
+			).join(" "),
+		);
+
+	const description = page.getByTestId("comparison-description");
+	await expect(description).toHaveCSS("font-size", "13px");
+	const { clientHeight, scrollHeight } = await description.evaluate(
+		(element) => ({
+			clientHeight: element.clientHeight,
+			scrollHeight: element.scrollHeight,
+		}),
+	);
+	// Compact line-height is 1.4 at 13px = 18.2px/line; three lines =
+	// 54.6px. A small tolerance absorbs sub-pixel rounding without allowing
+	// a fourth line through.
+	expect(clientHeight).toBeLessThanOrEqual(57);
+	expect(scrollHeight).toBeGreaterThan(clientHeight);
+});
+
+// Overflow Tooltip (docs/COMPARISON_PRESENTATION.md Part 2 "Overflow
+// Tooltip"; Part 1 "Interaction Parity"). src/lib/overflow-tooltip.ts is a
+// framework-independent DOM module, attached once by
+// src/components/ComparisonPresentationInfo.tsx — these tests exercise it
+// exactly as a real user would (hover, keyboard, real touch PointerEvents,
+// resize, scroll), never by calling its internal functions directly.
+
+const LONG_LOCATION_NAME =
+	"A deliberately very long place name that will not fit on a single line at the standard size no matter how wide the Presentation Canvas happens to be";
+
+async function fillLongLocation(page: import("@playwright/test").Page) {
+	await page
+		.getByTestId("edit-location-display-name-input")
+		.fill(LONG_LOCATION_NAME);
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+}
+
+// Mirrors test/e2e/comparison-viewer.spec.ts's own established technique
+// for simulating a real touch device: Playwright's own input APIs only
+// ever emit pointerType "mouse", so a tap is reproduced as native
+// PointerEvents with pointerType "touch" instead — the same events this
+// module's own `pointerdown`/`pointerup` listeners react to in production.
+// Each event gets its own `evaluate()` round trip, matching that file's
+// documented reasoning (a real device never delivers two events without a
+// yield back to the browser in between).
+async function tapWithTouch(
+	locator: import("@playwright/test").Locator,
+	pointerId: number,
+) {
+	const box = await locator.boundingBox();
+	if (!box) throw new Error("tap target has no bounding box");
+	const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	await locator.evaluate(
+		(element, { pointerId: id, x, y }) => {
+			element.dispatchEvent(
+				new PointerEvent("pointerdown", {
+					bubbles: true,
+					cancelable: true,
+					pointerId: id,
+					pointerType: "touch",
+					isPrimary: true,
+					clientX: x,
+					clientY: y,
+				}),
+			);
+		},
+		{ pointerId, x: point.x, y: point.y },
+	);
+	await locator.evaluate(
+		(element, { pointerId: id, x, y }) => {
+			element.dispatchEvent(
+				new PointerEvent("pointerup", {
+					bubbles: true,
+					cancelable: true,
+					pointerId: id,
+					pointerType: "touch",
+					isPrimary: true,
+					clientX: x,
+					clientY: y,
+				}),
+			);
+		},
+		{ pointerId, x: point.x, y: point.y },
+	);
+}
+
+test("Overflow Tooltip: data-overflow-tooltip marks exactly Title, Description and Location — never Time", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+
+	await expect(page.locator("[data-overflow-tooltip]")).toHaveCount(3);
+	await expect(page.getByTestId("comparison-title")).toHaveAttribute(
+		"data-overflow-tooltip",
+		"",
+	);
+	await expect(page.getByTestId("comparison-description")).toHaveAttribute(
+		"data-overflow-tooltip",
+		"",
+	);
+	await expect(page.getByTestId("comparison-location")).toHaveAttribute(
+		"data-overflow-tooltip",
+		"",
+	);
+	await expect(page.getByTestId("comparison-time")).not.toHaveAttribute(
+		"data-overflow-tooltip",
+	);
+});
+
+test("Overflow Tooltip: a fully visible item is never focusable and never opens a tooltip", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-location-display-name-input").fill("Munich");
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+
+	const location = page.getByTestId("comparison-location");
+	await expect(location).not.toHaveAttribute("tabindex");
+
+	await location.hover();
+	await expect(page.getByTestId("presentation-overflow-tooltip")).toHaveCount(
+		0,
+	);
+});
+
+test("Overflow Tooltip: Hover opens it with the complete original text, Mouse Leave closes it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	await expect(location).toHaveAttribute("tabindex", "0");
+
+	await location.hover();
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(LONG_LOCATION_NAME);
+
+	await page.mouse.move(0, 0);
+	await expect(tooltip).toBeHidden();
+});
+
+test("Overflow Tooltip: keyboard focus opens it, Escape closes it without moving focus away from the item", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+
+	await location.focus();
+	await expect(tooltip).toBeVisible();
+
+	await page.keyboard.press("Escape");
+	await expect(tooltip).toBeHidden();
+	await expect(location).toBeFocused();
+});
+
+test("Overflow Tooltip: Blur closes it", async ({ page }) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+
+	await location.focus();
+	await expect(tooltip).toBeVisible();
+
+	await page.keyboard.press("Tab");
+	await expect(tooltip).toBeHidden();
+});
+
+test("Overflow Tooltip: touch — a first tap opens it, a second tap on the same trigger closes it, without opening and closing within the same tap", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+
+	await tapWithTouch(location, 41);
+	await expect(tooltip).toBeVisible();
+
+	await tapWithTouch(location, 41);
+	await expect(tooltip).toBeHidden();
+});
+
+test("Overflow Tooltip: touch — tapping outside the trigger closes it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+
+	await tapWithTouch(location, 42);
+	await expect(tooltip).toBeVisible();
+
+	await page.evaluate(() => {
+		document.body.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				cancelable: true,
+				pointerId: 43,
+				pointerType: "touch",
+				isPrimary: true,
+				clientX: 1,
+				clientY: 1,
+			}),
+		);
+	});
+	await expect(tooltip).toBeHidden();
+});
+
+test("Overflow Tooltip: narrowing the viewport makes it available; widening it again closes and removes it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// The fixture's images are portrait, so the Presentation Canvas is
+	// height-bound (docs/COMPARISON_PRESENTATION.md "Preview Scaling":
+	// "Portrait primarily uses the available height") — both dimensions
+	// need to be generous together (a tall-but-narrow viewport flips it
+	// back to width-bound instead). At 2000×1800 the same long value used
+	// elsewhere (proven to truncate at the default 1280×720 viewport)
+	// starts out fully visible here, isolating the resize transition
+	// itself (verified empirically, not assumed).
+	await page.setViewportSize({ width: 2000, height: 1800 });
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	await expect(location).not.toHaveAttribute("tabindex");
+
+	await page.setViewportSize({ width: 380, height: 700 });
+	await expect(location).toHaveAttribute("tabindex", "0");
+
+	await location.hover();
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+
+	await page.setViewportSize({ width: 2000, height: 1800 });
+	await expect(tooltip).toBeHidden();
+	await expect(location).not.toHaveAttribute("tabindex");
+});
+
+test("Overflow Tooltip: still available after Adaptive Sizing steps a Compact item down — re-evaluation is not tied to one specific size", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("edit-show-description").click();
+	await page
+		.getByTestId("edit-description-input")
+		.fill(
+			Array.from(
+				{ length: 60 },
+				(_, index) => `extremelylongunbrokenword${index}`,
+			).join(" "),
+		);
+
+	const description = page.getByTestId("comparison-description");
+	await expect(description).toHaveCSS("font-size", "13px"); // Compact
+	await expect(description).toHaveAttribute("tabindex", "0");
+
+	await description.focus();
+	await expect(page.getByTestId("presentation-overflow-tooltip")).toBeVisible();
+});
+
+test("Overflow Tooltip: stays fully inside the viewport on every edge, even on a small viewport", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.setViewportSize({ width: 360, height: 640 });
+	await page
+		.getByTestId("edit-title-input")
+		.fill(
+			"This is a deliberately very long title that will not fit on two lines at the standard size no matter how wide the Presentation Canvas happens to be in this test",
+		);
+
+	const title = page.getByTestId("comparison-title");
+	await expect(title).toHaveAttribute("tabindex", "0");
+	await title.focus();
+
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+	const box = await tooltip.boundingBox();
+	if (!box) throw new Error("tooltip has no bounding box");
+	expect(box.x).toBeGreaterThanOrEqual(0);
+	expect(box.y).toBeGreaterThanOrEqual(0);
+	expect(box.x + box.width).toBeLessThanOrEqual(360);
+	expect(box.y + box.height).toBeLessThanOrEqual(640);
+});
+
+test("Overflow Tooltip: repositions while open when the viewport is resized and when the page is scrolled", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.setViewportSize({ width: 800, height: 400 });
+	await fillLongLocation(page);
+
+	const location = page.getByTestId("comparison-location");
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await location.focus();
+	await expect(tooltip).toBeVisible();
+
+	const beforeResize = await tooltip.boundingBox();
+	await page.setViewportSize({ width: 500, height: 400 });
+	await expect(tooltip).toBeVisible();
+	const afterResize = await tooltip.boundingBox();
+	if (!beforeResize || !afterResize) {
+		throw new Error("tooltip has no bounding box");
+	}
+	expect(afterResize.x + afterResize.width).toBeLessThanOrEqual(500);
+
+	const scrolledBy = await page.evaluate(() => {
+		const before = window.scrollY;
+		window.scrollBy(0, 150);
+		return window.scrollY - before;
+	});
+	if (scrolledBy > 0) {
+		await expect(tooltip).toBeVisible();
+		const afterScroll = await tooltip.boundingBox();
+		if (!afterScroll) throw new Error("tooltip has no bounding box");
+		expect(afterScroll.y).toBeGreaterThanOrEqual(0);
+		expect(afterScroll.y + afterScroll.height).toBeLessThanOrEqual(400);
+	}
+});
+
+test("Overflow Tooltip: opening it never creates a document scrollbar and never resizes the Presentation Canvas", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await fillLongLocation(page);
+
+	const documentSizeBefore = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		scrollHeight: document.documentElement.scrollHeight,
+	}));
+	const canvasBefore = await page.locator(".presentation-canvas").boundingBox();
+
+	await page.getByTestId("comparison-location").focus();
+	await expect(
+		page.getByTestId("presentation-overflow-tooltip"),
+	).toBeVisible();
+
+	const documentSizeAfter = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		scrollHeight: document.documentElement.scrollHeight,
+	}));
+	const canvasAfter = await page.locator(".presentation-canvas").boundingBox();
+
+	expect(documentSizeAfter.scrollWidth).toBeLessThanOrEqual(
+		documentSizeBefore.scrollWidth,
+	);
+	expect(documentSizeAfter.scrollHeight).toBeLessThanOrEqual(
+		documentSizeBefore.scrollHeight,
+	);
+	expect(canvasAfter).toEqual(canvasBefore);
+});
+
+test("Overflow Tooltip: extremely long text on a small viewport stays fully inside the viewport, uses its own internal vertical scroll, and is never ellipsized", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.setViewportSize({ width: 360, height: 500 });
+	await page.getByTestId("edit-show-description").click();
+	const veryLongText = Array.from(
+		{ length: 200 },
+		(_, index) => `word${index}`,
+	).join(" ");
+	await page.getByTestId("edit-description-input").fill(veryLongText);
+
+	const description = page.getByTestId("comparison-description");
+	await expect(description).toHaveAttribute("tabindex", "0");
+	await description.focus();
+
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(veryLongText);
+
+	const box = await tooltip.boundingBox();
+	if (!box) throw new Error("tooltip has no bounding box");
+	expect(box.y).toBeGreaterThanOrEqual(0);
+	expect(box.y + box.height).toBeLessThanOrEqual(500);
+
+	const overflowY = await tooltip.evaluate(
+		(element) => getComputedStyle(element).overflowY,
+	);
+	expect(overflowY).toBe("auto");
+	const { scrollHeight, clientHeight } = await tooltip.evaluate((element) => ({
+		scrollHeight: element.scrollHeight,
+		clientHeight: element.clientHeight,
+	}));
+	expect(scrollHeight).toBeGreaterThan(clientHeight);
 });
 
 // Presentation Configuration (docs/COMPARISON_PRESENTATION.md Part 3:

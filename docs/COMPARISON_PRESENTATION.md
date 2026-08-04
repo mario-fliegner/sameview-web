@@ -396,6 +396,97 @@ Example:
 
     Marienplatz · Munich, Germany
 
+### Overflow Tooltip
+
+The Overflow Tooltip makes an item's complete original text accessible
+when that item is visually truncated, without permanently occupying
+additional space and without altering the Presentation Canvas geometry
+defined elsewhere in this document.
+
+The Overflow Tooltip is a Presentation Interaction (see "Interaction
+Parity" in Part 1): it belongs to the presentation itself, not to the
+Workspace specifically, and therefore behaves identically in every
+interactive rendering of the same presentation. No output-type-specific
+variant of it is defined.
+
+The Overflow Tooltip applies to Title, Description and Location. It does
+not apply to Time, the Time Difference addition, Slider Date Labels, the
+Handle, the Edit Inspector, Branding, or Map Preview.
+
+The Overflow Tooltip is available for an item only while that item's own
+rendered content is actually being clipped by Adaptive Sizing's Clamp or
+Ellipsis (see "Adaptive Sizing" above) — that is, only while the renderer
+genuinely cannot display the item's complete text within its currently
+rendered bounds. A given text length, a given number of lines, the Compact
+size itself, or an assumption based on available width are not, on their
+own, sufficient to make the Overflow Tooltip available; only the item's
+own actual rendered truncation decides this, evaluated independently per
+item, exactly as Adaptive Sizing itself already is. An item whose complete
+text is currently displayed in full has no Overflow Tooltip.
+
+The Overflow Tooltip displays the affected item's complete, original text:
+
+-   No further clamping or ellipsis is applied inside the tooltip.
+-   The text may wrap onto as many lines as it needs.
+-   No markup, formatting, or Markdown is applied to the text.
+-   Content is never shortened, summarized, or reworded.
+
+Where a pointer is available, the Overflow Tooltip opens on hover and
+closes once the pointer leaves the item. Independently, keyboard focus on
+the item opens it, and the item losing focus closes it; Escape closes an
+open tooltip without moving focus away from the item. Where only touch is
+available, a single tap on the item opens it, a further tap on the same
+item closes it, and a tap outside the item closes it — touch input never
+simulates hover, and no sustained press is required to open it. The
+Overflow Tooltip never interferes with scrolling the surrounding page or
+with the Comparison Stage's own slider interaction.
+
+The Overflow Tooltip is always positioned clearly relative to the item it
+belongs to, above or below it depending on available space; when the
+preferred position does not offer enough room, an alternative position
+within the visible viewport is used instead. Regardless of position, the
+Overflow Tooltip never extends beyond the left, right, top or bottom edge
+of the visible viewport, never introduces a horizontal or vertical
+scrollbar, never increases the document's width or height, never changes
+the Presentation Canvas geometry, and never permanently displaces any
+other presentation element.
+
+The Overflow Tooltip has a bounded maximum width, within which its
+complete text wraps onto as many lines as needed; no concrete size is
+defined here — the rendered maximum width is a proportional rendering
+decision, in the same sense as Part 4 "Semantic Presentation
+Configuration". On a narrow viewport, the Overflow Tooltip still remains
+within the available viewport width.
+
+The Overflow Tooltip reads as calm, compact and unobtrusive — a small
+detail belonging to the presentation, not a competing element within it: a
+quiet, dark surface, a subtle border, a small corner radius, and compact,
+easily readable typography. It uses no strong shadow and no prominent
+animation, does not resemble a large card or dialog, and never visually
+dominates the presentation.
+
+Whether an item is truncated is re-evaluated whenever it could plausibly
+change: on initial rendering, when the viewport is resized, when the
+Presentation Canvas is resized, when the item's text changes, when the
+item's visibility changes, when the item switches between its Standard and
+Compact size, and when the same presentation is rendered again at a
+different size or a different presentation is rendered. If a previously
+truncated item becomes fully visible as a result, its Overflow Tooltip
+closes and stops being available for that item. If a previously fully
+visible item becomes truncated as a result, its Overflow Tooltip becomes
+available.
+
+The complete text of every Comparison Information item always remains
+present wherever the presentation places accessible text — visual
+truncation only ever affects what is rendered on screen, never the
+accessible text content itself. The Overflow Tooltip never causes the same
+text to be announced twice by assistive technology. A truncated item
+remains reachable by keyboard for as long as its Overflow Tooltip is
+available for it, and Escape closes the tooltip without moving focus away
+from that item. The concrete technical association between an item and its
+tooltip is an implementation decision, made so that it avoids duplicate
+announcement.
+
 ## Map Preview
 
 Map Preview is an optional presentation element, displayed as a

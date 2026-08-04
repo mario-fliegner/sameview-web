@@ -40,13 +40,14 @@
 // unconditionally until then, so that existing convergence loop is never
 // touched or influenced by Adaptive Sizing.
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
 	type AdaptiveTextSize,
 	computeWrappedLineCount,
 	selectAdaptiveTextSize,
 } from "../lib/adaptive-text-size";
 import type { ComparisonPresentation } from "../lib/comparison-presentation";
+import { attachPresentationOverflowTooltips } from "../lib/overflow-tooltip";
 import { measureSpaceWidth, measureWordWidths } from "../lib/text-measurement";
 import type { PresentationVisibility } from "../lib/workspace-state";
 
@@ -64,19 +65,38 @@ interface ComparisonPresentationInfoProps {
 }
 
 // Must match this file's own CSS standard-size rules exactly
-// (src/styles/global.css `.presentation-info__title` /
-// `__description` / `__time`, `__location`) — Canvas `measureText()` only
-// reports the width the browser will actually render for the font it is
-// given, not an approximation (the same requirement already documented for
-// src/components/ComparisonSlider.tsx's `LABEL_FONT`).
+// (src/styles/global.css `.presentation-info__title` / `__description` /
+// `__time` / `__location`) — Canvas `measureText()` only reports the width
+// the browser will actually render for the font it is given, not an
+// approximation (the same requirement already documented for
+// src/components/ComparisonSlider.tsx's `LABEL_FONT`). Only each item's
+// standard size is measured — `selectAdaptiveTextSize` (src/lib/
+// adaptive-text-size.ts) decides "standard" vs. "compact" from that one
+// measurement alone and never re-measures at the compact size, so no
+// compact-size font string exists here to match.
+//
+// Deliberately excludes any CSS property Canvas' `font` shorthand cannot
+// represent (letter-spacing, `font-variant-numeric`, …): including one in
+// the CSS rule without a corresponding change here would silently diverge
+// the measured width from the rendered width.
 const SYSTEM_FONT_STACK =
 	'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
-const TITLE_FONT = `600 1.125rem ${SYSTEM_FONT_STACK}`;
-const DESCRIPTION_FONT = `400 1rem ${SYSTEM_FONT_STACK}`;
-const TIME_LOCATION_FONT = `400 0.875rem ${SYSTEM_FONT_STACK}`;
+const TITLE_FONT = `500 1rem ${SYSTEM_FONT_STACK}`;
+const DESCRIPTION_FONT = `400 0.875rem ${SYSTEM_FONT_STACK}`;
+const TIME_FONT = `500 0.8125rem ${SYSTEM_FONT_STACK}`;
+const LOCATION_FONT = `400 0.75rem ${SYSTEM_FONT_STACK}`;
 
-const TITLE_MAX_LINES = 2;
-const DESCRIPTION_MAX_LINES = 3;
+// The Adaptive Sizing decision threshold, deliberately kept separate from
+// each item's visible clamp (src/styles/global.css
+// `.presentation-info__title` / `__description`: `-webkit-line-clamp: 2` /
+// `3`, unchanged): Standard is only used while the item still fits within
+// one line fewer than its own clamp — the clamp itself is the *ceiling*
+// Compact is still allowed to use, not the trigger for staying Standard.
+// Without this separation, content that exactly fills the clamp (e.g. a
+// Title needing exactly two lines) would incorrectly stay at the larger
+// Standard size instead of stepping down.
+const TITLE_STANDARD_MAX_LINES = 1;
+const DESCRIPTION_STANDARD_MAX_LINES = 2;
 const SINGLE_LINE_MAX_LINES = 1;
 
 // docs/COMPARISON_PRESENTATION.md Part 2 "Location": "Marienplatz · Munich,
@@ -131,24 +151,24 @@ export default function ComparisonPresentationInfo({
 	const titleSize = useAdaptiveTextSize(
 		presentation.title,
 		TITLE_FONT,
-		TITLE_MAX_LINES,
+		TITLE_STANDARD_MAX_LINES,
 		stableWidthPx,
 	);
 	const descriptionSize = useAdaptiveTextSize(
 		presentation.description,
 		DESCRIPTION_FONT,
-		DESCRIPTION_MAX_LINES,
+		DESCRIPTION_STANDARD_MAX_LINES,
 		stableWidthPx,
 	);
 	const timeSize = useAdaptiveTextSize(
 		timeText,
-		TIME_LOCATION_FONT,
+		TIME_FONT,
 		SINGLE_LINE_MAX_LINES,
 		stableWidthPx,
 	);
 	const locationSize = useAdaptiveTextSize(
 		locationText,
-		TIME_LOCATION_FONT,
+		LOCATION_FONT,
 		SINGLE_LINE_MAX_LINES,
 		stableWidthPx,
 	);
@@ -167,8 +187,23 @@ export default function ComparisonPresentationInfo({
 	const hasPrimaryCluster = showTitle || showDescription;
 	const hasContextCluster = showTime || showLocation;
 
+	const infoRootRef = useRef<HTMLDivElement>(null);
+
+	// Overflow Tooltip (docs/COMPARISON_PRESENTATION.md Part 2 "Overflow
+	// Tooltip"): attached once, on this component's own root — the
+	// framework-independent module (src/lib/overflow-tooltip.ts) then owns
+	// every dynamic behavior from there (measuring, opening, closing,
+	// repositioning) by reacting to real DOM mutations, not to this
+	// component's own re-renders, which is why this effect has no
+	// dependency on `presentation`/`visibility`.
+	useEffect(() => {
+		if (!infoRootRef.current) return;
+		return attachPresentationOverflowTooltips(infoRootRef.current);
+	}, []);
+
 	return (
 		<div
+			ref={infoRootRef}
 			className="presentation-info"
 			data-testid="comparison-presentation-info"
 		>
@@ -182,6 +217,7 @@ export default function ComparisonPresentationInfo({
 									: ""
 							}`}
 							data-testid="comparison-title"
+							data-overflow-tooltip=""
 						>
 							{presentation.title}
 						</p>
@@ -194,6 +230,7 @@ export default function ComparisonPresentationInfo({
 									: ""
 							}`}
 							data-testid="comparison-description"
+							data-overflow-tooltip=""
 						>
 							{presentation.description}
 						</p>
@@ -228,6 +265,7 @@ export default function ComparisonPresentationInfo({
 									: ""
 							}`}
 							data-testid="comparison-location"
+							data-overflow-tooltip=""
 						>
 							{locationText}
 						</p>
