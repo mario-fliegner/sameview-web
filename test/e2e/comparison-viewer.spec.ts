@@ -535,3 +535,229 @@ test("replacing the workspace shows the new comparison's images and information"
 	await expect(page.getByTestId("reference-image")).toBeVisible();
 	await expect(page.getByTestId("capture-image")).toBeVisible();
 });
+
+// Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") —
+// src/components/App.tsx, WorkspaceActive.tsx. Kept in this file rather than
+// a dedicated one: Fullscreen reuses the exact same, already-mounted
+// `.workspace-active__preview` element (and therefore the same
+// ComparisonSlider instance covered by the Viewer tests above) rather than
+// rendering a second one, so this belongs with the rest of this file's
+// Viewer coverage. Only a portrait real-image fixture exists in this
+// project (test/fixtures/android-export/README.md) — Portrait-vs-Landscape
+// geometry correctness itself is already covered by
+// test/unit/canvas-geometry.test.mjs (both ratios, purely as numbers); these
+// tests re-verify only that Fullscreen's own reused container keeps that
+// existing, orientation-agnostic geometry pipeline intact, not the geometry
+// math itself again.
+
+test("Fullscreen Mode: opening it shows a Close button and the complete Presentation Canvas", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page.getByTestId("fullscreen-open-button").click();
+
+	await expect(page.getByTestId("fullscreen-close-button")).toBeVisible();
+	await expect(page.getByTestId("comparison-slider")).toBeVisible();
+	await expect(page.getByTestId("comparison-presentation-info")).toBeVisible();
+});
+
+test("Fullscreen Mode: header, footer and the Context Inspector become inert and are fully covered", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	const viewport = page.viewportSize();
+	if (!viewport) throw new Error("no viewport size");
+
+	await page.getByTestId("fullscreen-open-button").click();
+
+	const headerRegion = page
+		.locator(".inert-region")
+		.filter({ has: page.locator("header.app-header") });
+	const footerRegion = page
+		.locator(".inert-region")
+		.filter({ has: page.locator("footer.app-footer") });
+	const inspectorRegion = page
+		.locator(".inert-region")
+		.filter({ has: page.getByTestId("edit-inspector") });
+	await expect(headerRegion).toHaveJSProperty("inert", true);
+	await expect(footerRegion).toHaveJSProperty("inert", true);
+	await expect(inspectorRegion).toHaveJSProperty("inert", true);
+
+	// The fullscreen surface itself covers the entire viewport, so nothing
+	// behind it (header, footer, Context Inspector) is actually visible to
+	// the user, regardless of `inert` not implying `display: none`.
+	const previewBox = await page
+		.locator(".workspace-active__preview--fullscreen")
+		.boundingBox();
+	if (!previewBox) throw new Error("fullscreen preview has no bounding box");
+	expect(previewBox.x).toBe(0);
+	expect(previewBox.y).toBe(0);
+	expect(previewBox.width).toBe(viewport.width);
+	expect(previewBox.height).toBe(viewport.height);
+});
+
+test("Fullscreen Mode: the complete Presentation Canvas stays fully inside the viewport", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	const viewport = page.viewportSize();
+	if (!viewport) throw new Error("no viewport size");
+	const canvasBox = await page.locator(".presentation-canvas").boundingBox();
+	if (!canvasBox) throw new Error("presentation-canvas has no bounding box");
+
+	expect(canvasBox.x).toBeGreaterThanOrEqual(0);
+	expect(canvasBox.y).toBeGreaterThanOrEqual(0);
+	expect(canvasBox.x + canvasBox.width).toBeLessThanOrEqual(viewport.width);
+	expect(canvasBox.y + canvasBox.height).toBeLessThanOrEqual(viewport.height);
+});
+
+test("Fullscreen Mode: the comparison slider remains fully operable by keyboard while open", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	const slider = page.getByRole("slider");
+	await slider.focus();
+	await page.keyboard.press("End");
+	await expect(slider).toHaveAttribute("aria-valuenow", "100");
+});
+
+test("Fullscreen Mode: the slider position is preserved across opening and closing — the same ComparisonSlider instance, never a second one", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const slider = page.getByRole("slider");
+	await slider.focus();
+	await page.keyboard.press("End"); // 100
+	await expect(slider).toHaveAttribute("aria-valuenow", "100");
+
+	await page.getByTestId("fullscreen-open-button").click();
+	// Still 100 immediately after opening — nothing reset it.
+	await expect(page.getByRole("slider")).toHaveAttribute(
+		"aria-valuenow",
+		"100",
+	);
+
+	await page.getByRole("slider").focus();
+	await page.keyboard.press("Home"); // 0, set while inside Fullscreen
+	await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "0");
+
+	await page.getByTestId("fullscreen-close-button").click();
+	// Still 0 after closing — the value set inside Fullscreen survives, on
+	// the same slider now shown in the normal layout again.
+	await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "0");
+});
+
+test("Fullscreen Mode: Escape closes it", async ({ page }) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+	await expect(page.getByTestId("fullscreen-close-button")).toBeVisible();
+
+	await page.keyboard.press("Escape");
+
+	await expect(page.getByTestId("fullscreen-close-button")).toHaveCount(0);
+	await expect(page.getByTestId("fullscreen-open-button")).toBeVisible();
+});
+
+test("Fullscreen Mode: the visible Close button closes it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	await page.getByTestId("fullscreen-close-button").click();
+
+	await expect(page.getByTestId("fullscreen-close-button")).toHaveCount(0);
+	await expect(page.getByTestId("fullscreen-open-button")).toBeVisible();
+});
+
+test("Fullscreen Mode: clicking the background does not close it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	// A point deliberately away from both the centered canvas and the
+	// top-right button — the dark background area itself.
+	await page
+		.locator(".workspace-active__preview--fullscreen")
+		.click({ position: { x: 10, y: 10 } });
+
+	await expect(page.getByTestId("fullscreen-close-button")).toBeVisible();
+});
+
+test("Fullscreen Mode: closing it returns keyboard focus to the Fullscreen button", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	await page.keyboard.press("Escape");
+
+	await expect(page.getByTestId("fullscreen-open-button")).toBeFocused();
+});
+
+test("Fullscreen Mode: the active Context Inspector section stays the same after closing", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// Presentation starts collapsed by default (docs/APPLICATION_LAYOUT.md) —
+	// expanding it first proves this is genuinely preserved, not just
+	// coincidentally still at its own default.
+	await page.getByTestId("edit-inspector-presentation-toggle").click();
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await page.getByTestId("fullscreen-close-button").click();
+
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+});
+
+test("Fullscreen Mode: a viewport resize (orientation change) rescales the preview but does not end it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page.getByTestId("fullscreen-open-button").click();
+
+	await page.setViewportSize({ width: 500, height: 900 });
+
+	await expect(page.getByTestId("fullscreen-close-button")).toBeVisible();
+	const viewport = page.viewportSize();
+	if (!viewport) throw new Error("no viewport size");
+	const canvasBox = await page.locator(".presentation-canvas").boundingBox();
+	if (!canvasBox) throw new Error("presentation-canvas has no bounding box");
+	expect(canvasBox.x + canvasBox.width).toBeLessThanOrEqual(viewport.width);
+	expect(canvasBox.y + canvasBox.height).toBeLessThanOrEqual(viewport.height);
+});
+
+test("Fullscreen Mode: the button belongs to the Presentation Preview, never to the Presentation Canvas itself", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await expect(
+		page
+			.locator(".presentation-canvas")
+			.locator('[data-testid="fullscreen-open-button"]'),
+	).toHaveCount(0);
+	await expect(
+		page.locator('[data-testid="fullscreen-open-button"]'),
+	).toHaveCount(1);
+
+	await page.getByTestId("fullscreen-open-button").click();
+
+	await expect(
+		page
+			.locator(".presentation-canvas")
+			.locator('[data-testid="fullscreen-close-button"]'),
+	).toHaveCount(0);
+});

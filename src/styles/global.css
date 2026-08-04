@@ -550,6 +550,79 @@ main {
 	min-width: 0;
 }
 
+/* Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode"). Applied to
+   the exact same `.workspace-active__preview` element that already hosts
+   PresentationCanvas/ComparisonSlider in the normal layout — deliberately
+   not a second, separately rendered overlay: reusing this one element means
+   the already-mounted ComparisonSlider is never unmounted or duplicated, so
+   its own local slider position survives opening and closing Fullscreen
+   without any additional state, and the existing ResizeObserver watching
+   this same element (src/components/WorkspaceActive.tsx) simply measures
+   the new, viewport-sized box through the exact same
+   src/lib/canvas-geometry.ts pipeline — no new geometry or responsive logic.
+   `position: fixed` (not `absolute`): removes it from
+   `.workspace-active__layout`'s grid flow entirely and makes it
+   viewport-relative regardless of any ancestor's own layout/padding, the
+   same reasoning already established for `.presentation-tooltip`. */
+.workspace-active__preview--fullscreen {
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1.5rem;
+	/* docs/BRAND_GUIDE.md Brand Identity Color — the same "calm, dark
+	   background" already used for the page background itself. */
+	background: #0d1424;
+}
+
+/* A `display: contents` wrapper contributes no box of its own, so an
+   element made `inert` through it (src/components/App.tsx,
+   src/components/WorkspaceActive.tsx) stays exactly the same flex/grid item
+   it already was — required here specifically because `.app-shell-content`
+   already exists as its own, separate, single-element class an existing
+   E2E test locates by that exact class alone (test/e2e/workspace-creation.spec.ts),
+   and `.workspace-active__layout` depends on `EditInspector` staying a
+   direct grid item. */
+.inert-region {
+	display: contents;
+}
+
+/* Fullscreen Mode's own icon-only entry/exit button
+   (docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "a compact icon button in
+   the top-right corner of the Presentation Preview"). Positioned against
+   `.workspace-active__preview`, which is `position: relative` normally and
+   `position: fixed` while Fullscreen is open — either way a valid
+   containing block for this absolute placement, so no separate rule is
+   needed per state. A translucent dark chip (reusing the app's existing
+   dark surface tone) keeps the icon legible over arbitrary comparison
+   image content underneath, the same concern already documented for
+   `.comparison-slider__label`'s text-shadow. The existing global
+   `:focus-visible` rule already applies; no separate focus style needed. */
+.workspace-active__fullscreen-toggle {
+	position: absolute;
+	inset-block-start: 0.75rem;
+	inset-inline-end: 0.75rem;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: 1px solid #2a3445;
+	border-radius: 0.5rem;
+	background: rgba(13, 20, 36, 0.72);
+	color: #ffffff;
+	cursor: pointer;
+}
+
+.workspace-active__fullscreen-toggle svg {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
 /* Shown only until PresentationCanvas below considers its geometry stable
    (docs/COMPARISON_PRESENTATION.md "Complete Presentation": the canvas must
    never visibly resize once shown). Absolutely positioned over the preview

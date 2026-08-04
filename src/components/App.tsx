@@ -50,6 +50,12 @@ function AppShell() {
 	// (docs/USER_WORKFLOW.md only defines No Workspace / Workspace Active).
 	const [pendingReplacement, setPendingReplacement] =
 		useState<SourceData | null>(null);
+	// Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") is owned
+	// here, not inside WorkspaceActive, specifically because the header and
+	// footer also need to become inert while it is open — the smallest common
+	// owner for that is this shell, the same reasoning already documented
+	// above for workspace/import state.
+	const [isFullscreen, setIsFullscreen] = useState(false);
 	// A validated *first* import, held here only during the transient green
 	// "Import Succeeded" confirmation (docs/APPLICATION_LAYOUT.md), before the
 	// workspace is actually committed. Deliberately separate from
@@ -190,12 +196,26 @@ function AppShell() {
 				className="app-shell-content"
 				inert={replacementModeOpen ? true : undefined}
 			>
-				<AppHeader
-					showReplaceExport={workspaceState.status === "active"}
-					replaceExportDisabled={isImporting || pendingReplacement !== null}
-					onReplaceExportClick={openFilePicker}
-					replaceExportButtonRef={replaceExportButtonRef}
-				/>
+				{/* Its own, additional inert condition (Fullscreen Mode) — deliberately
+				    not merged into the outer div's own inert expression above: that
+				    outer inert must also cover `main` (Replacement Mode requires the
+				    complete background, including the workspace, to be inert), while
+				    Fullscreen Mode requires the opposite for `main` — the Presentation
+				    Preview inside it must stay fully interactive. `display: contents`
+				    (see `.inert-region` in global.css) keeps this wrapper
+				    itself invisible to layout, so header remains exactly the same flex
+				    child of `body` it already was — in particular, this must never
+				    change once `.app-shell-content` (a distinct, pre-existing class an
+				    existing E2E test already locates as exactly one element) also
+				    wraps it. */}
+				<div className="inert-region" inert={isFullscreen ? true : undefined}>
+					<AppHeader
+						showReplaceExport={workspaceState.status === "active"}
+						replaceExportDisabled={isImporting || pendingReplacement !== null}
+						onReplaceExportClick={openFilePicker}
+						replaceExportButtonRef={replaceExportButtonRef}
+					/>
+				</div>
 				<main id="main-content" tabIndex={-1}>
 					<ImportSection
 						workspaceState={workspaceState}
@@ -205,9 +225,15 @@ function AppShell() {
 						onOpenFilePicker={openFilePicker}
 						onFileDropped={(file) => void processFile(file)}
 						onCurrentWorkingStateChange={handleCurrentWorkingStateChange}
+						isFullscreen={isFullscreen}
+						onFullscreenChange={setIsFullscreen}
 					/>
 				</main>
-				<AppFooter showLanguageSelector={workspaceState.status === "active"} />
+				<div className="inert-region" inert={isFullscreen ? true : undefined}>
+					<AppFooter
+						showLanguageSelector={workspaceState.status === "active"}
+					/>
+				</div>
 			</div>
 			<input
 				ref={inputRef}

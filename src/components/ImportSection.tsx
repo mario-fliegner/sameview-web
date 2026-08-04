@@ -82,6 +82,13 @@ interface ImportSectionProps {
 	readonly onOpenFilePicker: () => void;
 	readonly onFileDropped: (file: File) => void;
 	readonly onCurrentWorkingStateChange: (next: CurrentWorkingState) => void;
+	// Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") state is
+	// owned by the app shell (src/components/App.tsx), for the same reason
+	// `onCurrentWorkingStateChange` already is: the shell also needs it, to
+	// make the header and footer inert while Fullscreen is open. This
+	// component only passes it through to WorkspaceActive unchanged.
+	readonly isFullscreen: boolean;
+	readonly onFullscreenChange: (next: boolean) => void;
 }
 
 export default function ImportSection({
@@ -92,6 +99,8 @@ export default function ImportSection({
 	onOpenFilePicker,
 	onFileDropped,
 	onCurrentWorkingStateChange,
+	isFullscreen,
+	onFullscreenChange,
 }: ImportSectionProps) {
 	const { t } = useLocale();
 	const [isDragActive, setIsDragActive] = useState(false);
@@ -144,6 +153,8 @@ export default function ImportSection({
 				currentWorkingState={workspaceState.workspace.currentWorkingState}
 				errorMessage={errorMessage}
 				onCurrentWorkingStateChange={onCurrentWorkingStateChange}
+				isFullscreen={isFullscreen}
+				onFullscreenChange={onFullscreenChange}
 			/>
 		);
 	}

@@ -60,6 +60,11 @@ export interface Translations {
 		readonly sliderPresentLabel: string;
 		readonly sliderReferenceLabel: string;
 		readonly sliderCurrentLabel: string;
+		// Accessible names for the Fullscreen Mode entry/exit icon buttons
+		// (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") — both buttons are
+		// icon-only, so these strings are never shown as visible text.
+		readonly fullscreenOpenButton: string;
+		readonly fullscreenCloseButton: string;
 	};
 	readonly replacementMode: {
 		readonly validatingHeading: string;
@@ -177,6 +182,8 @@ export const translations: Record<Locale, Translations> = {
 			sliderPresentLabel: "Present",
 			sliderReferenceLabel: "Reference",
 			sliderCurrentLabel: "Current",
+			fullscreenOpenButton: "Fullscreen",
+			fullscreenCloseButton: "Exit fullscreen",
 		},
 		replacementMode: {
 			validatingHeading: "Preparing replacement…",
@@ -294,6 +301,8 @@ export const translations: Record<Locale, Translations> = {
 			sliderPresentLabel: "Heute",
 			sliderReferenceLabel: "Referenz",
 			sliderCurrentLabel: "Aktuell",
+			fullscreenOpenButton: "Vollbild",
+			fullscreenCloseButton: "Vollbild beenden",
 		},
 		replacementMode: {
 			validatingHeading: "Ersetzung wird vorbereitet…",

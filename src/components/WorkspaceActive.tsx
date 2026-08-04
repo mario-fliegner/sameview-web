@@ -86,16 +86,61 @@ import ComparisonPresentationInfo from "./ComparisonPresentationInfo";
 import ComparisonSlider from "./ComparisonSlider";
 import EditInspector from "./EditInspector";
 
+// Fullscreen Mode's own icon-only buttons (docs/APPLICATION_LAYOUT.md
+// "Fullscreen Mode"). Plain inline SVG, no icon library — the same technique
+// already used for src/components/ComparisonSlider.tsx's handle and
+// src/components/ImportSection.tsx's StageIcon. `currentColor` lets the
+// button's own CSS `color` decide the icon color instead of a second,
+// separately maintained value.
+function FullscreenIcon() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path
+				d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+function CloseIcon() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path
+				d="M6 6l12 12M18 6L6 18"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 interface WorkspaceActiveProps {
 	readonly currentWorkingState: CurrentWorkingState;
 	readonly errorMessage: string | null;
 	readonly onCurrentWorkingStateChange: (next: CurrentWorkingState) => void;
+	// Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") — owned
+	// by the app shell (src/components/App.tsx), not here, because the header
+	// and footer also need it to become inert; see that component's own
+	// comment. This component only reads it to toggle the Presentation
+	// Preview's own fullscreen presentation and to make the Context Inspector
+	// inert while it is open.
+	readonly isFullscreen: boolean;
+	readonly onFullscreenChange: (next: boolean) => void;
 }
 
 export default function WorkspaceActive({
 	currentWorkingState,
 	errorMessage,
 	onCurrentWorkingStateChange,
+	isFullscreen,
+	onFullscreenChange,
 }: WorkspaceActiveProps) {
 	const { locale, t } = useLocale();
 	const activeSectionRef = useRef<HTMLElement>(null);
@@ -104,6 +149,14 @@ export default function WorkspaceActive({
 		currentWorkingState.sessionDirectory,
 	);
 	const previewRef = useRef<HTMLDivElement>(null);
+	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
+	const closeFullscreenButtonRef = useRef<HTMLButtonElement>(null);
+	// Mirrors the sessionDirectory-focus effect below: compares the previous
+	// render's value against the current one, rather than tracking a second
+	// "just opened"/"just closed" boolean, for the same reason documented
+	// there (this component itself never unmounts around a Fullscreen toggle,
+	// so a plain ref comparison is sufficient and cannot desync).
+	const previousIsFullscreenRef = useRef(isFullscreen);
 	// The Preview Area's own rendered size. Deliberately owned here, not by
 	// PresentationCanvas below: it describes available layout space, not
 	// session content, so — unlike ratio/metadata-height/stability — it must
@@ -134,6 +187,41 @@ export default function WorkspaceActive({
 		}
 		previousSessionDirectoryRef.current = currentWorkingState.sessionDirectory;
 	}, [currentWorkingState.sessionDirectory]);
+
+	// Fullscreen Mode focus management (docs/APPLICATION_LAYOUT.md "Fullscreen
+	// Mode": "Keyboard focus returns to the Fullscreen button" on close, and —
+	// by the same "moves focus into new interactive content" reasoning
+	// src/components/ReplacementModeOverlay.tsx already documents for its own
+	// heading — the Close button on open).
+	useEffect(() => {
+		if (isFullscreen && !previousIsFullscreenRef.current) {
+			closeFullscreenButtonRef.current?.focus();
+		} else if (!isFullscreen && previousIsFullscreenRef.current) {
+			fullscreenButtonRef.current?.focus();
+		}
+		previousIsFullscreenRef.current = isFullscreen;
+	}, [isFullscreen]);
+
+	// A `document`-level listener rather than a React `onKeyDown` on
+	// `.workspace-active__preview` itself: Escape must close Fullscreen
+	// regardless of which descendant currently holds focus (the Close
+	// button, the slider handle, or a focused Overflow Tooltip trigger), and
+	// only ever needs to exist while Fullscreen is actually open — the same
+	// "attach only while active, detach otherwise" pattern already used by
+	// src/lib/overflow-tooltip.ts's own reposition listeners.
+	useEffect(() => {
+		if (!isFullscreen) return;
+		function handleKeyDown(event: globalThis.KeyboardEvent) {
+			if (event.key !== "Escape") return;
+			// "Escape … ends Fullscreen" — never moves focus itself; the effect
+			// above already returns it to the Fullscreen button once
+			// `isFullscreen` actually becomes false.
+			event.preventDefault();
+			onFullscreenChange(false);
+		}
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [isFullscreen, onFullscreenChange]);
 
 	useEffect(() => {
 		const container = previewRef.current;
@@ -213,7 +301,12 @@ export default function WorkspaceActive({
 				{t.workspace.sessionLabel} {currentWorkingState.sessionDirectory}
 			</p>
 			<div className="workspace-active__layout">
-				<div className="workspace-active__preview" ref={previewRef}>
+				<div
+					className={`workspace-active__preview${
+						isFullscreen ? " workspace-active__preview--fullscreen" : ""
+					}`}
+					ref={previewRef}
+				>
 					<PresentationCanvas
 						key={currentWorkingState.sessionDirectory}
 						previewSize={previewSize}
@@ -229,13 +322,55 @@ export default function WorkspaceActive({
 						visibility={currentWorkingState.presentationVisibility}
 						configuration={currentWorkingState.presentationConfiguration}
 					/>
+					{/* docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "This button
+					    belongs to the application UI. It is not part of the
+					    Presentation Canvas" — a sibling of PresentationCanvas within
+					    the Presentation Preview, never inside `.presentation-canvas`
+					    itself, so it can never appear in a generated output that only
+					    reproduces that element. Exactly one of the two buttons below
+					    is ever rendered. */}
+					{isFullscreen ? (
+						<button
+							type="button"
+							ref={closeFullscreenButtonRef}
+							className="workspace-active__fullscreen-toggle"
+							aria-label={t.workspace.fullscreenCloseButton}
+							data-testid="fullscreen-close-button"
+							onClick={() => onFullscreenChange(false)}
+						>
+							<CloseIcon />
+						</button>
+					) : (
+						<button
+							type="button"
+							ref={fullscreenButtonRef}
+							className="workspace-active__fullscreen-toggle"
+							aria-label={t.workspace.fullscreenOpenButton}
+							data-testid="fullscreen-open-button"
+							onClick={() => onFullscreenChange(true)}
+						>
+							<FullscreenIcon />
+						</button>
+					)}
 				</div>
-				<EditInspector
-					key={currentWorkingState.sessionDirectory}
-					currentWorkingState={currentWorkingState}
-					captureDateLabel={presentation.captureLabel}
-					onCurrentWorkingStateChange={onCurrentWorkingStateChange}
-				/>
+				{/* Inert while Fullscreen is open (docs/APPLICATION_LAYOUT.md
+				    "Fullscreen Mode": header/footer/"context inspector" disappear) —
+				    a dedicated wrapper because src/components/EditInspector.tsx
+				    itself never reads or writes Fullscreen state, exactly like the
+				    inert wrappers around the header/footer in App.tsx; `.inert-region`
+				    (global.css) keeps it `display: contents` so EditInspector remains
+				    exactly the same direct `.workspace-active__layout` grid item it
+				    already was. It stays visually unaffected on purpose: it is fully
+				    covered by the fullscreen Presentation Preview above it in the
+				    same stacking context regardless. */}
+				<div className="inert-region" inert={isFullscreen ? true : undefined}>
+					<EditInspector
+						key={currentWorkingState.sessionDirectory}
+						currentWorkingState={currentWorkingState}
+						captureDateLabel={presentation.captureLabel}
+						onCurrentWorkingStateChange={onCurrentWorkingStateChange}
+					/>
+				</div>
 			</div>
 		</section>
 	);
