@@ -96,6 +96,23 @@ possible.
 
 
 
+## Interaction Parity
+
+Interaction is part of the presentation, not an addition layered on top of
+it. Any interaction defined by the presentation model belongs to the
+presentation itself, exactly as its visual appearance does.
+
+WYSIWYG applies to presentation interaction the same way it applies to
+presentation appearance: an interactive rendering of the presentation
+reproduces the same presentation behavior, not only the same presentation
+look.
+
+Presentation interaction is defined once, by the presentation model. It is
+never redefined separately by an individual output type, and it does not
+vary between one interactive rendering of the presentation and another.
+
+
+
 ## Workspace Preview
 
 The Workspace Preview is the authoritative live representation of the Current
