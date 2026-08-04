@@ -425,27 +425,15 @@ The surrounding layout should not need to change.
 
 ---
 
-# Viewer Toolbar
-
-Deferred to a later iteration.
-
-A small toolbar is displayed below the viewer.
-
-Initially:
-
-```
-⛶ Fullscreen
-```
-
-Future viewer actions may be added without restructuring the page.
-
----
-
 # Fullscreen Mode
 
 Deferred to a later iteration.
 
-Fullscreen displays only the viewer.
+Fullscreen is the only enlarging function for the comparison. No separate preview function, no lightbox, no additional page and no additional browser tab exists alongside it.
+
+Fullscreen is started from a compact icon button in the top-right corner of the Presentation Preview. This button belongs to the application UI. It is not part of the Presentation Canvas (see docs/COMPARISON_PRESENTATION.md "Presentation Canvas") and never appears in a generated output.
+
+Fullscreen shows the same complete Presentation Preview as in the workspace, including Canvas Background, Padding, the optional Frame, the Comparison Stage, the Slider/Handle, Comparison Information, Branding, and every currently visible presentation element. Fullscreen is not a plain image view and never creates a second representation of the comparison.
 
 The following elements disappear:
 
@@ -454,46 +442,23 @@ The following elements disappear:
 - footer
 - surrounding application UI
 
-The viewer becomes the sole visible content.
+The Presentation Preview becomes the sole visible content, centered horizontally and vertically on a calm, dark background.
 
----
+The complete Presentation Canvas remains visible. It scales proportionally to the maximum available space. It is never cropped and never stretched. No dedicated scroll area exists. Portrait and landscape comparisons follow the same rules.
 
-## Fullscreen Toolbar
+In this version, this proportional fit is the only available scaling behavior. No 100% view, no zoom, no pan, no view-mode selection and no separate Fullscreen toolbar exist.
 
-Fullscreen provides a lightweight overlay toolbar.
+The comparison slider remains fully operable by mouse, touch and keyboard while in Fullscreen. Its current position is preserved across opening and closing Fullscreen.
 
-Initially:
+Fullscreen never changes Source Data or the Current Working State.
 
-```
-Exit Fullscreen
+Fullscreen ends via Escape or a visible Close button in the top-right corner. Clicking the background does not end Fullscreen.
 
-View Mode
+After Fullscreen ends, the unchanged workspace reappears with the same inspector and the same slider position. Keyboard focus returns to the Fullscreen button.
 
-• Fit to Screen
-• 100 %
-```
+Fullscreen is available on desktop, tablet and mobile with identical functional scope. A size or orientation change rescales the preview but never ends Fullscreen.
 
----
-
-## Fit to Screen
-
-Default mode.
-
-The comparison is displayed as large as possible while preserving aspect ratio.
-
-The viewer never exceeds the original image resolution.
-
----
-
-## 100 %
-
-One image pixel equals one display pixel.
-
-Images larger than the viewport remain at original resolution.
-
-The user navigates through the image instead of scaling beyond native size.
-
-No artificial upscaling is performed.
+The Fullscreen button and the Close button are accessible buttons with localized accessible names. Their text follows the existing localization infrastructure (see "Internationalization").
 
 ---
 
