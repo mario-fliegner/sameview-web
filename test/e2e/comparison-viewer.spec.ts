@@ -945,6 +945,94 @@ test("Fullscreen Mode: the button belongs to the Presentation Preview, never to 
 	).toHaveCount(0);
 });
 
+// Reserved Control Area (docs/APPLICATION_LAYOUT.md "Fullscreen Mode"):
+// regression coverage for a confirmed bug this feature's own analysis
+// established mathematically (no landscape-oriented real fixture exists in
+// this project to reproduce it with an actually-overlapping photo — see
+// test/fixtures/android-export/README.md) — a wide/landscape Presentation
+// Canvas used to be able to grow directly underneath the absolutely
+// positioned Fullscreen/Close button, overlaying real image content. This
+// asserts the structural invariant the fix actually relies on: the
+// Presentation Canvas can never start above the Reserved Control Area's own
+// bottom edge, regardless of the canvas's own width — true independent of
+// whether the currently loaded comparison happens to be portrait, so it
+// still exercises the real code path even with this project's only
+// available (portrait) fixture.
+async function expectCanvasNeverStartsAboveControlArea(
+	page: import("@playwright/test").Page,
+) {
+	const controlAreaBottom = await page
+		.locator(".workspace-active__fullscreen-toggle")
+		.evaluate((element) => element.getBoundingClientRect().bottom);
+	const canvasTop = await page
+		.locator(".presentation-canvas")
+		.evaluate((element) => element.getBoundingClientRect().top);
+	expect(canvasTop).toBeGreaterThanOrEqual(controlAreaBottom);
+}
+
+test("Reserved Control Area: the Presentation Canvas never starts above it, on desktop and mobile, normal and Fullscreen", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	await expectCanvasNeverStartsAboveControlArea(page);
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await expectCanvasNeverStartsAboveControlArea(page);
+	await page.keyboard.press("Escape");
+
+	await page.setViewportSize({ width: 390, height: 780 });
+	await expectCanvasNeverStartsAboveControlArea(page);
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await expectCanvasNeverStartsAboveControlArea(page);
+});
+
+test("Reserved Control Area: the Fullscreen button's position relative to the Presentation Preview is the same on desktop and on mobile", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	const desktopButtonBox = await page
+		.locator(".workspace-active__fullscreen-toggle")
+		.boundingBox();
+	const desktopPreviewBox = await page
+		.locator(".workspace-active__preview")
+		.boundingBox();
+	if (!desktopButtonBox || !desktopPreviewBox) {
+		throw new Error("missing bounding box");
+	}
+
+	await page.setViewportSize({ width: 390, height: 780 });
+	const mobileButtonBox = await page
+		.locator(".workspace-active__fullscreen-toggle")
+		.boundingBox();
+	const mobilePreviewBox = await page
+		.locator(".workspace-active__preview")
+		.boundingBox();
+	if (!mobileButtonBox || !mobilePreviewBox) {
+		throw new Error("missing bounding box");
+	}
+
+	// Same inset from the Presentation Preview's own top and right edges on
+	// both viewports — "identical for portrait, landscape and square
+	// comparisons, and identical on desktop, tablet and mobile"
+	// (docs/APPLICATION_LAYOUT.md "Fullscreen Mode").
+	const desktopTopInset = desktopButtonBox.y - desktopPreviewBox.y;
+	const mobileTopInset = mobileButtonBox.y - mobilePreviewBox.y;
+	expect(Math.abs(desktopTopInset - mobileTopInset)).toBeLessThanOrEqual(1);
+
+	const desktopRightInset =
+		desktopPreviewBox.x +
+		desktopPreviewBox.width -
+		(desktopButtonBox.x + desktopButtonBox.width);
+	const mobileRightInset =
+		mobilePreviewBox.x +
+		mobilePreviewBox.width -
+		(mobileButtonBox.x + mobileButtonBox.width);
+	expect(Math.abs(desktopRightInset - mobileRightInset)).toBeLessThanOrEqual(1);
+});
+
 // Fullscreen/Close button tooltips — reuse of the same, shared tooltip
 // infrastructure src/lib/overflow-tooltip.ts already provides for the
 // Overflow Tooltip (docs/COMPARISON_PRESENTATION.md Part 2 "Overflow
@@ -1076,18 +1164,22 @@ test("Overflow Tooltip: still works unchanged alongside the Fullscreen/Close but
 });
 
 // Regression coverage for a real, confirmed bug this feature's own
-// verification surfaced (not a theoretical concern): Tab order carries
-// keyboard focus straight from Location — the last focusable Comparison
-// Information item — into the Fullscreen button, since both live in the
-// same document and neither is skipped. Blurring Location closes its own
-// Overflow Tooltip while, in the same moment, focusing the Fullscreen
-// button opens its tooltip — two independent
+// verification surfaced (not a theoretical concern): a focus transition
+// between Location and the Fullscreen button — both live in the same
+// document — blurs Location, closing its own Overflow Tooltip, while
+// focusing the Fullscreen button opens its own — two independent
 // `attachPresentationOverflowTooltips` instances (module comment above),
 // each with its own tooltip element. Before the two were given distinct
 // `testId`s, both elements shared the same default one and briefly coexisted
 // in the DOM (one just-hidden, one newly visible), which is exactly the
-// scenario this test exercises end-to-end via real Tab presses.
-test("Overflow Tooltip and the Fullscreen button tooltip stay independently addressable across a real Tab transition between them", async ({
+// scenario this test exercises via real blur/focus events. Exercised via
+// direct `.focus()` calls rather than a real `Tab` keypress: the Reserved
+// Control Area (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") now renders
+// before the Presentation Canvas in document order — see
+// src/components/WorkspaceActive.tsx — so the button is no longer Location's
+// immediate next (or previous) Tab stop; the underlying blur/focus event
+// sequence this test actually verifies is identical either way.
+test("Overflow Tooltip and the Fullscreen button tooltip stay independently addressable across a focus transition between them", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -1106,7 +1198,7 @@ test("Overflow Tooltip and the Fullscreen button tooltip stay independently addr
 	await location.focus();
 	await expect(overflowTooltip).toBeVisible();
 
-	await page.keyboard.press("Tab");
+	await page.getByTestId("fullscreen-open-button").focus();
 	await expect(page.getByTestId("fullscreen-open-button")).toBeFocused();
 	await expect(overflowTooltip).toBeHidden();
 	await expect(buttonTooltip).toBeVisible();

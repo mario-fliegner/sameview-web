@@ -552,18 +552,27 @@ main {
 
 /* Fullscreen Mode (docs/APPLICATION_LAYOUT.md "Fullscreen Mode"). Applied to
    the exact same `.workspace-active__preview` element that already hosts
-   PresentationCanvas/ComparisonSlider in the normal layout — deliberately
-   not a second, separately rendered overlay: reusing this one element means
-   the already-mounted ComparisonSlider is never unmounted or duplicated, so
-   its own local slider position survives opening and closing Fullscreen
-   without any additional state, and the existing ResizeObserver watching
-   this same element (src/components/WorkspaceActive.tsx) simply measures
-   the new, viewport-sized box through the exact same
+   the Reserved Control Area and the canvas area (PresentationCanvas/
+   ComparisonSlider) in the normal layout — deliberately not a second,
+   separately rendered overlay: reusing this one element means the
+   already-mounted ComparisonSlider is never unmounted or duplicated, so its
+   own local slider position survives opening and closing Fullscreen without
+   any additional state, and the existing ResizeObserver watching
+   `.workspace-active__canvas-area` (src/components/WorkspaceActive.tsx)
+   simply measures the new, viewport-sized box through the exact same
    src/lib/canvas-geometry.ts pipeline — no new geometry or responsive logic.
    `position: fixed` (not `absolute`): removes it from
    `.workspace-active__layout`'s grid flow entirely and makes it
    viewport-relative regardless of any ancestor's own layout/padding, the
-   same reasoning already established for `.presentation-tooltip`. */
+   same reasoning already established for `.presentation-tooltip`.
+   `align-items: center`/`justify-content: center` here end up affecting only
+   the Reserved Control Area and the canvas area as a *pair*: the canvas
+   area's own `flex: 1` (below) already consumes every pixel of vertical
+   space these two leave over, so `justify-content: center` never actually
+   has anything left to center at this level — the canvas itself is centered
+   one level down instead (`.workspace-active__preview--fullscreen
+   .workspace-active__canvas-area` below), within its own, already-reduced
+   share of the space. */
 .workspace-active__preview--fullscreen {
 	position: fixed;
 	inset: 0;
@@ -589,22 +598,90 @@ main {
 	display: contents;
 }
 
+/* Reserved Control Area (docs/APPLICATION_LAYOUT.md "Fullscreen Mode"):
+   belongs to the Presentation Preview and to the application UI, explicitly
+   not to the Presentation Canvas — see src/components/WorkspaceActive.tsx's
+   own comment on this element for the full reasoning. `align-self: stretch`
+   guarantees it always spans the Presentation Preview's *actual* full
+   width, regardless of `.workspace-active__preview--fullscreen`'s own
+   `align-items: center` (which would otherwise shrink an unstretched flex
+   child to its own content width instead) — without that, the button's own
+   `justify-content: flex-end` below would right-align against a shrunk box
+   instead of the real available width. `flex-shrink: 0` keeps its height
+   from ever being asked to give up space to the canvas area below it — the
+   canvas area's own `flex: 1` (below) is what absorbs every pixel of
+   leftover space instead, exactly what "permanently reserves its own place
+   in the layout" and "the Presentation Canvas never covers the Reserved
+   Control Area" require. No background, no border, no separating line — it
+   is not a toolbar (docs/APPLICATION_LAYOUT.md: "carries no visible chrome
+   of its own … beyond the button"). `min-height` and the inline padding
+   match the button's own existing size and the inset it already used before
+   this element existed, purely so the button's own on-screen position does
+   not shift as a side effect of this change — "only as large as required
+   for the control itself and its required touch target". */
+.workspace-active__control-area {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	align-self: stretch;
+	flex-shrink: 0;
+	min-height: 2.25rem;
+	padding-block: 0.75rem 0.5rem;
+	padding-inline-end: 0.75rem;
+}
+
+/* The Presentation Canvas's own sub-region of the Presentation Preview —
+   everything below the Reserved Control Area above
+   (src/components/WorkspaceActive.tsx). `flex: 1; min-height: 0;` makes it
+   consume exactly the space the Reserved Control Area does not, without
+   either element needing to know the other's concrete pixel size —
+   `computeCanvasGeometry` (src/lib/canvas-geometry.ts) stays entirely
+   unaware that this reservation exists at all, since the ResizeObserver
+   feeding it already only ever measures this narrower box. `align-self:
+   stretch` for the same reason as the Reserved Control Area above: without
+   it, `.workspace-active__preview--fullscreen`'s own `align-items: center`
+   would shrink this box to its content's width instead of the real
+   available width, corrupting the very measurement this element exists to
+   provide. `position: relative` gives `.workspace-active__preview-loading`
+   below a containing block scoped to this area alone, so that loading state
+   never visually extends into the Reserved Control Area above it. */
+.workspace-active__canvas-area {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	align-self: stretch;
+}
+
+/* Fullscreen only (docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "The
+   complete Presentation Canvas remains visible … centered horizontally and
+   vertically"): the normal (non-Fullscreen) workspace view deliberately
+   keeps the Presentation Canvas flush at its own top-left start position,
+   unchanged from before the Reserved Control Area existed — this rule must
+   therefore stay scoped to the Fullscreen modifier and never apply
+   unconditionally. */
+.workspace-active__preview--fullscreen .workspace-active__canvas-area {
+	align-items: center;
+	justify-content: center;
+}
+
 /* Fullscreen Mode's own icon-only entry/exit button
-   (docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "a compact icon button in
-   the top-right corner of the Presentation Preview"). Positioned against
-   `.workspace-active__preview`, which is `position: relative` normally and
-   `position: fixed` while Fullscreen is open — either way a valid
-   containing block for this absolute placement, so no separate rule is
-   needed per state. A translucent dark chip (reusing the app's existing
-   dark surface tone) keeps the icon legible over arbitrary comparison
-   image content underneath, the same concern already documented for
-   `.comparison-slider__label`'s text-shadow. The existing global
-   `:focus-visible` rule already applies; no separate focus style needed. */
+   (docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "a compact icon button …
+   inside the Reserved Control Area"). A normal, in-flow child of
+   `.workspace-active__control-area` above, right-aligned by that element's
+   own `justify-content: flex-end` — deliberately no `position: absolute`
+   (or any other positioning) here any more: that is exactly what let this
+   button overlay Presentation Canvas content for a wide/landscape
+   comparison before the Reserved Control Area existed, since an absolutely
+   positioned corner has no notion of what the Canvas itself currently
+   occupies. A translucent dark chip (reusing the app's existing dark
+   surface tone) is kept as the button's own visual treatment for
+   consistency with its previous appearance, even though it no longer needs
+   to stay legible over arbitrary image content underneath. The existing
+   global `:focus-visible` rule already applies; no separate focus style
+   needed. */
 .workspace-active__fullscreen-toggle {
-	position: absolute;
-	inset-block-start: 0.75rem;
-	inset-inline-end: 0.75rem;
-	z-index: 1;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -625,10 +702,11 @@ main {
 
 /* Shown only until PresentationCanvas below considers its geometry stable
    (docs/COMPARISON_PRESENTATION.md "Complete Presentation": the canvas must
-   never visibly resize once shown). Absolutely positioned over the preview
-   area rather than stacked in flow, since the (still invisible but already
-   laid out, for measurement purposes) canvas underneath continues to occupy
-   its own box the whole time. */
+   never visibly resize once shown). Absolutely positioned over
+   `.workspace-active__canvas-area` (its containing block; never the
+   Reserved Control Area above it) rather than stacked in flow, since the
+   (still invisible but already laid out, for measurement purposes) canvas
+   underneath continues to occupy its own box the whole time. */
 .workspace-active__preview-loading {
 	position: absolute;
 	inset: 0;

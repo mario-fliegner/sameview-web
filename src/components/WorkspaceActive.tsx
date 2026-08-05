@@ -151,6 +151,19 @@ export default function WorkspaceActive({
 		currentWorkingState.sessionDirectory,
 	);
 	const previewRef = useRef<HTMLDivElement>(null);
+	// The Presentation Canvas's own sub-region of the Presentation Preview —
+	// everything below the Reserved Control Area (docs/APPLICATION_LAYOUT.md
+	// "Fullscreen Mode"). Deliberately a second, separate ref from `previewRef`
+	// above, not a repurposed one: `previewRef` keeps meaning "the whole
+	// Presentation Preview" for the Fullscreen class and the exit effect's own
+	// width check further below, exactly as before this Reserved Control Area
+	// existed, so neither of those needs to change at all. This ref exists
+	// specifically so the ResizeObserver two effects down measures only the
+	// space actually available to the canvas, permanently excluding the
+	// Control Area's own real, currently-rendered height — no pixel constant
+	// is subtracted in JS anywhere; the browser's own flexbox layout already
+	// resolves it (see `.workspace-active__canvas-area` in global.css).
+	const canvasAreaRef = useRef<HTMLDivElement>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
 	const closeFullscreenButtonRef = useRef<HTMLButtonElement>(null);
 	// A plain, non-rendering (`display: contents`) wrapper around the two
@@ -168,10 +181,11 @@ export default function WorkspaceActive({
 	// there (this component itself never unmounts around a Fullscreen toggle,
 	// so a plain ref comparison is sufficient and cannot desync).
 	const previousIsFullscreenRef = useRef(isFullscreen);
-	// The Preview Area's own rendered size. Deliberately owned here, not by
-	// PresentationCanvas below: it describes available layout space, not
-	// session content, so — unlike ratio/metadata-height/stability — it must
-	// NOT reset on a workspace replace.
+	// The canvas area's own rendered size — the Presentation Preview *minus*
+	// the Reserved Control Area (see `canvasAreaRef` above). Deliberately
+	// owned here, not by PresentationCanvas below: it describes available
+	// layout space, not session content, so — unlike ratio/metadata-height/
+	// stability — it must NOT reset on a workspace replace.
 	const [previewSize, setPreviewSize] = useState<{
 		readonly width: number;
 		readonly height: number;
@@ -314,7 +328,7 @@ export default function WorkspaceActive({
 	// use for a first mount (global.css `.comparison-slider__frame--ready`'s
 	// own `16rem` floor keeps that gap from collapsing to a self-reinforcing
 	// zero the way `.presentation-canvas`'s stale explicit height otherwise
-	// would), so `.workspace-active__preview`'s ResizeObserver below ends up
+	// would), so the canvas area's own ResizeObserver below ends up
 	// measuring a real, freshly-rendered box for the *current* viewport —
 	// never a pixel value carried over from one that no longer applies —
 	// while nothing in that gap is visible (the same
@@ -346,7 +360,7 @@ export default function WorkspaceActive({
 	}, [isFullscreen, previewSize]);
 
 	useEffect(() => {
-		const container = previewRef.current;
+		const container = canvasAreaRef.current;
 		if (!container) return;
 		const observer = new ResizeObserver((entries) => {
 			const entry = entries[0];
@@ -441,34 +455,25 @@ export default function WorkspaceActive({
 					}`}
 					ref={previewRef}
 				>
-					<PresentationCanvas
-						key={currentWorkingState.sessionDirectory}
-						previewSize={previewSize}
-						referenceSrc={referenceSrc}
-						captureSrc={captureSrc}
-						referenceAlt={t.workspace.referenceImageAlt}
-						captureAlt={t.workspace.captureImageAlt}
-						sliderLabel={t.workspace.sliderLabel}
-						loadingLabel={t.workspace.loadingLabel}
-						leftLabel={presentation.sliderLabels.left}
-						rightLabel={presentation.sliderLabels.right}
-						presentation={presentation}
-						visibility={currentWorkingState.presentationVisibility}
-						configuration={currentWorkingState.presentationConfiguration}
-					/>
-					{/* docs/APPLICATION_LAYOUT.md "Fullscreen Mode": "This button
-					    belongs to the application UI. It is not part of the
-					    Presentation Canvas" — a sibling of PresentationCanvas within
-					    the Presentation Preview, never inside `.presentation-canvas`
-					    itself, so it can never appear in a generated output that only
-					    reproduces that element. Exactly one of the two buttons below
-					    is ever rendered. `display: contents` (inline, not a class:
-					    purely structural, not a design decision — see
-					    `fullscreenToggleContainerRef` above) so this wrapper
-					    contributes no box of its own; the button's own
-					    `position: absolute` still resolves against
-					    `.workspace-active__preview` exactly as before. Each branch
-					    carries its own `key`: both render a `<button>` at the same
+					{/* Reserved Control Area (docs/APPLICATION_LAYOUT.md "Fullscreen
+					    Mode"): belongs to the Presentation Preview and to the
+					    application UI, explicitly not to the Presentation Canvas below
+					    — a sibling of `.workspace-active__canvas-area`, never inside
+					    it, so it can never appear in a generated output that only
+					    reproduces that element. Always rendered, in both normal and
+					    Fullscreen layout, at the same structural position — never a
+					    format- or breakpoint-conditional variant of it. It permanently
+					    occupies real layout space (global.css
+					    `.workspace-active__control-area`), so
+					    `.workspace-active__canvas-area` below is sized around it, not
+					    underneath it — the Presentation Canvas can therefore never grow
+					    into it, and the button can never overlay canvas content,
+					    regardless of the comparison's orientation. Exactly one of the
+					    two buttons below is ever rendered. `display: contents` (inline,
+					    not a class: purely structural, not a design decision — see
+					    `fullscreenToggleContainerRef` above) so that wrapper
+					    contributes no box of its own beyond the button itself. Each
+					    branch carries its own `key`: both render a `<button>` at the same
 					    tree position, so without distinct keys React reconciles them
 					    as the *same* DOM node (only its attributes/children change) —
 					    confirmed empirically to desync src/lib/overflow-tooltip.ts's
@@ -481,37 +486,66 @@ export default function WorkspaceActive({
 					    other trigger appearing/disappearing (`scan()`'s own doc
 					    comment below) — the one behavior that module already handles
 					    correctly. */}
-					<div
-						ref={fullscreenToggleContainerRef}
-						style={{ display: "contents" }}
-					>
-						{isFullscreen ? (
-							<button
-								key="fullscreen-close"
-								type="button"
-								ref={closeFullscreenButtonRef}
-								className="workspace-active__fullscreen-toggle"
-								aria-label={t.workspace.fullscreenCloseButton}
-								data-testid="fullscreen-close-button"
-								data-tooltip=""
-								onClick={() => onFullscreenChange(false)}
-							>
-								<CloseIcon />
-							</button>
-						) : (
-							<button
-								key="fullscreen-open"
-								type="button"
-								ref={fullscreenButtonRef}
-								className="workspace-active__fullscreen-toggle"
-								aria-label={t.workspace.fullscreenOpenButton}
-								data-testid="fullscreen-open-button"
-								data-tooltip=""
-								onClick={() => onFullscreenChange(true)}
-							>
-								<FullscreenIcon />
-							</button>
-						)}
+					<div className="workspace-active__control-area">
+						<div
+							ref={fullscreenToggleContainerRef}
+							style={{ display: "contents" }}
+						>
+							{isFullscreen ? (
+								<button
+									key="fullscreen-close"
+									type="button"
+									ref={closeFullscreenButtonRef}
+									className="workspace-active__fullscreen-toggle"
+									aria-label={t.workspace.fullscreenCloseButton}
+									data-testid="fullscreen-close-button"
+									data-tooltip=""
+									onClick={() => onFullscreenChange(false)}
+								>
+									<CloseIcon />
+								</button>
+							) : (
+								<button
+									key="fullscreen-open"
+									type="button"
+									ref={fullscreenButtonRef}
+									className="workspace-active__fullscreen-toggle"
+									aria-label={t.workspace.fullscreenOpenButton}
+									data-testid="fullscreen-open-button"
+									data-tooltip=""
+									onClick={() => onFullscreenChange(true)}
+								>
+									<FullscreenIcon />
+								</button>
+							)}
+						</div>
+					</div>
+					{/* Presentation Canvas's own sub-region of the Presentation
+					    Preview — everything below the Reserved Control Area above.
+					    `ref={canvasAreaRef}` (not `previewRef`, which stays on the
+					    outer Presentation Preview) is what the geometry
+					    ResizeObserver actually measures, so the space the Reserved
+					    Control Area occupies is permanently excluded from
+					    `previewSize`/`computeCanvasGeometry`'s own inputs without
+					    either of them needing to know a pixel value for it — the
+					    browser's own flexbox layout already resolves that (see
+					    `.workspace-active__canvas-area` in global.css). */}
+					<div className="workspace-active__canvas-area" ref={canvasAreaRef}>
+						<PresentationCanvas
+							key={currentWorkingState.sessionDirectory}
+							previewSize={previewSize}
+							referenceSrc={referenceSrc}
+							captureSrc={captureSrc}
+							referenceAlt={t.workspace.referenceImageAlt}
+							captureAlt={t.workspace.captureImageAlt}
+							sliderLabel={t.workspace.sliderLabel}
+							loadingLabel={t.workspace.loadingLabel}
+							leftLabel={presentation.sliderLabels.left}
+							rightLabel={presentation.sliderLabels.right}
+							presentation={presentation}
+							visibility={currentWorkingState.presentationVisibility}
+							configuration={currentWorkingState.presentationConfiguration}
+						/>
 					</div>
 				</div>
 				{/* Inert while Fullscreen is open (docs/APPLICATION_LAYOUT.md
