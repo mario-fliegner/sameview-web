@@ -8,8 +8,12 @@
   },
   "packageManager": "pnpm@11.1.2",
   "scripts": {
+    "clean": "node -e \"const fs=require('node:fs'); for (const p of ['dist','.astro']) fs.rmSync(p,{recursive:true,force:true})\"",
+    "clean:all": "node -e \"const fs=require('node:fs'); for (const p of ['dist','.astro','node_modules']) fs.rmSync(p,{recursive:true,force:true})\"",
     "dev": "astro dev",
     "build": "astro build",
+    "build:clean": "pnpm clean && pnpm build",
+    "rebuild": "pnpm clean:all && pnpm install --frozen-lockfile && pnpm build",
     "preview": "astro preview",
     "start": "node app.js",
     "astro": "astro",
