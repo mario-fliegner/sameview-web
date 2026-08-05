@@ -239,6 +239,21 @@ Branding uses:
 
 `branding.type` is `builtin` or `image`. `branding.builtinId` identifies a built-in symbol and is applicable only to built-in branding. `branding.handleFile` identifies the normalized handle asset when one is present. `branding.updatedAtMs` and `files.brandingHandle` are preserved but have no operative effect on Web V1 branding behavior; an inconsistency between `files.brandingHandle` and the `branding` block is tolerated and treated as no branding, matching the Android reader's own tolerance (`SessionScanner.kt`).
 
+The supported V1 `branding.builtinId` values, adopted unchanged from the Android built-in symbol catalog, are:
+
+| `builtinId` | Symbol |
+| --- | --- |
+| `heart` | Heart |
+| `star` | Star |
+| `camera` | Camera |
+| `home` | Home |
+| `pin` | Pin |
+| `fire` | Fire |
+
+No other `branding.builtinId` values are defined for V1.
+
+When Source Data includes built-in branding, the imported `branding-handle.png` (referenced by `files.brandingHandle`/`branding.handleFile`) remains the asset used for display; `branding.builtinId` is preserved alongside it but is not used to regenerate or replace that asset. A built-in symbol newly selected in SameView Web stores the corresponding `branding.builtinId` from the table above in the Current Working State.
+
 Branding imported from Source Data is optional. Older comparisons without branding remain valid. Changes made in SameView Web affect only the Current Working State.
 
 Branding is included only in outcomes that use it.

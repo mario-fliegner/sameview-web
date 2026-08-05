@@ -282,3 +282,5 @@ Weitere vorhandene visuelle Assets:
 
 Hinweis:
 Die Screenshot-Dateien stammen noch aus der bestehenden Website-Struktur und sollten nur als aktuelle Website-Assets betrachtet werden, nicht automatisch als finale Store- oder Produkt-Screenshots.
+
+Die sechs Built-in-Branding-Symbole (`heart`, `star`, `camera`, `home`, `pin`, `fire`; siehe `IMPORTED_COMPARISON_V1.md` Session Branding) sind keine markeneigenen Assets, sondern stammen aus Font Awesome Free und werden lokal mit dem Build gebündelt (kein CDN, kein nachgeladener Webfont).

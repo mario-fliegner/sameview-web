@@ -1016,8 +1016,17 @@ Single-row option group.
 Options:
 
 - None
-- SameView
+- Symbol
 - Custom
+
+When Symbol is selected, a selection grid of the six built-in symbols appears inline, each label following the existing localization infrastructure:
+
+- Heart
+- Star
+- Camera
+- Home
+- Pin
+- Fire
 
 When Custom is selected, the image selector appears inline.
 

@@ -117,14 +117,14 @@ The repository is not an empty Astro starter. The following is present and verif
 
 - **Goal:** Support No Branding, Built-in Symbol and Custom Image as Current Working State choices reflected in the viewer.
 - **Specs/features:** F-004; `IMPORTED_COMPARISON_V1.md` Session Branding; `BRAND_GUIDE.md`; `APPLICATION_LAYOUT.md` Edit Inspector, Branding; `COMPARISON_PRESENTATION.md` Comparison Stage → Handle.
-- **Existing basis:** Viewer and shared state; favicon assets are not evidence of a complete built-in-symbol catalog.
-- **Implement:** Import existing branding when present; switch among the three specified options; select a supported built-in ID; select/replace a custom image with safe decode/validation; update only Current Working State and preserve the selected asset for later outcomes.
+- **Existing basis:** Viewer and shared state; the built-in symbol catalog is decided but its Font Awesome Free assets are not yet added to the codebase.
+- **Implement:** Import existing branding when present; switch among the three specified options (None/Symbol/Custom); select one of the six supported built-in IDs (`heart`, `star`, `camera`, `home`, `pin`, `fire`), rendered from local Font Awesome Free icons bundled with the build (only the six needed icons imported, no CDN, no externally loaded webfont); select/replace a custom image with safe decode/validation; update only Current Working State and preserve the selected asset for later outcomes.
 - **Likely areas:** Branding state transitions, the Edit Inspector's Branding section, viewer Handle presentation and client asset handling.
-- **Dependencies:** Phases 3–5; supported built-in symbol/asset decision.
+- **Dependencies:** Phases 3–5; local Font Awesome Free assets for the six built-in symbols.
 - **Definition of Done:** Every option switches cleanly and updates the viewer; Source Data stays unchanged; invalid custom images leave the previous branding intact.
 - **Tests/manual:** Unit tests for transitions and imported branding; automated Playwright E2E tests for switching/replacement/error paths; manual visual checks for scaling and contrast.
-- **Not included:** New logo design, external asset hosting, server processing.
-- **Risks/open decisions:** The specs define `builtinId` but not the supported V1 ID/catalog; settle this before the phase without inventing symbols in code.
+- **Not included:** New logo design, external asset hosting, server processing, converting or copying Android's VectorDrawable assets.
+- **Risks/open decisions:** None; the built-in symbol catalog (`heart`, `star`, `camera`, `home`, `pin`, `fire`, adopted unchanged from Android) and Font Awesome Free as its local icon source are decided.
 
 ### Phase 7 – Create an Immutable Standalone Outcome Snapshot (F-005)
 
@@ -190,7 +190,7 @@ The repository is not an empty Astro starter. The following is present and verif
 8. **Render the interactive comparison:** Current Working State images, responsive slider and non-mutating interaction. Predecessor: 5.
 9. **Edit textual values and reference date:** normalization, validation, immutable capture timestamp and live viewer updates. Predecessor: 8.
 10. **Edit presentation visibility:** independent visibility without altering preserved `additional.visibility`. Predecessor: 9 and visibility-model decision.
-11. **Configure branding:** import and switch No Branding/Built-in/Custom, including atomic invalid-image handling. Predecessor: 8 and built-in catalog decision.
+11. **Configure branding:** import and switch No Branding/Built-in/Custom, including atomic invalid-image handling. Predecessor: 8.
 12. **Derive labels and build Outcome Snapshots:** generation-time locale formatting, explicit allowlist and snapshot immutability. Predecessor: 10–11.
 13. **Process comparison images in-browser:** content validation, 40 MP guard, metadata removal and agreed Standalone optimization. Predecessor: 12 and image-output decision.
 14. **Generate safe self-contained HTML:** embed one snapshot, assets, style and viewer behavior without network dependencies. Predecessor: 13 and artifact-contract decision.
@@ -239,7 +239,7 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 |---|---|---|---|
 | Local workspace retention | Architecture deliberately leaves local persistence technology undefined; current code has no client state. | Iteration 5 | Exactly one active workspace, local-only data, failure preservation; do not infer multi-workspace storage. |
 | Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 10 | F-003 visibility table and metadata preservation rules. |
-| Built-in branding catalog | `builtinId` exists conceptually, but supported V1 IDs/assets are not identified in the repository specs or assets. | Iteration 11 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design. |
+| Built-in branding catalog | Resolved: Web V1 adopts the Android built-in symbol catalog unchanged (`heart`, `star`, `camera`, `home`, `pin`, `fire`), rendered from local Font Awesome Free icons bundled with the build. | Iteration 11 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design; no CDN or externally loaded webfont; only the six needed icons bundled. |
 | Standalone image profile | V1 requires metadata removal and optimization, but does not specify format, dimensions, quality or size. V2 hosted WebP limits must not be copied silently. | Iteration 13 | 40 MP input limit, local processing, usable visual quality, no upload. |
 | Standalone artifact contract | Filename, exact self-contained document shape and viewer code-sharing/build approach are unspecified. | Iteration 14 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot, Standalone HTML only. |
 
