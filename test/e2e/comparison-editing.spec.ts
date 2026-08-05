@@ -1008,9 +1008,7 @@ test("Overflow Tooltip: opening it never creates a document scrollbar and never 
 	const canvasBefore = await page.locator(".presentation-canvas").boundingBox();
 
 	await page.getByTestId("comparison-location").focus();
-	await expect(
-		page.getByTestId("presentation-overflow-tooltip"),
-	).toBeVisible();
+	await expect(page.getByTestId("presentation-overflow-tooltip")).toBeVisible();
 
 	const documentSizeAfter = await page.evaluate(() => ({
 		scrollWidth: document.documentElement.scrollWidth,
