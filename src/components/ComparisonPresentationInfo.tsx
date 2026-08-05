@@ -146,7 +146,20 @@ export default function ComparisonPresentationInfo({
 	const locationText = presentation.location
 		? formatLocation(presentation.location)
 		: undefined;
-	const timeText = `${presentation.referenceLabel} → ${presentation.captureLabel}`;
+	// docs/APPLICATION_LAYOUT.md "Photo dates": "Show Time Difference is only
+	// available when Show photo dates is enabled" — gated on `visibility.time`
+	// too, not only its own `timeDifference` flag, so it can never render (or
+	// be measured into `timeText` below) while the Time line itself is
+	// hidden. `presentation.durationLabel` is already `undefined` whenever no
+	// duration can be shown at all (src/lib/comparison-presentation.ts
+	// `deriveDurationLabel`).
+	const showDuration =
+		visibility.time &&
+		visibility.timeDifference &&
+		Boolean(presentation.durationLabel);
+	const timeText = showDuration
+		? `${presentation.referenceLabel} → ${presentation.captureLabel} · ${presentation.durationLabel}`
+		: `${presentation.referenceLabel} → ${presentation.captureLabel}`;
 
 	const titleSize = useAdaptiveTextSize(
 		presentation.title,
@@ -255,6 +268,14 @@ export default function ComparisonPresentationInfo({
 							<span data-testid="comparison-capture-label">
 								{presentation.captureLabel}
 							</span>
+							{showDuration && (
+								<>
+									{" · "}
+									<span data-testid="comparison-duration-label">
+										{presentation.durationLabel}
+									</span>
+								</>
+							)}
 						</p>
 					)}
 					{showLocation && (

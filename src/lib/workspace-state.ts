@@ -48,16 +48,25 @@ export interface SourceData {
 // is explicit that "Show Time controls visibility of the complete rendered
 // time block" and a single Location switch "controls the complete rendered
 // location"; there are no separate per-date or per-location-field switches.
-// "Show Time Difference" (docs/COMPARISON_PRESENTATION.md Part 3) is
-// intentionally not represented here — it is presentation-only, not part of
-// the F-003 comparison information this model owns (see Part 2's "Time":
-// "not part of the comparison information owned by F-003"), and is deferred
-// to the later Presentation section iteration (docs/IMPLEMENTATION_PLAN_V1.md
-// Phase 5 "Not included").
+// `timeDifference` ("Show Time Difference", docs/APPLICATION_LAYOUT.md
+// "Photo dates"; docs/COMPARISON_PRESENTATION.md Part 3 "Comparison
+// Information") is presentation-only, not part of the F-003 comparison
+// information this model owns (see Part 2's "Time": "The Duration addition
+// is presentation-only ... not part of the comparison information owned by
+// F-003") — it is kept here as a sibling nonetheless, exactly like `time`
+// and `location` above, because it is likewise a Current-Working-State
+// visibility flag with no Source Data counterpart. Disabled by default
+// (docs/COMPARISON_PRESENTATION.md Part 2 "Time": "disabled by default")
+// and only ever meaningful while `time` is also on (docs/APPLICATION_LAYOUT.md
+// "Photo dates": "Show Time Difference is only available when Show photo
+// dates is enabled") — that dependency is a UI/rendering concern (the
+// switch's own `disabled` state, the rendered Duration's own visibility
+// gate), not a second, coupled value here.
 export interface PresentationVisibility {
 	readonly title: boolean;
 	readonly description: boolean;
 	readonly time: boolean;
+	readonly timeDifference: boolean;
 	readonly location: boolean;
 }
 
@@ -65,6 +74,7 @@ export const DEFAULT_PRESENTATION_VISIBILITY: PresentationVisibility = {
 	title: true,
 	description: false,
 	time: true,
+	timeDifference: false,
 	location: true,
 };
 

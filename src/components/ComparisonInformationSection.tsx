@@ -156,6 +156,36 @@ export default function ComparisonInformationSection({
 						testId="edit-capture-date-input"
 					/>
 				</div>
+				{/* docs/APPLICATION_LAYOUT.md "Photo dates": "Show Time Difference
+				    is only available when Show photo dates is enabled" / "When Show
+				    photo dates is disabled, Show Time Difference becomes disabled."
+				    A plain label + switch row, no accompanying field — the same
+				    `.presentation-toggle-label` pattern already used for "Show Slider
+				    Date Labels" (src/components/PresentationSection.tsx). `disabled`
+				    only affects interactivity here; the underlying value is left
+				    untouched so it is restored automatically if Show photo dates is
+				    re-enabled — the rendered Duration is separately gated on both
+				    flags (src/components/ComparisonPresentationInfo.tsx
+				    `showDuration`), so a stale `true` value while disabled can never
+				    become visible on its own. */}
+				<div className="field-row">
+					<span className="presentation-toggle-label">
+						{t.editInspector.showTimeDifferenceLabel}
+					</span>
+					<Switch
+						id="edit-show-time-difference"
+						checked={visibility.timeDifference}
+						disabled={!visibility.time}
+						onChange={(checked) =>
+							onCurrentWorkingStateChange(
+								applyVisibility(currentWorkingState, {
+									timeDifference: checked,
+								}),
+							)
+						}
+						label={t.editInspector.showTimeDifferenceLabel}
+					/>
+				</div>
 			</fieldset>
 
 			<fieldset className="comparison-information__group">

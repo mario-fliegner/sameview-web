@@ -370,6 +370,13 @@ export default function WorkspaceActive({
 					reference: t.workspace.sliderReferenceLabel,
 					current: t.workspace.sliderCurrentLabel,
 				},
+				durationLabelFallbacks: {
+					year: t.workspace.durationYearLabel,
+					years: t.workspace.durationYearsLabel,
+					month: t.workspace.durationMonthLabel,
+					months: t.workspace.durationMonthsLabel,
+					sameYear: t.workspace.durationSameYearLabel,
+				},
 			}),
 		[
 			currentWorkingState.metadata,
@@ -379,6 +386,11 @@ export default function WorkspaceActive({
 			t.workspace.sliderPresentLabel,
 			t.workspace.sliderReferenceLabel,
 			t.workspace.sliderCurrentLabel,
+			t.workspace.durationYearLabel,
+			t.workspace.durationYearsLabel,
+			t.workspace.durationMonthLabel,
+			t.workspace.durationMonthsLabel,
+			t.workspace.durationSameYearLabel,
 		],
 	);
 

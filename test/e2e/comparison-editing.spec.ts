@@ -179,6 +179,90 @@ test("Show Time hides the complete rendered time block as one unit", async ({
 	await expect(page.getByTestId("comparison-time")).toHaveCount(0);
 });
 
+// Show Time Difference (docs/APPLICATION_LAYOUT.md "Photo dates";
+// docs/COMPARISON_PRESENTATION.md Part 2 "Time", Part 3 "Comparison
+// Information"). This fixture's reference.date is "2024" (YYYY precision,
+// see the reference-date test above) and its capture timestamp falls in
+// 2026 (session directory "2026-07-27_13-54-15", asserted elsewhere by its
+// exact string) — a year-only difference of "2 years" regardless of the
+// runtime's local time zone, since only the year components are ever
+// compared at this precision (never a day near a year boundary).
+test("Show Time Difference defaults to off, renders 'Reference → Capture · Duration' once enabled, and hides the Duration again once disabled", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const timeDifferenceSwitch = page.getByTestId("edit-show-time-difference");
+	const duration = page.getByTestId("comparison-duration-label");
+
+	await expect(timeDifferenceSwitch).toHaveAttribute("aria-checked", "false");
+	await expect(duration).toHaveCount(0);
+	await expect(page.getByTestId("comparison-reference-label")).toHaveText(
+		"2024",
+	);
+
+	await timeDifferenceSwitch.click();
+
+	await expect(timeDifferenceSwitch).toHaveAttribute("aria-checked", "true");
+	await expect(duration).toBeVisible();
+	await expect(duration).toHaveText("2 years");
+	await expect(page.getByTestId("comparison-time")).toContainText("2024 → ");
+	await expect(page.getByTestId("comparison-time")).toContainText(" · 2 years");
+
+	await timeDifferenceSwitch.click();
+
+	await expect(timeDifferenceSwitch).toHaveAttribute("aria-checked", "false");
+	await expect(duration).toHaveCount(0);
+});
+
+test("Show photo dates disabled makes Show Time Difference unavailable and hides any rendered Duration along with the whole Time block", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const timeDifferenceSwitch = page.getByTestId("edit-show-time-difference");
+	await timeDifferenceSwitch.click();
+	await expect(page.getByTestId("comparison-duration-label")).toBeVisible();
+
+	await page.getByTestId("edit-show-time").click();
+
+	await expect(page.getByTestId("comparison-time")).toHaveCount(0);
+	await expect(page.getByTestId("comparison-duration-label")).toHaveCount(0);
+	await expect(timeDifferenceSwitch).toBeDisabled();
+
+	// Re-enabling Show photo dates restores the Time block; the underlying
+	// Show Time Difference value was never reset by having been disabled, so
+	// the Duration reappears without needing to be turned on again.
+	await page.getByTestId("edit-show-time").click();
+	await expect(timeDifferenceSwitch).toBeEnabled();
+	await expect(page.getByTestId("comparison-duration-label")).toBeVisible();
+});
+
+test("editing the reference date updates the rendered Duration live, alongside the unchanged Reference/Capture label rendering", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page.getByTestId("edit-show-time-difference").click();
+	await expect(page.getByTestId("comparison-duration-label")).toHaveText(
+		"2 years",
+	);
+
+	// The existing Reference/Capture label rendering (docs/IMPORTED_COMPARISON_V1.md
+	// "Derived Slider Labels") is unaffected by Duration existing alongside
+	// it. A year-only edit keeps the Duration assertion below exact and
+	// time-zone-safe (see the fixture comment above the previous test) —
+	// month/day-precision arithmetic already has dedicated, deterministic
+	// coverage in test/unit/comparison-presentation.test.mjs.
+	await page.getByTestId("edit-reference-date-input").fill("2020");
+	await expect(page.getByTestId("comparison-reference-label")).toHaveText(
+		"2020",
+	);
+	await expect(page.getByTestId("comparison-duration-label")).toHaveText(
+		"6 years",
+	);
+});
+
 test("a single Show Location switch controls the complete rendered location, independent of the individual fields", async ({
 	page,
 }) => {

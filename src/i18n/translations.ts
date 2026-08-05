@@ -60,6 +60,16 @@ export interface Translations {
 		readonly sliderPresentLabel: string;
 		readonly sliderReferenceLabel: string;
 		readonly sliderCurrentLabel: string;
+		// The "Reference → Capture · Duration" addition
+		// (docs/COMPARISON_PRESENTATION.md Part 2 "Time") — explicit singular/
+		// plural wording per unit, plus the "less than one year" fallback, so
+		// this module never pluralizes programmatically (see src/lib/
+		// comparison-presentation.ts `DurationLabelFallbacks`).
+		readonly durationYearLabel: string;
+		readonly durationYearsLabel: string;
+		readonly durationMonthLabel: string;
+		readonly durationMonthsLabel: string;
+		readonly durationSameYearLabel: string;
 		// Accessible names for the Fullscreen Mode entry/exit icon buttons
 		// (docs/APPLICATION_LAYOUT.md "Fullscreen Mode") — both buttons are
 		// icon-only, so these strings are never shown as visible text.
@@ -85,6 +95,7 @@ export interface Translations {
 		readonly showDescriptionLabel: string;
 		readonly timeLegend: string;
 		readonly showTimeLabel: string;
+		readonly showTimeDifferenceLabel: string;
 		readonly referenceDateLabel: string;
 		readonly captureDateLabel: string;
 		readonly referenceDateErrors: {
@@ -182,6 +193,11 @@ export const translations: Record<Locale, Translations> = {
 			sliderPresentLabel: "Present",
 			sliderReferenceLabel: "Reference",
 			sliderCurrentLabel: "Current",
+			durationYearLabel: "year",
+			durationYearsLabel: "years",
+			durationMonthLabel: "month",
+			durationMonthsLabel: "months",
+			durationSameYearLabel: "Same year",
 			fullscreenOpenButton: "Fullscreen",
 			fullscreenCloseButton: "Exit fullscreen",
 		},
@@ -205,6 +221,7 @@ export const translations: Record<Locale, Translations> = {
 			showDescriptionLabel: "Show description",
 			timeLegend: "Photo dates",
 			showTimeLabel: "Show photo dates",
+			showTimeDifferenceLabel: "Show Time Difference",
 			referenceDateLabel: "Reference photo date",
 			captureDateLabel: "Capture photo date",
 			referenceDateErrors: {
@@ -301,6 +318,11 @@ export const translations: Record<Locale, Translations> = {
 			sliderPresentLabel: "Heute",
 			sliderReferenceLabel: "Referenz",
 			sliderCurrentLabel: "Aktuell",
+			durationYearLabel: "Jahr",
+			durationYearsLabel: "Jahre",
+			durationMonthLabel: "Monat",
+			durationMonthsLabel: "Monate",
+			durationSameYearLabel: "Im selben Jahr",
 			fullscreenOpenButton: "Vollbild",
 			fullscreenCloseButton: "Vollbild beenden",
 		},
@@ -324,6 +346,7 @@ export const translations: Record<Locale, Translations> = {
 			showDescriptionLabel: "Beschreibung anzeigen",
 			timeLegend: "Datumsangaben",
 			showTimeLabel: "Datumsangaben anzeigen",
+			showTimeDifferenceLabel: "Zeitspanne anzeigen",
 			referenceDateLabel: "Referenzdatum",
 			captureDateLabel: "Aufnahmedatum",
 			referenceDateErrors: {

@@ -37,6 +37,15 @@ export interface ComparisonPresentation {
 	readonly description: string | undefined;
 	readonly referenceLabel: string;
 	readonly captureLabel: string;
+	// docs/COMPARISON_PRESENTATION.md Part 2 "Time": the optional "Reference
+	// → Capture · Duration" addition, `undefined` whenever no duration can be
+	// shown (reference.date absent, malformed, or later than the capture
+	// timestamp — see `deriveDurationLabel` below). Presentation-only, not an
+	// F-003 comparison-information value, so it has no corresponding
+	// `get*Value`/`apply*` pair in src/lib/comparison-edit.ts — only its
+	// independent visibility (`PresentationVisibility.timeDifference`) is
+	// user-editable.
+	readonly durationLabel: string | undefined;
 	readonly location: ComparisonLocation | undefined;
 	// The Viewer's on-image labels beside the slider handle — distinct from
 	// referenceLabel/captureLabel above (the sidebar's independent,
@@ -46,6 +55,20 @@ export interface ComparisonPresentation {
 	readonly sliderLabels: CompareSliderLabels;
 }
 
+// docs/COMPARISON_PRESENTATION.md Part 2 "Time" examples ("7 years", "1
+// month", "Same year"): explicit singular/plural/zero-duration wording
+// supplied by the caller, exactly like `sliderLabelFallbacks` below — never
+// hard-coded here, and never pluralized programmatically (this codebase
+// introduces no i18n/ICU dependency for that; German's own "Jahr"/"Jahre"
+// and "Monat"/"Monate" cannot be derived from the English forms anyway).
+export interface DurationLabelFallbacks {
+	readonly year: string;
+	readonly years: string;
+	readonly month: string;
+	readonly months: string;
+	readonly sameYear: string;
+}
+
 export interface DeriveComparisonPresentationOptions {
 	// UI copy, not app logic — supplied by the caller so this module never
 	// hard-codes per-locale wording itself (docs/APPLICATION_LAYOUT.md
@@ -53,6 +76,7 @@ export interface DeriveComparisonPresentationOptions {
 	// user-facing strings").
 	readonly referenceFallbackLabel: string;
 	readonly sliderLabelFallbacks: CompareSliderLabelFallbacks;
+	readonly durationLabelFallbacks: DurationLabelFallbacks;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -164,6 +188,114 @@ function deriveCaptureLabel(
 	}).format(new Date(captureTimestampMs));
 }
 
+// docs/COMPARISON_PRESENTATION.md Part 2 "Time" ("Reference → Capture ·
+// Duration") and Part 3 "Comparison Information" ("Show Time Difference").
+// Deliberately its own small function, never merged into `deriveReferenceLabel`
+// above: that function only ever formats the stored reference value in
+// isolation, while this one additionally relates it to `captureTimestampMs` —
+// two different computations that happen to start from the same raw value.
+// Reuses this file's own `REFERENCE_DATE_YEAR`/`REFERENCE_DATE_YEAR_MONTH`/
+// `REFERENCE_DATE_FULL` precision regexes rather than re-parsing the value
+// with new patterns, so the precision this function honors can never drift
+// from the precision `deriveReferenceLabel` itself already established for
+// the very same stored string.
+//
+// "Never a higher precision than known" (docs): a `YYYY`-only reference
+// yields a year-only difference; `YYYY-MM`/`YYYY-MM-DD` both yield
+// years+months — a stored day is used only internally, to decide whether a
+// partially elapsed month already counts, and is itself never rendered
+// (docs: "Tage niemals anzeigen" / "a day is used ... only to determine
+// whether an additional month has fully elapsed").
+//
+// The month/day carry below is the same calendar-age algorithm every
+// "years between two dates" calculation uses (subtract the components,
+// borrow a month from the years when the month delta goes negative, then —
+// only when a stored day makes it possible — borrow one more month when the
+// capture day has not yet reached the reference day-of-month). No date
+// library is introduced for this: `Date`'s own `getFullYear`/`getMonth`/
+// `getDate` accessors are the same primitives `deriveReferenceLabel` and
+// ./compare-slider-labels.ts already use throughout this codebase.
+function deriveDurationLabel(
+	raw: Record<string, unknown>,
+	captureTimestampMs: number,
+	fallbacks: DurationLabelFallbacks,
+): string | undefined {
+	const value = getNestedString(raw, "reference", "date");
+	if (!value) return undefined;
+
+	let year: number;
+	// 0-based month/day, present only at the precision actually stored —
+	// `month` stays `undefined` for a `YYYY`-only value, `day` stays
+	// `undefined` unless the full `YYYY-MM-DD` precision is stored.
+	let month: number | undefined;
+	let day: number | undefined;
+
+	const yearOnly = REFERENCE_DATE_YEAR.exec(value);
+	const yearMonth = REFERENCE_DATE_YEAR_MONTH.exec(value);
+	const full = REFERENCE_DATE_FULL.exec(value);
+	if (yearOnly) {
+		year = Number(yearOnly[1]);
+	} else if (yearMonth) {
+		year = Number(yearMonth[1]);
+		month = Number(yearMonth[2]) - 1;
+	} else if (full) {
+		year = Number(full[1]);
+		month = Number(full[2]) - 1;
+		day = Number(full[3]);
+	} else {
+		// Malformed/unexpected value: no duration, matching
+		// `deriveReferenceLabel`'s own "treated as absent" handling above.
+		return undefined;
+	}
+
+	const captureDate = new Date(captureTimestampMs);
+	// The earliest possible moment the stored precision could mean (Jan 1 for
+	// a year-only value, the 1st for a month-only value) — sufficient to
+	// decide "Reference Date > Capture Date" without assuming a day that was
+	// never actually recorded.
+	const referenceDate = new Date(year, month ?? 0, day ?? 1);
+	if (referenceDate.getTime() > captureDate.getTime()) return undefined;
+
+	let years = captureDate.getFullYear() - year;
+	let months: number | undefined;
+
+	if (month !== undefined) {
+		months = captureDate.getMonth() - month;
+		if (months < 0) {
+			years -= 1;
+			months += 12;
+		}
+		// A day precision further refines whether the last, still-partial
+		// month already counts: it does not until the capture day-of-month
+		// has reached the reference day-of-month (e.g. 31 May → 1 Jun is
+		// not yet "1 month", only once a full month has actually elapsed).
+		if (day !== undefined && captureDate.getDate() < day) {
+			months -= 1;
+			if (months < 0) {
+				years -= 1;
+				months += 12;
+			}
+		}
+	}
+
+	if (years === 0 && (months === undefined || months === 0)) {
+		return fallbacks.sameYear;
+	}
+
+	const parts: string[] = [];
+	if (years > 0) {
+		parts.push(
+			years === 1 ? `1 ${fallbacks.year}` : `${years} ${fallbacks.years}`,
+		);
+	}
+	if (months) {
+		parts.push(
+			months === 1 ? `1 ${fallbacks.month}` : `${months} ${fallbacks.months}`,
+		);
+	}
+	return parts.join(" ");
+}
+
 export function deriveComparisonPresentation(
 	metadata: ResolvedImportedMetadata,
 	locale: Locale,
@@ -179,6 +311,11 @@ export function deriveComparisonPresentation(
 			options.referenceFallbackLabel,
 		),
 		captureLabel: deriveCaptureLabel(metadata.captureTimestampMs, locale),
+		durationLabel: deriveDurationLabel(
+			raw,
+			metadata.captureTimestampMs,
+			options.durationLabelFallbacks,
+		),
 		location: resolveLocation(raw),
 		sliderLabels: computeCompareSliderLabels(
 			getNestedString(raw, "reference", "date"),

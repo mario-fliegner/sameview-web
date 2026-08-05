@@ -388,6 +388,11 @@ Optional:
 The Duration addition is presentation-only, disabled by default, and is not
 part of the comparison information owned by F-003.
 
+Duration reads "Same year" only when zero complete years and zero complete
+months separate the Reference Date from the Capture Date. Once at least one
+complete month has elapsed, that month count is shown (for example "1
+month" or "11 months"), even before a first complete year has elapsed.
+
 ### Location
 
 Displayed using the application format.
