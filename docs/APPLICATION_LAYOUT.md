@@ -431,7 +431,11 @@ Deferred to a later iteration.
 
 Fullscreen is the only enlarging function for the comparison. No separate preview function, no lightbox, no additional page and no additional browser tab exists alongside it.
 
-Fullscreen is started from a compact icon button in the top-right corner of the Presentation Preview. This button belongs to the application UI. It is not part of the Presentation Canvas (see docs/COMPARISON_PRESENTATION.md "Presentation Canvas") and never appears in a generated output.
+Fullscreen is started from a compact icon button inside the Reserved Control Area, a small, permanently reserved area at the top-right of the Presentation Preview. The Reserved Control Area belongs to the Presentation Preview and to the application UI. It is explicitly not part of the Presentation Canvas (see docs/COMPARISON_PRESENTATION.md "Presentation Canvas") and never appears in a generated output. It permanently reserves its own place in the layout, has no visible background, no border and no separating line, and exists solely to hold the Fullscreen button or the Close button.
+
+The Presentation Canvas never covers the Reserved Control Area, so the button can never overlay Presentation Canvas content. The Reserved Control Area's position is identical for portrait, landscape and square comparisons, and identical on desktop, tablet and mobile.
+
+The Reserved Control Area shall be only as large as required for the control itself and its required touch target. It is not intended as a general toolbar or future action area. No additional actions shall be placed into this area without an explicit future specification.
 
 Fullscreen shows the same complete Presentation Preview as in the workspace, including Canvas Background, Padding, the optional Frame, the Comparison Stage, the Slider/Handle, Comparison Information, Branding, and every currently visible presentation element. Fullscreen is not a plain image view and never creates a second representation of the comparison.
 
@@ -452,7 +456,7 @@ The comparison slider remains fully operable by mouse, touch and keyboard while 
 
 Fullscreen never changes Source Data or the Current Working State.
 
-Fullscreen ends via Escape or a visible Close button in the top-right corner. Clicking the background does not end Fullscreen.
+Fullscreen ends via Escape or a visible Close button in the same Reserved Control Area. Clicking the background does not end Fullscreen.
 
 After Fullscreen ends, the unchanged workspace reappears with the same inspector and the same slider position. Keyboard focus returns to the Fullscreen button.
 
