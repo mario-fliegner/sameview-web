@@ -26,13 +26,36 @@
 // or multi-line (`scrollHeight`/`clientHeight`) is read directly from its
 // own computed `white-space` value, not from a second attribute that could
 // drift out of sync with the actual CSS truncation mechanism.
+//
+// A second, sibling markup contract — the boolean attribute `data-tooltip` —
+// marks a plain, always-available icon-button tooltip (e.g. the Fullscreen/
+// Close buttons in src/components/WorkspaceActive.tsx): unlike an Overflow
+// Tooltip trigger, it never depends on truncation and its own element is
+// already natively focusable, so it is never given a `tabindex`. Everything
+// else — the shared trigger set, event wiring, positioning, opening,
+// closing, `Escape`, outside-pointerdown handling, the tooltip element
+// itself and its `.presentation-tooltip` styling — is exactly the same code
+// path as the Overflow Tooltip; this is deliberately *not* a second tooltip
+// implementation, only a second condition for when a trigger's tooltip is
+// available. A trigger's tooltip text is its own rendered text content where
+// it has one (Overflow Tooltip triggers always do); an icon button has none,
+// so its already-localized `aria-label` — read, never replaced — is used
+// instead. Multiple independent call sites — this module's own root
+// parameter already anticipates that (see `attachPresentationOverflowTooltips`
+// below) — so a caller whose root would otherwise overlap another caller's
+// (e.g. WorkspaceActive.tsx's buttons sit inside the same subtree as
+// ComparisonPresentationInfo.tsx's own Title/Description/Location triggers)
+// must attach to a disjoint root instead, to avoid double-registering the
+// same trigger element under two independent trigger sets.
 
 import {
 	computeTooltipPlacement,
 	type Rect,
 } from "./overflow-tooltip-geometry";
 
-const TRIGGER_SELECTOR = "[data-overflow-tooltip]";
+const OVERFLOW_TRIGGER_ATTRIBUTE = "data-overflow-tooltip";
+const STATIC_TRIGGER_ATTRIBUTE = "data-tooltip";
+const TRIGGER_SELECTOR = `[${OVERFLOW_TRIGGER_ATTRIBUTE}], [${STATIC_TRIGGER_ATTRIBUTE}]`;
 const TOOLTIP_CLASS = "presentation-tooltip";
 
 // docs/COMPARISON_PRESENTATION.md "Overflow Tooltip": "only while the
@@ -68,7 +91,13 @@ function toRect(domRect: DOMRect): Rect {
 	};
 }
 
+// "overflow": only available while `isTruncated` (re-evaluated on every
+// resize/mutation below). "static": always available, no truncation concept
+// — an icon button's tooltip, `isTruncated` fixed permanently `true`.
+type TriggerKind = "overflow" | "static";
+
 interface TriggerState {
+	kind: TriggerKind;
 	isTruncated: boolean;
 	isOpen: boolean;
 	// Captured on `pointerdown`, read on the same tap's `pointerup` — see
@@ -80,15 +109,31 @@ interface TriggerState {
 	mutationObserver: MutationObserver;
 }
 
+const DEFAULT_TOOLTIP_TEST_ID = "presentation-overflow-tooltip";
+
+export interface AttachPresentationOverflowTooltipsOptions {
+	// Each independent call site (module comment above) owns its own tooltip
+	// element — two call sites whose trigger sets can both be reached in the
+	// same interaction (e.g. Tab order carrying focus from a Comparison
+	// Information item straight to WorkspaceActive.tsx's Fullscreen button)
+	// would otherwise both use the identical default test id, making the two
+	// unrelated elements indistinguishable to anything querying by it. Purely
+	// a test/automation seam — never read by this module itself, and no
+	// visible or behavioral difference results from changing it.
+	readonly testId?: string;
+}
+
 // docs/COMPARISON_PRESENTATION.md "Overflow Tooltip" positioning: "no
 // concrete size is defined here" — every call site measures the tooltip's
 // real, already-rendered bounding box before positioning it; no size is
 // ever estimated.
 export function attachPresentationOverflowTooltips(
 	root: ParentNode,
+	options: AttachPresentationOverflowTooltipsOptions = {},
 ): () => void {
 	if (typeof document === "undefined") return () => {};
 
+	const testId = options.testId ?? DEFAULT_TOOLTIP_TEST_ID;
 	const triggers = new Map<HTMLElement, TriggerState>();
 	let openElement: HTMLElement | null = null;
 	let tooltip: HTMLDivElement | null = null;
@@ -98,7 +143,7 @@ export function attachPresentationOverflowTooltips(
 		if (tooltip) return tooltip;
 		const element = document.createElement("div");
 		element.className = TOOLTIP_CLASS;
-		element.dataset.testid = "presentation-overflow-tooltip";
+		element.dataset.testid = testId;
 		// The affected item's own trigger element already carries its
 		// complete, unclamped text content — this visual bubble only ever
 		// repeats that same text, so it is hidden from assistive technology
@@ -167,7 +212,18 @@ export function attachPresentationOverflowTooltips(
 		// measurable first, still invisible; only then measure its real
 		// bounding box and compute the final position; only after that is
 		// applied does it become visible.
-		tooltipElement.textContent = triggerElement.textContent ?? "";
+		//
+		// The trigger's own rendered text content is the tooltip's content
+		// for an Overflow Tooltip trigger — always present, so this fallback
+		// never applies to Title/Description/Location. An icon-button
+		// "static" trigger (module comment above) has no text content at
+		// all; its already-localized, existing `aria-label` is read instead
+		// — never a second, duplicated tooltip string, and `aria-label`
+		// itself is never touched.
+		tooltipElement.textContent =
+			triggerElement.textContent ||
+			triggerElement.getAttribute("aria-label") ||
+			"";
 		tooltipElement.style.visibility = "hidden";
 		tooltipElement.hidden = false;
 		positionTooltip(triggerElement, tooltipElement);
@@ -252,6 +308,11 @@ export function attachPresentationOverflowTooltips(
 	function evaluateTrigger(element: HTMLElement) {
 		const state = triggers.get(element);
 		if (!state) return;
+		// A "static" trigger's tooltip is always available and its element
+		// is already natively interactive/focusable (an icon button) — never
+		// truncation-gated and never given a `tabindex` here, unlike an
+		// Overflow Tooltip trigger's own `<p>`.
+		if (state.kind === "static") return;
 		const truncated = isElementTruncated(element);
 		if (truncated === state.isTruncated) return;
 		state.isTruncated = truncated;
@@ -268,6 +329,10 @@ export function attachPresentationOverflowTooltips(
 
 	function setupTrigger(element: HTMLElement) {
 		if (triggers.has(element)) return;
+
+		const kind: TriggerKind = element.hasAttribute(OVERFLOW_TRIGGER_ATTRIBUTE)
+			? "overflow"
+			: "static";
 
 		const resizeObserver = new ResizeObserver(() => evaluateTrigger(element));
 		resizeObserver.observe(element);
@@ -290,7 +355,10 @@ export function attachPresentationOverflowTooltips(
 		});
 
 		const state: TriggerState = {
-			isTruncated: false,
+			kind,
+			// A "static" trigger's tooltip is always available — set once,
+			// here, and never changed again (see `evaluateTrigger` above).
+			isTruncated: kind === "static",
 			isOpen: false,
 			wasOpenAtPointerDown: false,
 			resizeObserver,

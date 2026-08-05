@@ -550,6 +550,189 @@ test("replacing the workspace shows the new comparison's images and information"
 // existing, orientation-agnostic geometry pipeline intact, not the geometry
 // math itself again.
 
+// Regression coverage for a confirmed bug: closing Fullscreen left the
+// normal Presentation Preview permanently stuck at (approximately) its
+// Fullscreen-era size, growing the whole workspace and introducing vertical
+// document scroll — not a one-frame flicker, a stable incorrect state that
+// persisted indefinitely (see src/components/WorkspaceActive.tsx's own
+// comment on the `useLayoutEffect` this fix added, next to `previewSize`,
+// for the full mechanism). `expect.poll` is used rather than a fixed
+// timeout: the fix itself is synchronous (resolved before the first paint
+// after closing), but polling still waits for the *real* rendered value
+// instead of asserting on a timing assumption.
+async function expectPreviewRestoresAfterFullscreen(
+	page: import("@playwright/test").Page,
+	closeFullscreen: () => Promise<void>,
+) {
+	const preview = page.locator(".workspace-active__preview");
+	const before = await preview.boundingBox();
+	if (!before) throw new Error("preview has no bounding box");
+	const documentScrollHeightBefore = await page.evaluate(
+		() => document.documentElement.scrollHeight,
+	);
+
+	await page.getByTestId("fullscreen-open-button").click();
+	const duringFullscreen = await preview.boundingBox();
+	if (!duringFullscreen) throw new Error("preview has no bounding box");
+	expect(duringFullscreen.width).toBeGreaterThan(before.width);
+	expect(duringFullscreen.height).toBeGreaterThan(before.height);
+
+	await closeFullscreen();
+
+	await expect
+		.poll(async () => {
+			const box = await preview.boundingBox();
+			return box
+				? Math.abs(box.width - before.width)
+				: Number.POSITIVE_INFINITY;
+		})
+		.toBeLessThanOrEqual(1);
+	await expect
+		.poll(async () => {
+			const box = await preview.boundingBox();
+			return box
+				? Math.abs(box.height - before.height)
+				: Number.POSITIVE_INFINITY;
+		})
+		.toBeLessThanOrEqual(1);
+
+	// No overflow the Preview itself is responsible for: the page's overall
+	// scrollable size returns to what it already was before Fullscreen ever
+	// opened (some pre-existing vertical scroll from header/footer beyond the
+	// fold is normal and not itself the regression), and no new horizontal
+	// overflow exists at all.
+	const overflow = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		clientWidth: document.documentElement.clientWidth,
+		scrollHeight: document.documentElement.scrollHeight,
+	}));
+	expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+	expect(
+		Math.abs(overflow.scrollHeight - documentScrollHeightBefore),
+	).toBeLessThanOrEqual(1);
+}
+
+test("Fullscreen Mode: the normal Presentation Preview size is restored exactly after closing via Escape, with no leftover document overflow", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expectPreviewRestoresAfterFullscreen(page, () =>
+		page.keyboard.press("Escape"),
+	);
+});
+
+test("Fullscreen Mode: the normal Presentation Preview size is restored exactly after closing via the Close button", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expectPreviewRestoresAfterFullscreen(page, () =>
+		page.getByTestId("fullscreen-close-button").click(),
+	);
+});
+
+// Regression coverage for the still-open case the fix above did not yet
+// cover: a viewport resize *while* Fullscreen is open, crossing
+// `.workspace-active__layout`'s own 48rem column breakpoint, must not leave
+// the normal Preview sized for the *pre-Fullscreen* viewport once Fullscreen
+// closes — restoring a pixel snapshot from before Fullscreen opened cannot
+// detect that the viewport itself changed size in the meantime (see
+// src/components/WorkspaceActive.tsx's own comment on the `useLayoutEffect`
+// next to `previewSize` for the full mechanism this exercises). Compares the
+// closed Preview against a second, independently loaded page at the target
+// viewport — never touched by Fullscreen at all — rather than hardcoding the
+// column split/gap/padding math into this test, so it keeps working if
+// those CSS values themselves ever change.
+async function expectPreviewMatchesFreshLoadAfterFullscreenResize(
+	page: import("@playwright/test").Page,
+	fromViewport: { readonly width: number; readonly height: number },
+	toViewport: { readonly width: number; readonly height: number },
+	closeFullscreen: () => Promise<void>,
+) {
+	await page.setViewportSize(fromViewport);
+	await importFullFixture(page);
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await page.setViewportSize(toViewport);
+
+	// Fullscreen survives the resize, and the complete canvas still fits
+	// entirely inside the new viewport (already covered for a same-size
+	// viewport resize by the "orientation change" test below; re-verified
+	// here specifically for one that crosses the column breakpoint, since
+	// that is the scenario this test exists for) — before ever closing it.
+	await expect(page.getByTestId("fullscreen-close-button")).toBeVisible();
+	const canvasDuringFullscreen = await page
+		.locator(".presentation-canvas")
+		.boundingBox();
+	if (!canvasDuringFullscreen) {
+		throw new Error("presentation-canvas has no bounding box");
+	}
+	expect(canvasDuringFullscreen.x).toBeGreaterThanOrEqual(0);
+	expect(canvasDuringFullscreen.y).toBeGreaterThanOrEqual(0);
+	expect(
+		canvasDuringFullscreen.x + canvasDuringFullscreen.width,
+	).toBeLessThanOrEqual(toViewport.width);
+	expect(
+		canvasDuringFullscreen.y + canvasDuringFullscreen.height,
+	).toBeLessThanOrEqual(toViewport.height);
+
+	await closeFullscreen();
+
+	// No further viewport nudge and no second resize: the fix is synchronous,
+	// so the very first read after closing must already be correct — this
+	// intentionally is not wrapped in `expect.poll`, unlike the no-resize
+	// case above, specifically to prove no later settling step is needed.
+	const preview = page.locator(".workspace-active__preview");
+	const afterClose = await preview.boundingBox();
+	if (!afterClose) throw new Error("preview has no bounding box");
+
+	const referencePage = await page.context().newPage();
+	await referencePage.setViewportSize(toViewport);
+	await referencePage.goto("/");
+	await referencePage.waitForFunction(() =>
+		document.querySelector("astro-island")?.hasAttribute("client-render-time"),
+	);
+	await importFullFixture(referencePage);
+	const expected = await referencePage
+		.locator(".workspace-active__preview")
+		.boundingBox();
+	await referencePage.close();
+	if (!expected) throw new Error("reference preview has no bounding box");
+
+	expect(Math.abs(afterClose.width - expected.width)).toBeLessThanOrEqual(1);
+	expect(Math.abs(afterClose.height - expected.height)).toBeLessThanOrEqual(1);
+
+	// No horizontal overflow, and no vertical overflow caused by a wrong
+	// (too-tall) Preview size specifically — some page-level vertical scroll
+	// unrelated to the Preview is not itself the regression this guards.
+	const overflow = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		clientWidth: document.documentElement.clientWidth,
+	}));
+	expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+}
+
+test("Fullscreen Mode: a viewport resize across the column breakpoint while open leaves the normal Preview matching the new viewport immediately after closing (desktop to mobile)", async ({
+	page,
+}) => {
+	await expectPreviewMatchesFreshLoadAfterFullscreenResize(
+		page,
+		{ width: 1280, height: 800 },
+		{ width: 390, height: 780 },
+		() => page.getByTestId("fullscreen-close-button").click(),
+	);
+});
+
+test("Fullscreen Mode: a viewport resize across the column breakpoint while open leaves the normal Preview matching the new viewport immediately after closing (mobile to desktop)", async ({
+	page,
+}) => {
+	await expectPreviewMatchesFreshLoadAfterFullscreenResize(
+		page,
+		{ width: 390, height: 780 },
+		{ width: 1280, height: 800 },
+		() => page.getByTestId("fullscreen-close-button").click(),
+	);
+});
+
 test("Fullscreen Mode: opening it shows a Close button and the complete Presentation Canvas", async ({
 	page,
 }) => {
@@ -760,4 +943,172 @@ test("Fullscreen Mode: the button belongs to the Presentation Preview, never to 
 			.locator(".presentation-canvas")
 			.locator('[data-testid="fullscreen-close-button"]'),
 	).toHaveCount(0);
+});
+
+// Fullscreen/Close button tooltips — reuse of the same, shared tooltip
+// infrastructure src/lib/overflow-tooltip.ts already provides for the
+// Overflow Tooltip (docs/COMPARISON_PRESENTATION.md Part 2 "Overflow
+// Tooltip"): the identical `.presentation-tooltip` element/class, the same
+// `attachPresentationOverflowTooltips` function, only invoked a second time
+// on a disjoint root (see WorkspaceActive.tsx's own comment next to
+// `fullscreenToggleContainerRef`). Not itself a documented Presentation
+// Interaction (it applies to application UI, not to Title/Description/
+// Location), so covered here rather than in that doc's own section — mouse
+// leaves before every hover assertion below so each one starts from a real,
+// fresh `mouseenter`, matching how a user's pointer actually arrives.
+test("Fullscreen/Close button tooltips: hover shows the same localized text as the accessible name, and it disappears again on mouse leave", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const openButton = page.getByTestId("fullscreen-open-button");
+	const tooltip = page.getByTestId("fullscreen-toggle-tooltip");
+
+	await openButton.hover();
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(
+		(await openButton.getAttribute("aria-label")) ?? "",
+	);
+
+	await page.mouse.move(0, 0);
+	await expect(tooltip).toBeHidden();
+});
+
+test("Fullscreen/Close button tooltips: keyboard focus shows it, and it disappears again on blur", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const openButton = page.getByTestId("fullscreen-open-button");
+	const tooltip = page.getByTestId("fullscreen-toggle-tooltip");
+
+	await openButton.focus();
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(
+		(await openButton.getAttribute("aria-label")) ?? "",
+	);
+
+	await openButton.blur();
+	await expect(tooltip).toBeHidden();
+});
+
+test("Fullscreen/Close button tooltips: aria-label stays exactly as it already was — the tooltip is additive, not a replacement", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	const openButton = page.getByTestId("fullscreen-open-button");
+	const labelBefore = await openButton.getAttribute("aria-label");
+
+	await openButton.hover();
+	await expect(page.getByTestId("fullscreen-toggle-tooltip")).toBeVisible();
+	await expect(openButton).toHaveAttribute("aria-label", labelBefore ?? "");
+});
+
+test("Fullscreen/Close button tooltips: the Close button uses the exact same tooltip infrastructure, with its own localized text, positioned below it", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await page.getByTestId("fullscreen-open-button").click();
+	const closeButton = page.getByTestId("fullscreen-close-button");
+	const tooltip = page.getByTestId("fullscreen-toggle-tooltip");
+
+	await closeButton.hover();
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(
+		(await closeButton.getAttribute("aria-label")) ?? "",
+	);
+	// Same `.presentation-tooltip` element/class as every Overflow Tooltip —
+	// no second, differently named tooltip class exists.
+	await expect(tooltip).toHaveClass("presentation-tooltip");
+
+	const buttonBox = await closeButton.boundingBox();
+	const tooltipBox = await tooltip.boundingBox();
+	if (!buttonBox || !tooltipBox) throw new Error("missing bounding box");
+	expect(tooltipBox.y).toBeGreaterThan(buttonBox.y);
+});
+
+test("Fullscreen/Close button tooltips: still available immediately after re-opening Fullscreen, with the correct text for whichever button is currently rendered", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	const tooltip = page.getByTestId("fullscreen-toggle-tooltip");
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await page.getByTestId("fullscreen-close-button").click();
+
+	const openButton = page.getByTestId("fullscreen-open-button");
+	await openButton.hover();
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveText(
+		(await openButton.getAttribute("aria-label")) ?? "",
+	);
+});
+
+// Regression coverage: Overflow Tooltip triggers (Title/Description/
+// Location, ComparisonPresentationInfo.tsx) must keep working exactly as
+// before now that src/lib/overflow-tooltip.ts also serves the Fullscreen/
+// Close buttons — a second, independent `attachPresentationOverflowTooltips`
+// call site (WorkspaceActive.tsx), not a change to the existing one.
+test("Overflow Tooltip: still works unchanged alongside the Fullscreen/Close button tooltips", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page
+		.getByTestId("edit-location-display-name-input")
+		.fill(
+			"A deliberately very long place name that will not fit on a single line at the standard size no matter how wide the Presentation Canvas happens to be",
+		);
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+
+	const location = page.getByTestId("comparison-location");
+	await expect(location).toHaveAttribute("tabindex", "0");
+
+	await location.hover();
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toContainText("A deliberately very long place name");
+
+	await page.mouse.move(0, 0);
+	await expect(tooltip).toBeHidden();
+});
+
+// Regression coverage for a real, confirmed bug this feature's own
+// verification surfaced (not a theoretical concern): Tab order carries
+// keyboard focus straight from Location — the last focusable Comparison
+// Information item — into the Fullscreen button, since both live in the
+// same document and neither is skipped. Blurring Location closes its own
+// Overflow Tooltip while, in the same moment, focusing the Fullscreen
+// button opens its tooltip — two independent
+// `attachPresentationOverflowTooltips` instances (module comment above),
+// each with its own tooltip element. Before the two were given distinct
+// `testId`s, both elements shared the same default one and briefly coexisted
+// in the DOM (one just-hidden, one newly visible), which is exactly the
+// scenario this test exercises end-to-end via real Tab presses.
+test("Overflow Tooltip and the Fullscreen button tooltip stay independently addressable across a real Tab transition between them", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await page
+		.getByTestId("edit-location-display-name-input")
+		.fill(
+			"A deliberately very long place name that will not fit on a single line at the standard size no matter how wide the Presentation Canvas happens to be",
+		);
+	await page.getByTestId("edit-location-city-input").fill("");
+	await page.getByTestId("edit-location-country-input").fill("");
+
+	const location = page.getByTestId("comparison-location");
+	const overflowTooltip = page.getByTestId("presentation-overflow-tooltip");
+	const buttonTooltip = page.getByTestId("fullscreen-toggle-tooltip");
+
+	await location.focus();
+	await expect(overflowTooltip).toBeVisible();
+
+	await page.keyboard.press("Tab");
+	await expect(page.getByTestId("fullscreen-open-button")).toBeFocused();
+	await expect(overflowTooltip).toBeHidden();
+	await expect(buttonTooltip).toBeVisible();
+	await expect(buttonTooltip).toHaveText("Fullscreen");
 });

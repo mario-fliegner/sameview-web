@@ -743,11 +743,22 @@ main {
 	   and pairing that width with `aspect-ratio` would derive a wildly tall
 	   height from it — confirmed to actually happen, not just a theoretical
 	   risk: it measurably inflated the Preview Area's own reported height,
-	   corrupting the geometry computed from it. Defaulting height to `0`
-	   instead keeps this harmless for the (invisible — the whole canvas is
-	   `visibility: hidden` until ready) instant until real geometry exists. */
+	   corrupting the geometry computed from it. `16rem` (not `0`) matches
+	   `.comparison-slider__frame--loading`'s own floor above: this state is
+	   reached a second time, not just at first mount — Fullscreen Mode
+	   (src/components/WorkspaceActive.tsx) deliberately clears `previewSize`
+	   to `null` when it closes into a genuinely resized layout, to force this
+	   same bootstrap gap open again rather than reuse a pixel size measured
+	   for a viewport that no longer applies. On first mount that gap is
+	   invisibly bridged by `--loading`'s own floor before this rule is ever
+	   reached (images are still decoding); on that second occasion, images
+	   are already decoded and `--ready` applies immediately, so this rule's
+	   own fallback is what the Preview Area's ResizeObserver actually
+	   measures — `0` would starve it back to a collapsed, self-reinforcing
+	   Stage height (the same class of fixed point that fallback comment
+	   above already fought), never correcting itself without this floor. */
 	width: var(--stage-width, 100%);
-	height: var(--stage-height, 0px);
+	height: var(--stage-height, 16rem);
 }
 
 .comparison-slider__image {

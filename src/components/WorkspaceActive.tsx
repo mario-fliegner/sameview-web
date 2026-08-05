@@ -57,6 +57,7 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -76,6 +77,7 @@ import {
 	type ComparisonPresentation,
 	deriveComparisonPresentation,
 } from "../lib/comparison-presentation";
+import { attachPresentationOverflowTooltips } from "../lib/overflow-tooltip";
 import { useObjectUrl } from "../lib/use-object-url";
 import type {
 	CurrentWorkingState,
@@ -151,6 +153,15 @@ export default function WorkspaceActive({
 	const previewRef = useRef<HTMLDivElement>(null);
 	const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
 	const closeFullscreenButtonRef = useRef<HTMLButtonElement>(null);
+	// A plain, non-rendering (`display: contents`) wrapper around the two
+	// Fullscreen/Close buttons below, purely so `attachPresentationOverflowTooltips`
+	// (src/lib/overflow-tooltip.ts) has a root to scan that does not also
+	// contain ComparisonPresentationInfo's own Title/Description/Location
+	// triggers (a descendant of `previewRef`, via PresentationCanvas) — that
+	// component already attaches the same function to its own root; scanning
+	// an overlapping root here would register those same trigger elements a
+	// second time, under a second, independent trigger set.
+	const fullscreenToggleContainerRef = useRef<HTMLDivElement>(null);
 	// Mirrors the sessionDirectory-focus effect below: compares the previous
 	// render's value against the current one, rather than tracking a second
 	// "just opened"/"just closed" boolean, for the same reason documented
@@ -165,6 +176,13 @@ export default function WorkspaceActive({
 		readonly width: number;
 		readonly height: number;
 	} | null>(null);
+	// Remembers `previewSize` as it was the instant before Fullscreen made
+	// `.workspace-active__preview` viewport-sized — a snapshot for restoring
+	// that exact same state variable on exit, not a second, independently
+	// updated copy of it (the same "remember the previous value" shape
+	// already used above for `previousSessionDirectoryRef`/
+	// `previousIsFullscreenRef`).
+	const preFullscreenPreviewSizeRef = useRef<typeof previewSize>(null);
 
 	// Deliberately empty deps — must run exactly once, on mount (see the
 	// module comment above for why this is the correct signal here).
@@ -202,6 +220,33 @@ export default function WorkspaceActive({
 		previousIsFullscreenRef.current = isFullscreen;
 	}, [isFullscreen]);
 
+	// The Fullscreen/Close buttons' own hover/keyboard-focus tooltips — the
+	// same framework-independent module and `.presentation-tooltip` styling
+	// as the Overflow Tooltip above ComparisonPresentationInfo.tsx already
+	// attaches on its own root, reused here rather than duplicated (see that
+	// module's own header comment on its "static" trigger kind for why a
+	// second `attachPresentationOverflowTooltips` call, on a deliberately
+	// disjoint root, is the correct way to reuse it for a second, unrelated
+	// subtree instead of widening either root to cover both). Attached once,
+	// like that other call site, and for the same reason: the module reacts
+	// to real DOM mutations (e.g. this container's child swapping between
+	// the two buttons below as `isFullscreen` changes) on its own, not to
+	// this component's re-renders. A distinct `testId` (confirmed necessary,
+	// not speculative: Tab order can carry keyboard focus straight from a
+	// Comparison Information item into the Fullscreen button, which — before
+	// this — opened this tooltip while the Overflow Tooltip's own same-named
+	// element was still mid-close, making the two indistinguishable to
+	// anything querying by the shared default id) — no visible or behavioral
+	// difference, this module's own single shared `.presentation-tooltip`
+	// element/class/positioning is otherwise identical either way.
+	useEffect(() => {
+		if (!fullscreenToggleContainerRef.current) return;
+		return attachPresentationOverflowTooltips(
+			fullscreenToggleContainerRef.current,
+			{ testId: "fullscreen-toggle-tooltip" },
+		);
+	}, []);
+
 	// A `document`-level listener rather than a React `onKeyDown` on
 	// `.workspace-active__preview` itself: Escape must close Fullscreen
 	// regardless of which descendant currently holds focus (the Close
@@ -222,6 +267,83 @@ export default function WorkspaceActive({
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [isFullscreen, onFullscreenChange]);
+
+	// Fixes a confirmed bug: `.workspace-active__preview` becoming
+	// `position: fixed` for Fullscreen (global.css
+	// `.workspace-active__preview--fullscreen`) removes it from
+	// `.workspace-active__layout`'s grid flow entirely. The moment that class
+	// is removed again, this element is back in the grid, but
+	// PresentationCanvas below still renders `.presentation-canvas` at its
+	// previous, viewport-sized `--canvas-height` for this one commit — nothing
+	// has told it otherwise yet, since that only ever happens once `previewSize`
+	// itself updates. Because this whole layout is height-driven by its own
+	// content (confirmed empirically: `.workspace-active__layout`'s row is not
+	// a definite `1fr` share of a definite container height here, it sizes
+	// from its tallest child), that stale, still-huge explicit height becomes
+	// this element's own real, measured height for that commit — and the
+	// ResizeObserver below then reports exactly that self-inflated size back
+	// into `previewSize`, which produces an equally large geometry again,
+	// forever (confirmed empirically: it never settles back down on its own,
+	// not a one-frame flicker but a stable, incorrect fixed point).
+	//
+	// Restoring the pre-Fullscreen snapshot verbatim only breaks that loop
+	// correctly when the viewport never actually changed size while
+	// Fullscreen was open: the snapshot is a *pixel* value, not a live
+	// measurement, so it goes stale the moment a real resize (or orientation
+	// change) crosses `.workspace-active__layout`'s own 48rem column
+	// breakpoint before Fullscreen closes. `.workspace-active__preview`'s own
+	// live width right after the fullscreen class is removed is always
+	// trustworthy, though, with no snapshot involved: it is a normal grid
+	// item again by the time this layout effect runs (class changes are
+	// already committed to the DOM before layout effects fire), and its
+	// column track is sized by `.workspace-active__layout`'s own
+	// `grid-template-columns` — a plain fraction of the layout's width,
+	// entirely independent of `.presentation-canvas`'s still-stale content
+	// (unlike its *height*, which — at the single-column, sub-48rem layout
+	// specifically — has no such independent source and is exactly the
+	// content-driven quantity this whole effect exists to correct). So: if
+	// that live width still matches the snapshot, nothing about the layout
+	// actually changed and the cheap, already-correct snapshot restore below
+	// is kept as is. If it does not, the snapshot cannot be trusted for
+	// either axis any more (a changed column width can itself come with a
+	// changed available height, e.g. at the desktop breakpoint's own
+	// viewport-stretched row), so `previewSize` is cleared to `null` instead
+	// — the exact state PresentationCanvas already starts every session in,
+	// before its first-ever measurement. That re-opens the same
+	// invisible-until-stable bootstrap gap `canvasReady`/`isStable` already
+	// use for a first mount (global.css `.comparison-slider__frame--ready`'s
+	// own `16rem` floor keeps that gap from collapsing to a self-reinforcing
+	// zero the way `.presentation-canvas`'s stale explicit height otherwise
+	// would), so `.workspace-active__preview`'s ResizeObserver below ends up
+	// measuring a real, freshly-rendered box for the *current* viewport —
+	// never a pixel value carried over from one that no longer applies —
+	// while nothing in that gap is visible (the same
+	// `visibility: hidden`/loading-state gating a first mount already relies
+	// on). No new geometry logic either way — src/lib/canvas-geometry.ts's
+	// own `computeCanvasGeometry` is untouched; only which `previewSize`
+	// value reaches it changes for this one transition.
+	const previousIsFullscreenForPreviewRef = useRef(isFullscreen);
+	useLayoutEffect(() => {
+		const wasFullscreen = previousIsFullscreenForPreviewRef.current;
+		// Guarded by `!wasFullscreen`/`wasFullscreen`, not merely by this
+		// effect running: `previewSize` legitimately changes many times while
+		// Fullscreen is open (the real, growing viewport size) or while it is
+		// closed (an ordinary resize) — this must only act on the one render
+		// where `isFullscreen` itself actually flipped, on either edge, never
+		// on those other, unrelated reruns.
+		if (isFullscreen && !wasFullscreen) {
+			preFullscreenPreviewSizeRef.current = previewSize;
+		} else if (!isFullscreen && wasFullscreen) {
+			const snapshot = preFullscreenPreviewSizeRef.current;
+			const liveWidth = previewRef.current?.getBoundingClientRect().width;
+			const viewportUnchanged =
+				snapshot !== null &&
+				liveWidth !== undefined &&
+				Math.abs(liveWidth - snapshot.width) <= GEOMETRY_STABILITY_TOLERANCE_PX;
+			setPreviewSize(viewportUnchanged ? snapshot : null);
+		}
+		previousIsFullscreenForPreviewRef.current = isFullscreen;
+	}, [isFullscreen, previewSize]);
 
 	useEffect(() => {
 		const container = previewRef.current;
@@ -328,30 +450,57 @@ export default function WorkspaceActive({
 					    the Presentation Preview, never inside `.presentation-canvas`
 					    itself, so it can never appear in a generated output that only
 					    reproduces that element. Exactly one of the two buttons below
-					    is ever rendered. */}
-					{isFullscreen ? (
-						<button
-							type="button"
-							ref={closeFullscreenButtonRef}
-							className="workspace-active__fullscreen-toggle"
-							aria-label={t.workspace.fullscreenCloseButton}
-							data-testid="fullscreen-close-button"
-							onClick={() => onFullscreenChange(false)}
-						>
-							<CloseIcon />
-						</button>
-					) : (
-						<button
-							type="button"
-							ref={fullscreenButtonRef}
-							className="workspace-active__fullscreen-toggle"
-							aria-label={t.workspace.fullscreenOpenButton}
-							data-testid="fullscreen-open-button"
-							onClick={() => onFullscreenChange(true)}
-						>
-							<FullscreenIcon />
-						</button>
-					)}
+					    is ever rendered. `display: contents` (inline, not a class:
+					    purely structural, not a design decision — see
+					    `fullscreenToggleContainerRef` above) so this wrapper
+					    contributes no box of its own; the button's own
+					    `position: absolute` still resolves against
+					    `.workspace-active__preview` exactly as before. Each branch
+					    carries its own `key`: both render a `<button>` at the same
+					    tree position, so without distinct keys React reconciles them
+					    as the *same* DOM node (only its attributes/children change) —
+					    confirmed empirically to desync src/lib/overflow-tooltip.ts's
+					    own per-trigger state from it, since that module's `Map` keys
+					    by element identity: a tooltip already open at the moment of
+					    this swap (hover, then click) kept showing the stale label and
+					    position for the *other* button, because as far as that Map is
+					    concerned nothing about "the trigger" ever changed. Distinct
+					    keys make this swap a real unmount/remount, exactly like any
+					    other trigger appearing/disappearing (`scan()`'s own doc
+					    comment below) — the one behavior that module already handles
+					    correctly. */}
+					<div
+						ref={fullscreenToggleContainerRef}
+						style={{ display: "contents" }}
+					>
+						{isFullscreen ? (
+							<button
+								key="fullscreen-close"
+								type="button"
+								ref={closeFullscreenButtonRef}
+								className="workspace-active__fullscreen-toggle"
+								aria-label={t.workspace.fullscreenCloseButton}
+								data-testid="fullscreen-close-button"
+								data-tooltip=""
+								onClick={() => onFullscreenChange(false)}
+							>
+								<CloseIcon />
+							</button>
+						) : (
+							<button
+								key="fullscreen-open"
+								type="button"
+								ref={fullscreenButtonRef}
+								className="workspace-active__fullscreen-toggle"
+								aria-label={t.workspace.fullscreenOpenButton}
+								data-testid="fullscreen-open-button"
+								data-tooltip=""
+								onClick={() => onFullscreenChange(true)}
+							>
+								<FullscreenIcon />
+							</button>
+						)}
+					</div>
 				</div>
 				{/* Inert while Fullscreen is open (docs/APPLICATION_LAYOUT.md
 				    "Fullscreen Mode": header/footer/"context inspector" disappear) —
