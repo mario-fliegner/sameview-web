@@ -29,21 +29,28 @@
 //   (test/e2e/workspace-creation.spec.ts and others) to confirm which
 //   comparison is currently active; kept here directly now that its former
 //   home (the deleted ComparisonInfo.tsx) no longer exists.
-// - The scroll-into-view-on-mount effect: this component only ever mounts on
-//   the `no-workspace` -> `active` transition (src/components/ImportSection.tsx
-//   renders either the no-workspace stage or this component, never both, and
-//   never remounts this component across a Replace Export commit — the
-//   *initial* import's "scroll to orientation" and a *replacement*'s "move
-//   focus" are different transitions with different rules, see below), so
-//   "on mount" is exactly the signal docs/APPLICATION_LAYOUT.md's "Import
-//   Succeeded" describes.
 // - The focus-the-heading-on-replace effect: fires when `sessionDirectory`
 //   changes while already mounted, which only ever happens via a Replace
 //   Export commit — deliberately keyed on the session identity rather than
 //   on Current Working State object identity, since every F-003 edit now
 //   also produces a new Current Working State object without a replacement
 //   having happened (see src/lib/comparison-edit.ts) and must not steal
-//   focus back to the heading on every keystroke.
+//   focus back to the heading on every keystroke. This component only ever
+//   mounts on the `no-workspace` -> `active` transition
+//   (src/components/ImportSection.tsx renders either the no-workspace stage
+//   or this component, never both) and never remounts across a Replace
+//   Export commit, so this session-directory comparison only ever fires for
+//   an actual replacement, never for the initial import.
+//
+// docs/APPLICATION_LAYOUT.md "Import Succeeded": "The transition is
+// performed within the application layout. The document itself does not
+// scroll." — deliberately no scroll-into-view (or any other scroll) is
+// performed on the initial `no-workspace` -> `active` mount. The workspace
+// already renders at its normal in-flow document position, directly below
+// the header, which is already within the viewport for any supported
+// viewport height, so no programmatic scroll is needed to satisfy
+// APPLICATION_LAYOUT.md's "the workspace becomes the new visual focus
+// automatically" for this transition either.
 //
 // Viewing never mutates Source Data or the Current Working State
 // (docs/FEATURE_SPECIFICATION.md F-002 Rules): nothing in the Presentation
@@ -146,7 +153,6 @@ export default function WorkspaceActive({
 	onFullscreenChange,
 }: WorkspaceActiveProps) {
 	const { locale, t } = useLocale();
-	const activeSectionRef = useRef<HTMLElement>(null);
 	const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
 	const previousSessionDirectoryRef = useRef(
 		currentWorkingState.sessionDirectory,
@@ -198,18 +204,6 @@ export default function WorkspaceActive({
 	// already used above for `previousSessionDirectoryRef`/
 	// `previousIsFullscreenRef`).
 	const preFullscreenPreviewSizeRef = useRef<typeof previewSize>(null);
-
-	// Deliberately empty deps — must run exactly once, on mount (see the
-	// module comment above for why this is the correct signal here).
-	useEffect(() => {
-		const prefersReducedMotion = window.matchMedia(
-			"(prefers-reduced-motion: reduce)",
-		).matches;
-		activeSectionRef.current?.scrollIntoView({
-			behavior: prefersReducedMotion ? "auto" : "smooth",
-			block: "start",
-		});
-	}, []);
 
 	useEffect(() => {
 		if (
@@ -429,7 +423,6 @@ export default function WorkspaceActive({
 			className="workspace-active"
 			aria-labelledby="workspace-active-title"
 			data-testid="workspace-active"
-			ref={activeSectionRef}
 		>
 			{/* Not part of the visible Workspace Active layout
 			(docs/APPLICATION_LAYOUT.md "State B — Workspace Active" shows only

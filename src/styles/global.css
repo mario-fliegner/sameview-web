@@ -1131,7 +1131,10 @@ main {
 .edit-inspector {
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
+	/* Moderately reduced from the original 1rem for a cleaner information
+	   density (Phase 6 UX Polish) — spacing only, no effect on any section's
+	   own touch target. */
+	gap: 0.75rem;
 	min-width: 0;
 }
 
@@ -1149,6 +1152,18 @@ main {
 	   .outlined-field__label below) — defined once here, per section, so the
 	   two visual layers can never drift apart. */
 	--outlined-field-label-bg: #131a29;
+}
+
+/* Desktop-only density reduction (Phase 6 UX Polish): tightens panel and
+   header padding at the same `min-width: 48rem` breakpoint already used for
+   the two-column workspace layout above. Deliberately scoped to this
+   breakpoint only — the mobile rules above stay completely untouched, so the
+   toggle's touch target (`.edit-inspector__section-toggle` below) keeps its
+   existing mobile height. */
+@media (min-width: 48rem) {
+	.edit-inspector__section {
+		padding: 0.75rem 1rem;
+	}
 }
 
 /* The currently open section (docs/APPLICATION_LAYOUT.md "Structure": at
@@ -1184,6 +1199,15 @@ main {
 	cursor: pointer;
 }
 
+/* Desktop-only: slightly tighter toggle row. The vertical padding reduction
+   here (0.25rem -> 0.125rem) only ever applies at this same `min-width:
+   48rem` breakpoint, so the mobile touch target above is never reduced. */
+@media (min-width: 48rem) {
+	.edit-inspector__section-toggle {
+		padding: 0.125rem 0;
+	}
+}
+
 .edit-inspector__chevron {
 	flex-shrink: 0;
 	width: 0.5rem;
@@ -1204,10 +1228,19 @@ main {
 	border-block-end-color: #4f8cff;
 }
 
+/* A very subtle hairline separates the toggle from the body once expanded
+   (Phase 6 UX Polish) — the same "quiet, minimal" separation used by tools
+   like Figma/Linear/GitHub, not a heavy panel-internal border: low-contrast
+   white at ~7% opacity, no color of its own. `padding-block-start` (rather
+   than only `margin-block-start`) keeps a small gap on both sides of the
+   line itself, so it reads as a thin division rather than touching the
+   toggle row above it. */
 .edit-inspector__section-body {
 	display: flex;
 	flex-direction: column;
 	margin-block-start: 0.75rem;
+	padding-block-start: 0.75rem;
+	border-block-start: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 /* Comparison Information fields (docs/APPLICATION_LAYOUT.md "Comparison

@@ -101,21 +101,50 @@ test("a successful initial import shows a transient green success state before t
 	await expect(page.getByTestId("import-stage")).toHaveCount(0);
 });
 
-// The page must actually scroll to bring the newly active workspace into
-// view, not merely render it somewhere the user has to find on their own.
-test("the page scrolls to the beginning of the workspace after a successful initial import", async ({
+// docs/APPLICATION_LAYOUT.md "Import Succeeded": "The transition is
+// performed within the application layout. The document itself does not
+// scroll." Asserted directly via window.scrollY, not merely via
+// `.workspace-active` being positioned at the viewport's own start — that
+// weaker check cannot distinguish "the document never scrolled" from "the
+// document was scrolled exactly far enough to align the workspace with the
+// viewport start" (a real, now-removed regression: a mount-time
+// `scrollIntoView()` call used to scroll the header itself out of view,
+// which also happened to leave `.workspace-active` flush with the viewport
+// top and would therefore have passed a rect-only check). Uses the real
+// Android export fixture (genuine full-resolution photos, not the tiny stub
+// images in valid-with-real-images.zip) and waits for the Presentation
+// Canvas's own geometry convergence to finish (the same
+// `comparison-loading` signal test/e2e/comparison-editing.spec.ts already
+// uses) so the assertion covers the window where image decode and canvas
+// geometry measurement could plausibly still move things, not just the
+// first frame after import.
+test("the initial import never scrolls the document; header and workspace top are immediately visible", async ({
 	page,
 }) => {
-	await page.setViewportSize({ width: 800, height: 400 });
-	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+	expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
 	await page
 		.locator("#import-zip-input")
-		.setInputFiles(join(fixturesDir, "archives", "valid-with-real-images.zip"));
+		.setInputFiles(
+			join(fixturesDir, "android-export", "sample-v6-session_minimal.zip"),
+		);
 
-	const workspace = page.getByTestId("workspace-active");
-	await expect(workspace).toBeVisible();
-	await expect(workspace).toBeInViewport();
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+	expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+	const header = page.locator("header.app-header");
+	await expect(header).toBeInViewport();
+
+	await expect(page.locator(".workspace-active__preview")).toBeInViewport();
+	await expect(page.locator(".edit-inspector")).toBeInViewport();
+
+	// Image decode and canvas geometry convergence (src/lib/canvas-geometry.ts)
+	// have now had time to run to completion; the document must still not have
+	// scrolled.
+	await expect(page.getByTestId("comparison-loading")).toHaveCount(0, {
+		timeout: 20_000,
+	});
+	expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
 test("creates a workspace from the real minimal Android export fixture", async ({

@@ -157,10 +157,15 @@ export default function BrandingSection({
 
 	return (
 		<div className="presentation-section">
+			{/* No visible legend here, unlike PresentationSection.tsx's own
+			    top-level groups: those need one because Colors/Shape/Slider are
+			    three distinct groups inside one accordion section. Branding has
+			    exactly one group, and its label would be identical to the
+			    accordion's own "Branding" title immediately above it
+			    (docs/APPLICATION_LAYOUT.md "Branding" itself defines no inner
+			    heading). The accessible name for the radiogroup below is still
+			    supplied via `OptionGroup`'s own `legend` prop (`aria-label`). */}
 			<div className="presentation-option-group">
-				<span className="presentation-option-group__legend">
-					{t.editInspector.branding.heading}
-				</span>
 				<OptionGroup
 					legend={t.editInspector.branding.heading}
 					testIdPrefix="edit-branding-option"
