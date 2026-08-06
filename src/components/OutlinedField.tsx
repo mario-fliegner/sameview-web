@@ -26,6 +26,14 @@ interface OutlinedFieldProps {
 	readonly multiline?: boolean;
 	readonly rows?: number;
 	readonly readOnly?: boolean;
+	// Distinct from `readOnly` above (see that prop's own reasoning): a
+	// disabled field is fully inert — natively removed from the tab order,
+	// never focusable, never a candidate for `onChange` — not merely
+	// non-editable while still focusable. Used only where a value must be
+	// visible but genuinely unchangeable (e.g. the Branding Color group's
+	// Custom fields while an imported raster asset is still the active
+	// display, docs/APPLICATION_LAYOUT.md "Branding" → "Color").
+	readonly disabled?: boolean | undefined;
 	readonly error?: string | null;
 	// docs/COMPARISON_PRESENTATION.md "Custom Color Editing": an invalid HEX
 	// value receives "only a subtle error state — no explanatory error text".
@@ -43,6 +51,7 @@ export default function OutlinedField({
 	multiline,
 	rows,
 	readOnly,
+	disabled,
 	error,
 	hideErrorText,
 	testId,
@@ -52,6 +61,7 @@ export default function OutlinedField({
 		"outlined-field",
 		error && "outlined-field--error",
 		readOnly && "outlined-field--readonly",
+		disabled && "outlined-field--disabled",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -61,6 +71,7 @@ export default function OutlinedField({
 		className: "outlined-field__control",
 		defaultValue,
 		readOnly,
+		disabled,
 		"aria-invalid": Boolean(error),
 		"aria-describedby": errorId,
 		"data-testid": testId,

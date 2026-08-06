@@ -1414,6 +1414,18 @@ main {
 	outline-offset: 0.125rem;
 }
 
+/* docs/APPLICATION_LAYOUT.md "Branding" → "Color": the disabled state while
+   an imported raster asset is still the active display — visual dimming
+   only, the actual inertness comes from the native `disabled` attribute
+   itself (src/components/BrandingSection.tsx `OptionGroup`), not from this
+   rule. A disabled `--selected` button keeps its selected styling
+   underneath, dimmed by the same opacity, so "which value is currently
+   shown" stays legible while "you cannot change it" is equally clear. */
+.presentation-options__button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
 .presentation-options__chip {
 	display: block;
 	width: 0.875rem;
@@ -1457,6 +1469,15 @@ main {
 	border-radius: 0.5rem;
 	background: none;
 	cursor: pointer;
+}
+
+/* Same disabled treatment as .presentation-options__button above — visual
+   dimming only, the native `disabled` attribute itself
+   (src/components/CustomColorFields.tsx) is what actually prevents
+   interaction. */
+.presentation-custom-color__swatch:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .presentation-custom-color__fields > .outlined-field {
@@ -1593,6 +1614,15 @@ main {
 	   read-only field being focused must stay visibly focused (WCAG 2.4.7)
 	   but must not borrow the same color that means "you can edit this". */
 	border-color: #c7ccd6;
+}
+
+/* Distinct from --readonly above (see src/components/OutlinedField.tsx's
+   own comment on the difference): a disabled field is never focusable at
+   all, so no focus-visible variant is needed here. Visual dimming only —
+   the native `disabled` attribute is what actually prevents interaction. */
+.outlined-field--disabled .outlined-field__control {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .outlined-field--error .outlined-field__control {

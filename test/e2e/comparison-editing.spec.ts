@@ -10,9 +10,17 @@
 // `data-testid`s, never translated copy (docs/AI_ENGINEERING_GUIDE.md
 // Testing; see also test/e2e/comparison-viewer.spec.ts).
 
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import {
+	TextReader,
+	Uint8ArrayReader,
+	Uint8ArrayWriter,
+	ZipWriter,
+} from "@zip.js/zip.js";
 
 const fixturesDir = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -1979,7 +1987,68 @@ function symbolFillLocator(page: import("@playwright/test").Page) {
 	return page.locator('[data-testid="comparison-slider-handle"] > svg > path');
 }
 
-test("the Color group is not in the DOM while an imported raster asset is the active display", async ({
+// Builds a real, importable ZIP whose imported Built-in Symbol carries both
+// its own raster asset (branding-handle.png, still authoritative for
+// display) AND already-stored `symbolColor: "custom"` fields — the one state
+// that proves the Custom color controls are disabled specifically, not just
+// the Dark/Brand/Custom option group. This state cannot be reached through
+// the UI itself (Color is never interactive while a raster asset is active,
+// and no code path ever restores a raster asset once replaced), so it is
+// built as a synthetic fixture at test time — the same "no new committed
+// binary, construct it with the app's own zip.js dependency" approach
+// test/e2e/branding-normalization.spec.ts already established — rather than
+// committing a new binary fixture for one narrow case.
+async function buildImportedRasterWithCustomColorFixture(): Promise<string> {
+	const sessionId = "2024-02-01_12-00-00";
+	const metadata = {
+		version: 6,
+		session: { id: sessionId, createdAtMs: 1706788800000 },
+		capture: { timestampMs: 1706788800000 },
+		files: {
+			reference: "reference.jpg",
+			capture: "capture.jpg",
+			brandingHandle: "branding-handle.png",
+		},
+		branding: {
+			type: "builtin",
+			builtinId: "star",
+			handleFile: "branding-handle.png",
+			symbolColor: "custom",
+			symbolColorHex: "#123456",
+		},
+	};
+	// A real, small, decodable image — the same fixture already used
+	// elsewhere as a valid custom branding upload.
+	const imageBytes = new Uint8Array(
+		readFileSync(join(fixturesDir, "images", "tiny-valid.png")),
+	);
+
+	const zipWriter = new ZipWriter(new Uint8ArrayWriter());
+	await zipWriter.add(
+		`${sessionId}/metadata.json`,
+		new TextReader(JSON.stringify(metadata)),
+	);
+	await zipWriter.add(
+		`${sessionId}/reference.jpg`,
+		new Uint8ArrayReader(imageBytes),
+	);
+	await zipWriter.add(
+		`${sessionId}/capture.jpg`,
+		new Uint8ArrayReader(imageBytes),
+	);
+	await zipWriter.add(
+		`${sessionId}/branding-handle.png`,
+		new Uint8ArrayReader(imageBytes),
+	);
+	const zipBytes = await zipWriter.close();
+
+	const tmpDir = mkdtempSync(join(tmpdir(), "raster-custom-color-fixture-"));
+	const zipPath = join(tmpDir, "raster-custom-color.zip");
+	writeFileSync(zipPath, zipBytes);
+	return zipPath;
+}
+
+test("the Color group is visible but fully disabled while an imported raster asset is the active display", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -1989,17 +2058,84 @@ test("the Color group is not in the DOM while an imported raster asset is the ac
 		"data-branding-kind",
 		"asset",
 	);
-	await expect(page.getByTestId("edit-branding-color-dark")).toHaveCount(0);
-	await expect(page.getByTestId("edit-branding-color-brand")).toHaveCount(0);
-	await expect(page.getByTestId("edit-branding-color-custom")).toHaveCount(0);
+	// Visible — the fixture's import never set a symbolColor, so Dark (the
+	// tolerant default, docs/IMPORTED_COMPARISON_V1.md "Session Branding")
+	// is the value shown.
+	const dark = page.getByTestId("edit-branding-color-dark");
+	const brand = page.getByTestId("edit-branding-color-brand");
+	const custom = page.getByTestId("edit-branding-color-custom");
+	await expect(dark).toBeVisible();
+	await expect(brand).toBeVisible();
+	await expect(custom).toBeVisible();
+	await expect(dark).toHaveAttribute("aria-checked", "true");
+	// Fully disabled — native `disabled`, not merely styled to look inert.
+	await expect(dark).toBeDisabled();
+	await expect(brand).toBeDisabled();
+	await expect(custom).toBeDisabled();
 });
 
-test("clicking a symbol tile switches to the vector symbol, and the Color group appears using the remembered value", async ({
+test("disabled Color controls are excluded from the tab order while an imported raster asset is active", async ({
 	page,
 }) => {
 	await importFullFixture(page);
 	await expandBrandingSection(page);
-	await expect(page.getByTestId("edit-branding-color-dark")).toHaveCount(0);
+
+	// Focus the last element before the Color group (the Fire tile) and tab
+	// forward — a native `disabled` button is skipped entirely, so focus
+	// must land on the next focusable element after the group, never on
+	// Dark/Brand/Custom themselves.
+	await page.getByTestId("edit-branding-symbol-fire").focus();
+	await page.keyboard.press("Tab");
+	const focused = await page.evaluate(
+		() => document.activeElement?.getAttribute("data-testid") ?? null,
+	);
+	expect(focused).not.toBe("edit-branding-color-dark");
+	expect(focused).not.toBe("edit-branding-color-brand");
+	expect(focused).not.toBe("edit-branding-color-custom");
+});
+
+test("clicking a disabled Color option changes neither the active branding nor the remembered color", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	// A disabled native button does not fire click/keyboard activation at
+	// all — `{ force: true }` bypasses Playwright's own actionability check
+	// (which would otherwise refuse to click a disabled element) so this
+	// test genuinely exercises "the browser ignores it", not "the test
+	// never attempted it".
+	await page.getByTestId("edit-branding-color-brand").click({ force: true });
+
+	// Active branding: still the untouched imported raster asset.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	await expect(page.getByTestId("edit-branding-color-dark")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+
+	// Remembered color: unchanged too — proven by activating the vector
+	// symbol afterwards and confirming it resolves to Dark, not the Brand
+	// the disabled click attempted.
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await expect(page.getByTestId("edit-branding-color-dark")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+});
+
+test("clicking a symbol tile keeps the Color group in place and makes it enabled, applying the remembered color", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	const dark = page.getByTestId("edit-branding-color-dark");
+	await expect(dark).toBeVisible();
+	await expect(dark).toBeDisabled();
 
 	await page.getByTestId("edit-branding-symbol-fire").click();
 
@@ -2007,14 +2143,46 @@ test("clicking a symbol tile switches to the vector symbol, and the Color group 
 		"data-branding-kind",
 		"symbol",
 	);
-	// The fixture's import never set a symbolColor, so brandingDraft.
-	// lastSymbolColor was seeded as "dark" — the first-ever tile click
-	// resolves to that remembered value.
-	await expect(page.getByTestId("edit-branding-color-dark")).toHaveAttribute(
+	// Same element, same place — enabled now, not re-appeared.
+	await expect(dark).toBeVisible();
+	await expect(dark).toBeEnabled();
+	await expect(dark).toHaveAttribute("aria-checked", "true");
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+});
+
+test("Custom color controls stay disabled while an imported raster asset with a stored Custom color is active", async ({
+	page,
+}) => {
+	const fixturePath = await buildImportedRasterWithCustomColorFixture();
+	await page.locator("#import-zip-input").setInputFiles(fixturePath);
+	await expect(page.getByTestId("workspace-active")).toBeVisible();
+	await expect(page.getByTestId("comparison-loading")).toHaveCount(0, {
+		timeout: 20_000,
+	});
+	await expandBrandingSection(page);
+
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	await expect(page.getByTestId("edit-branding-color-custom")).toHaveAttribute(
 		"aria-checked",
 		"true",
 	);
-	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+	await expect(page.getByTestId("edit-branding-color-custom")).toBeDisabled();
+	await expect(
+		page.getByTestId("edit-branding-color-custom-swatch"),
+	).toBeDisabled();
+	await expect(
+		page.getByTestId("edit-branding-color-custom-hex-input"),
+	).toBeDisabled();
+
+	// The same activation-enables-it rule applies here too.
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await expect(
+		page.getByTestId("edit-branding-color-custom-hex-input"),
+	).toBeEnabled();
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#123456");
 });
 
 test("Dark resolves to exactly #17202F and Brand to exactly #4F8CFF", async ({

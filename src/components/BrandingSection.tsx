@@ -119,11 +119,14 @@ export default function BrandingSection({
 	// The single source of truth for Raster-vs-Vektor-vs-none (the same
 	// function src/components/WorkspaceActive.tsx uses for the live Handle) —
 	// reused here, not re-derived, specifically to decide whether the Color
-	// group applies: it is shown only once a Web vector symbol is genuinely
-	// active (`kind === "symbol"`), never while an imported raster asset is
-	// still the active display (`kind === "asset"`, docs/IMPORTED_COMPARISON_V1.md
-	// "Session Branding": the imported PNG "remains the asset used for
-	// display" until an explicit tile click replaces it).
+	// group's controls are interactive: fully enabled only once a Web vector
+	// symbol is genuinely active (`kind === "symbol"`), fully disabled while
+	// an imported raster asset is still the active display (`kind ===
+	// "asset"`, docs/IMPORTED_COMPARISON_V1.md "Session Branding": the
+	// imported PNG "remains the asset used for display" until an explicit
+	// tile click replaces it). Deliberately does not gate the Color group's
+	// *presence* — see that group's own comment below for why visibility and
+	// interactivity are kept independent.
 	const handleBranding = resolveHandleBranding(currentWorkingState);
 	const symbolColor = getBrandingSymbolColor(currentWorkingState);
 
@@ -283,17 +286,18 @@ export default function BrandingSection({
 					</div>
 				)}
 
-				{/* docs/APPLICATION_LAYOUT.md "Branding" → "Color": shown only while
-				    a Web vector symbol is genuinely active — never while the grid is
-				    merely open (`displayedOption === "symbol"` alone, e.g. Custom is
-				    still effective) and never while an imported raster asset remains
-				    the active display (`handleBranding.kind === "asset"`). Fully
-				    hidden rather than shown-disabled in that raster sub-case: it
-				    reuses the exact same source of truth the Handle itself renders
-				    from, so there is no separate condition that could ever disagree
-				    with what is actually on screen, and no new disabled-state UI or
-				    explanatory text is introduced. */}
-				{displayedOption === "symbol" && handleBranding.kind === "symbol" && (
+				{/* docs/APPLICATION_LAYOUT.md "Branding" → "Color": visibility and
+				    interactivity are two independent conditions. Visible whenever the
+				    Symbol panel itself is displayed (`displayedOption === "symbol"`) —
+				    including while an imported raster asset (`handleBranding.kind ===
+				    "asset"`) is still the active display, so the group never
+				    appears/disappears around the moment a symbol tile is clicked; only
+				    its controls' `disabled` state changes then, never its presence.
+				    Fully interactive only once a Web vector symbol is genuinely active
+				    (`handleBranding.kind === "symbol"`) — the same source of truth the
+				    Handle itself renders from, so this can never disagree with what is
+				    actually on screen. */}
+				{displayedOption === "symbol" && (
 					<div className="presentation-option-group">
 						<span className="presentation-option-group__legend">
 							{t.editInspector.branding.colorLegend}
@@ -302,6 +306,7 @@ export default function BrandingSection({
 							legend={t.editInspector.branding.colorLegend}
 							testIdPrefix="edit-branding-color"
 							selected={symbolColor.kind}
+							disabled={handleBranding.kind !== "symbol"}
 							options={[
 								{
 									value: "dark",
@@ -335,6 +340,7 @@ export default function BrandingSection({
 									t.editInspector.presentation.customColorSwatchLabel
 								}
 								hexLabel={t.editInspector.presentation.customColorHexLabel}
+								disabled={handleBranding.kind !== "symbol"}
 							/>
 						)}
 					</div>
@@ -396,6 +402,13 @@ interface OptionGroupProps {
 	readonly options: readonly OptionGroupOption[];
 	readonly selected: string;
 	readonly onSelect: (value: string) => void;
+	// Native `disabled` on every option button (docs/APPLICATION_LAYOUT.md
+	// "Branding" → "Color"): not merely non-interactive styling — this is
+	// what removes each button from the tab order and blocks click/keyboard
+	// activation at the browser level, without any separate JS guard in
+	// `onSelect` being needed. Only the Color group ever sets this; the
+	// top-level None/Symbol/Custom group above never does.
+	readonly disabled?: boolean;
 }
 
 // docs/APPLICATION_LAYOUT.md "Branding": "Single-row option group" — no
@@ -408,6 +421,7 @@ function OptionGroup({
 	options,
 	selected,
 	onSelect,
+	disabled,
 }: OptionGroupProps) {
 	return (
 		<div className="presentation-options" role="radiogroup" aria-label={legend}>
@@ -426,6 +440,7 @@ function OptionGroup({
 							? " presentation-options__button--selected"
 							: ""
 					}`}
+					disabled={disabled}
 					onClick={() => onSelect(option.value)}
 				>
 					{option.label}

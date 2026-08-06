@@ -22,6 +22,14 @@ interface CustomColorFieldsProps {
 	readonly heading: string;
 	readonly swatchLabel: string;
 	readonly hexLabel: string;
+	// Fully inert (native `disabled`, not merely non-interactive styling) —
+	// used only while the color a Custom selection currently displays is a
+	// value the user cannot change yet (docs/APPLICATION_LAYOUT.md
+	// "Branding" → "Color": disabled for a Built-in Symbol's Color group
+	// while an imported raster asset is still the active display). Not used
+	// by any of Presentation Configuration's three call sites, which never
+	// disable this component.
+	readonly disabled?: boolean;
 }
 
 export default function CustomColorFields({
@@ -31,6 +39,7 @@ export default function CustomColorFields({
 	heading,
 	swatchLabel,
 	hexLabel,
+	disabled,
 }: CustomColorFieldsProps) {
 	const [hasError, setHasError] = useState(false);
 
@@ -54,6 +63,7 @@ export default function CustomColorFields({
 					value={value}
 					aria-label={swatchLabel}
 					data-testid={`${idPrefix}-swatch`}
+					disabled={disabled}
 					onChange={(event) => {
 						const normalized = normalizeHexColor(event.target.value);
 						if (normalized !== undefined) {
@@ -67,6 +77,7 @@ export default function CustomColorFields({
 					label={hexLabel}
 					defaultValue={value}
 					onChange={handleHexChange}
+					disabled={disabled}
 					error={hasError ? "invalid" : null}
 					hideErrorText
 					testId={`${idPrefix}-hex-input`}
