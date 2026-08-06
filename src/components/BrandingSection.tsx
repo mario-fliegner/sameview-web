@@ -28,12 +28,12 @@ import {
 	getBrandingBuiltinId,
 	getBrandingType,
 } from "../lib/branding";
+import { normalizeBrandingImage } from "../lib/branding-image-normalize";
 import {
 	BUILTIN_BRANDING_SYMBOLS,
 	type BuiltinSymbolId,
 	getSymbolViewBox,
 } from "../lib/builtin-branding-symbols";
-import { validateImageContent } from "../lib/import-image";
 import { useObjectUrl } from "../lib/use-object-url";
 import type { CurrentWorkingState } from "../lib/workspace-state";
 
@@ -135,16 +135,26 @@ export default function BrandingSection({
 		onCurrentWorkingStateChange(applyBrandingSymbol(currentWorkingState, id));
 	}
 
+	// Normalizes the upload before it ever reaches applyBrandingImage — see
+	// src/lib/branding-image-normalize.ts's own header comment for why this
+	// is the one and only decode of `bytes` (the original upload) anywhere
+	// in the pipeline. `bytes` itself is a local binding that goes out of
+	// scope once this function returns; nothing here or in applyBrandingImage
+	// retains it, so it becomes eligible for ordinary garbage collection
+	// like any other local value — no explicit disposal is needed or
+	// meaningful in JavaScript.
 	async function handleFileSelected(file: File) {
 		const bytes = new Uint8Array(await file.arrayBuffer());
-		const result = await validateImageContent(bytes);
+		const result = await normalizeBrandingImage(bytes);
 		if (!result.ok) {
 			setHasImageError(true);
 			return;
 		}
 		setHasImageError(false);
 		setPendingCustomSelected(false);
-		onCurrentWorkingStateChange(applyBrandingImage(currentWorkingState, bytes));
+		onCurrentWorkingStateChange(
+			applyBrandingImage(currentWorkingState, result.bytes),
+		);
 	}
 
 	function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {

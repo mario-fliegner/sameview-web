@@ -104,10 +104,23 @@ export function applyBrandingSymbol(
 // Records `bytes` into `brandingDraft.lastCustomImageBytes` alongside
 // activating them (docs/FEATURE_SPECIFICATION.md F-004: "A valid upload
 // activates and remembers the new image") — `lastBuiltinId` is carried
-// through unchanged. Callers must only invoke this with already-validated
-// bytes (src/lib/import-image.ts `validateImageContent`); an invalid
-// upload must never reach this function, which is what keeps both the
-// active branding and the remembered image untouched on failure.
+// through unchanged. `files.brandingHandleBytes` and
+// `brandingDraft.lastCustomImageBytes` are assigned the exact same
+// reference below, by construction — never two independently produced
+// byte sequences that could drift apart.
+//
+// Callers must only invoke this with an already-normalized, final branding
+// asset:
+// - a fresh Web upload: src/components/BrandingSection.tsx normalizes it
+//   via src/lib/branding-image-normalize.ts's `normalizeBrandingImage`
+//   before calling this function; an invalid or unnormalizable upload must
+//   never reach this function, which is what keeps both the active
+//   branding and the remembered image untouched on failure.
+// - reactivating a previously normalized or imported image (from
+//   `brandingDraft.lastCustomImageBytes`): passed through unchanged, never
+//   re-decoded, re-scaled or re-encoded — see this module's own header for
+//   why this stays a pure state transition with no image processing of its
+//   own.
 export function applyBrandingImage(
 	cws: CurrentWorkingState,
 	bytes: Uint8Array,
