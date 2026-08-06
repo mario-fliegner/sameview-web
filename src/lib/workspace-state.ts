@@ -25,6 +25,7 @@ import {
 	type BuiltinSymbolId,
 	isBuiltinSymbolId,
 } from "./builtin-branding-symbols.ts";
+import { normalizeHexColor } from "./hex-color.ts";
 import type { ResolvedImportedMetadata } from "./import-metadata.ts";
 
 export interface AcceptedComparisonFiles {
@@ -131,6 +132,17 @@ export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
 	showSliderDateLabels: true,
 };
 
+// A Built-in Symbol's configured color (docs/FEATURE_SPECIFICATION.md F-004;
+// docs/APPLICATION_LAYOUT.md "Branding" → "Color"). Same shape as
+// `PresentationTextColor` above and for the identical reason: "dark"/"brand"
+// carry no color of their own, "custom" is the only kind that needs one.
+// Belongs to the built-in branding as a whole, never to an individual
+// symbol — a symbol switch (src/lib/branding.ts `applyBrandingSymbol`)
+// carries the current value forward unchanged.
+export type BrandingSymbolColor =
+	| { readonly kind: "dark" | "brand" }
+	| { readonly kind: "custom"; readonly color: string };
+
 // docs/FEATURE_SPECIFICATION.md F-004: "the most recently selected built-in
 // symbol and the most recently valid custom branding image are each
 // retained independently of which branding option is currently active."
@@ -142,14 +154,27 @@ export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
 // identical reason: no Source Data counterpart exists for "a value the user
 // chose earlier but is not currently using" — Android's own session
 // branding is a single-slot model with no such memory of its own.
+//
+// `lastSymbolColor` extends this same memory to a Built-in Symbol's
+// configured color: it survives a detour through None or Custom Image
+// exactly like `lastBuiltinId`/`lastCustomImageBytes` already do, and is
+// read back only at the moment of an explicit symbol-tile click
+// (`applyBrandingSymbol`) — never at render time (src/lib/branding.ts
+// `resolveHandleBranding` only ever reads the *active*
+// `metadata.raw.branding.symbolColor`/`symbolColorHex`, never this field).
+// Always a concrete value, never `undefined`: "no color remembered yet" and
+// "Dark" are the same effective outcome, so there is no third state to
+// represent.
 export interface BrandingDraft {
 	readonly lastBuiltinId: BuiltinSymbolId | undefined;
 	readonly lastCustomImageBytes: Uint8Array | undefined;
+	readonly lastSymbolColor: BrandingSymbolColor;
 }
 
 export const DEFAULT_BRANDING_DRAFT: BrandingDraft = {
 	lastBuiltinId: undefined,
 	lastCustomImageBytes: undefined,
+	lastSymbolColor: { kind: "dark" },
 };
 
 // Adds only the new concepts Phase 5, the Presentation Configuration
@@ -200,11 +225,30 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 // Deliberately duplicates src/lib/branding.ts's own tolerant
-// `getBrandingType`/`getBrandingBuiltinId` reading, rather than importing
-// them: this module is imported BY branding.ts (for the `CurrentWorkingState`
-// type), so importing the other direction here would be circular. The same
-// small-helper duplication already used between src/lib/comparison-edit.ts,
-// src/lib/comparison-presentation.ts and src/lib/import-metadata.ts.
+// `getBrandingType`/`getBrandingBuiltinId`/`getBrandingSymbolColor` reading,
+// rather than importing them: this module is imported BY branding.ts (for the
+// `CurrentWorkingState` type), so importing the other direction here would be
+// circular. The same small-helper duplication already used between
+// src/lib/comparison-edit.ts, src/lib/comparison-presentation.ts and
+// src/lib/import-metadata.ts.
+//
+// docs/IMPORTED_COMPARISON_V1.md "Session Branding": "When `branding.symbolColor`
+// is absent — including every existing Android export, which does not write
+// this field — the effective color is `dark`." `symbolColorHex` is re-validated
+// through the same tolerant `normalizeHexColor` every other Custom Color
+// control uses; a `"custom"` claim with a missing or invalid hex falls back to
+// `dark` rather than seeding an invalid remembered color.
+function seedSymbolColor(block: Record<string, unknown>): BrandingSymbolColor {
+	if (block.symbolColor === "brand") return { kind: "brand" };
+	if (block.symbolColor === "custom") {
+		const hex = block.symbolColorHex;
+		const normalized =
+			typeof hex === "string" ? normalizeHexColor(hex) : undefined;
+		if (normalized) return { kind: "custom", color: normalized };
+	}
+	return { kind: "dark" };
+}
+
 function seedBrandingDraft(
 	raw: Record<string, unknown>,
 	brandingHandleBytes: Uint8Array | undefined,
@@ -217,12 +261,14 @@ function seedBrandingDraft(
 			lastBuiltinId:
 				typeof id === "string" && isBuiltinSymbolId(id) ? id : undefined,
 			lastCustomImageBytes: undefined,
+			lastSymbolColor: seedSymbolColor(block),
 		};
 	}
 	if (block.type === "image") {
 		return {
 			lastBuiltinId: undefined,
 			lastCustomImageBytes: cloneOptionalBytes(brandingHandleBytes),
+			lastSymbolColor: { kind: "dark" },
 		};
 	}
 	return DEFAULT_BRANDING_DRAFT;

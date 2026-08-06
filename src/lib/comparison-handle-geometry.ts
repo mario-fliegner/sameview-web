@@ -93,12 +93,22 @@ export function getContentBox(ratio: number): ContentBox {
 }
 
 // sameview ic_branding_*.xml: android:fillColor="#17202F", identical
-// across all six built-in symbols. A freshly selected symbol renders with
-// this color, never the app's own interactive accent.
+// across all six built-in symbols. This is the "Dark" option's exact value
+// (docs/APPLICATION_LAYOUT.md "Branding" → "Color") — a freshly selected
+// symbol, or one with no configured color, renders with this color, never
+// the app's own interactive accent.
 export const SYMBOL_COLOR = "#17202F";
 // sameview CompareScreen.kt CompareDivider: drawPath(..., color =
 // SameViewAccent, ...) — the standard (unbranded) handle's arrows only.
 export const STANDARD_ARROW_COLOR = "#4f8cff";
+// docs/BRAND_GUIDE.md "Brand Accent Color". A Built-in Symbol's "Brand"
+// color option (docs/APPLICATION_LAYOUT.md "Branding" → "Color") — a
+// separately named constant from STANDARD_ARROW_COLOR above and
+// WorkspaceActive.tsx's own BRAND_ACCENT_COLOR, not a shared import: the
+// same literal already exists as multiple purpose-named constants in this
+// codebase (arrows vs. Canvas Background's "Brand" option), each documenting
+// its own specific role rather than one generic shared token.
+export const SYMBOL_COLOR_BRAND = "#4F8CFF";
 
 // Date-label placement (src/components/ComparisonSlider.tsx) has no direct
 // Android precedent for the branded case: Android's own interactive

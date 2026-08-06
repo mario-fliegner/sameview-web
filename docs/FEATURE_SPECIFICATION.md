@@ -201,7 +201,9 @@ The supported branding options are:
 - Built-in Symbol
 - Custom Image
 
-Branding, including a custom branding image when selected, is part of the Current Working State.
+Branding, including a custom branding image when selected or a Built-in Symbol's configured color, is part of the Current Working State.
+
+Built-in Symbol additionally supports a configurable color: Dark (default), Brand or Custom. This color is part of Session Branding and applies exclusively to Built-in Symbol; it never applies to, and never modifies, Custom Image or any imported branding asset.
 
 ### Functional Behavior
 
@@ -219,6 +221,8 @@ Changing branding does not alter previously generated standalone HTML or previou
 
 Opening the Built-in Symbol selection does not itself activate a symbol; a symbol becomes the active branding only once the user explicitly selects it, and the Built-in Symbol selection shows a symbol as selected only while that symbol is the currently active branding.
 
+The configured color belongs to the Built-in Symbol branding as a whole, not to an individual symbol: switching between symbols (for example Heart, then Star, then Fire) keeps the currently configured color unchanged. Changing the configured color never regenerates or otherwise modifies any branding image.
+
 Selecting No Branding deactivates the active branding immediately, without discarding the most recently selected built-in symbol or the most recently valid custom branding image. Selecting Custom Image reactivates the most recently valid custom branding image immediately, in both the comparison viewer and its own preview, whenever one exists from earlier in the active workspace; without an existing valid custom branding image, selecting Custom Image only presents the image selection and does not change the currently active branding. An invalid custom branding image upload changes neither the currently active branding nor the most recently valid custom branding image.
 
 The most recently selected built-in symbol and the most recently valid custom branding image are each retained independently of which branding option is currently active, for the duration of the active workspace. Importing a comparison with built-in symbol branding initializes the most recently selected built-in symbol accordingly; importing a comparison with custom image branding initializes the most recently valid custom branding image accordingly. The branding present at import remains the active branding until the user takes an explicit branding action.
@@ -228,7 +232,7 @@ The most recently selected built-in symbol and the most recently valid custom br
 After configuring branding:
 
 - the active workspace remains available,
-- the Current Working State contains the selected branding and any custom branding image required by that selection, and
+- the Current Working State contains the selected branding, any custom branding image required by that selection, and, for Built-in Symbol, its configured color, and
 - Source Data remains unchanged.
 
 ### Rules and Limitations
@@ -239,6 +243,7 @@ After configuring branding:
 - The current branding is preserved when publishing.
 - Changing branding never modifies previously generated or previously published outcomes.
 - No branding options other than No Branding, Built-in Symbol and Custom Image are defined.
+- A Built-in Symbol's configured color applies exclusively to Built-in Symbol; it never applies to, and never modifies, Custom Image, an imported branding asset or any other raster branding file.
 - Implementation details, image processing and user interface layout are outside the scope of this feature.
 
 ## F-005 Generate Comparison Output

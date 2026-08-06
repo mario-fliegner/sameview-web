@@ -144,6 +144,68 @@ describe("brandingDraft seeding on import", () => {
 		);
 	});
 
+	// docs/IMPORTED_COMPARISON_V1.md "Session Branding": "When
+	// `branding.symbolColor` is absent — including every existing Android
+	// export, which does not write this field — the effective color is
+	// `dark`." Required test: "Import ohne Farbfelder seedet Dark".
+	test("a built-in branding import with no symbolColor field seeds lastSymbolColor as 'dark'", () => {
+		const sourceData = fakeSourceData({
+			branding: { type: "builtin", builtinId: "fire" },
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.deepEqual(
+			state.workspace.currentWorkingState.brandingDraft.lastSymbolColor,
+			{ kind: "dark" },
+		);
+	});
+
+	test("a built-in branding import with symbolColor 'brand' seeds lastSymbolColor accordingly", () => {
+		const sourceData = fakeSourceData({
+			branding: { type: "builtin", builtinId: "fire", symbolColor: "brand" },
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.deepEqual(
+			state.workspace.currentWorkingState.brandingDraft.lastSymbolColor,
+			{ kind: "brand" },
+		);
+	});
+
+	test("a built-in branding import with a valid symbolColor 'custom' seeds the normalized hex", () => {
+		const sourceData = fakeSourceData({
+			branding: {
+				type: "builtin",
+				builtinId: "fire",
+				symbolColor: "custom",
+				symbolColorHex: "abcdef",
+			},
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.deepEqual(
+			state.workspace.currentWorkingState.brandingDraft.lastSymbolColor,
+			{ kind: "custom", color: "#ABCDEF" },
+		);
+	});
+
+	test("a built-in branding import with an invalid symbolColorHex tolerates to 'dark'", () => {
+		const sourceData = fakeSourceData({
+			branding: {
+				type: "builtin",
+				builtinId: "fire",
+				symbolColor: "custom",
+				symbolColorHex: "not-a-color",
+			},
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.deepEqual(
+			state.workspace.currentWorkingState.brandingDraft.lastSymbolColor,
+			{ kind: "dark" },
+		);
+	});
+
 	test("an image branding import seeds lastCustomImageBytes (cloned, not aliased), not lastBuiltinId", () => {
 		const originalBytes = new Uint8Array([4, 5, 6]);
 		const sourceData = fakeSourceData({

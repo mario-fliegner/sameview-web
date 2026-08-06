@@ -1968,3 +1968,234 @@ test("an invalid upload while a custom image is already remembered leaves that i
 		"asset",
 	);
 });
+
+// Built-in Symbol Color (docs/APPLICATION_LAYOUT.md "Branding" → "Color";
+// docs/FEATURE_SPECIFICATION.md F-004; docs/IMPORTED_COMPARISON_V1.md
+// "Session Branding"). `sample-v6-session_full.zip` still carries the real
+// imported Built-in Symbol/Star with its own branding-handle.png, so it also
+// covers the raster-asset special case here.
+
+function symbolFillLocator(page: import("@playwright/test").Page) {
+	return page.locator('[data-testid="comparison-slider-handle"] > svg > path');
+}
+
+test("the Color group is not in the DOM while an imported raster asset is the active display", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	await expect(page.getByTestId("edit-branding-color-dark")).toHaveCount(0);
+	await expect(page.getByTestId("edit-branding-color-brand")).toHaveCount(0);
+	await expect(page.getByTestId("edit-branding-color-custom")).toHaveCount(0);
+});
+
+test("clicking a symbol tile switches to the vector symbol, and the Color group appears using the remembered value", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await expect(page.getByTestId("edit-branding-color-dark")).toHaveCount(0);
+
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"symbol",
+	);
+	// The fixture's import never set a symbolColor, so brandingDraft.
+	// lastSymbolColor was seeded as "dark" — the first-ever tile click
+	// resolves to that remembered value.
+	await expect(page.getByTestId("edit-branding-color-dark")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+});
+
+test("Dark resolves to exactly #17202F and Brand to exactly #4F8CFF", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+
+	await page.getByTestId("edit-branding-color-brand").click();
+	await expect(page.getByTestId("edit-branding-color-brand")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#4F8CFF");
+
+	await page.getByTestId("edit-branding-color-dark").click();
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+});
+
+test("Custom uses the same HEX color picker behavior as Presentation's Custom colors", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	await page.getByTestId("edit-branding-color-custom").click();
+	const hexInput = page.getByTestId("edit-branding-color-custom-hex-input");
+	await expect(hexInput).toBeVisible();
+
+	// Without #, normalized to uppercase #RRGGBB.
+	await hexInput.fill("aabbcc");
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#AABBCC");
+
+	// With #.
+	await hexInput.fill("#112233");
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#112233");
+
+	// An invalid value never changes the effective color, only a subtle
+	// error state (the same class every other field's error uses) — no
+	// explanatory error text (docs/COMPARISON_PRESENTATION.md "Custom Color
+	// Editing"), exactly like the equivalent Presentation Custom color test.
+	await hexInput.fill("not-a-color");
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#112233");
+	await expect(hexInput.locator("..")).toHaveClass(/outlined-field--error/);
+	await expect(
+		page.locator(".presentation-custom-color [role='alert']"),
+	).toHaveCount(0);
+});
+
+test("switching between symbols keeps the currently configured color", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-heart").click();
+	await page.getByTestId("edit-branding-color-brand").click();
+
+	await page.getByTestId("edit-branding-symbol-camera").click();
+	await expect(page.getByTestId("edit-branding-color-brand")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#4F8CFF");
+	// The builtinId itself did change — only the color survived.
+	await expect(page.getByTestId("edit-branding-symbol-camera")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+});
+
+test("changing the color keeps the current builtinId", async ({ page }) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-pin").click();
+
+	await page.getByTestId("edit-branding-color-brand").click();
+
+	await expect(page.getByTestId("edit-branding-symbol-pin")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+});
+
+test("Custom Image is unaffected by Built-in Symbol color, and remains unchanged by pure color changes", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	// A pure color change on the active Built-in Symbol never regenerates
+	// or produces any branding image bytes — the Handle stays a vector
+	// symbol throughout, never "asset".
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await page.getByTestId("edit-branding-color-brand").click();
+	await page.getByTestId("edit-branding-color-custom").click();
+	await page
+		.getByTestId("edit-branding-color-custom-hex-input")
+		.fill("#654321");
+	await page.getByTestId("edit-branding-color-custom-hex-input").blur();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"symbol",
+	);
+
+	// Custom Image itself is a completely separate, raster branding kind —
+	// selecting and uploading one is entirely unaffected by any of the
+	// preceding Built-in Symbol color state.
+	await page.getByTestId("edit-branding-option-custom").click();
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+test("the imported raster asset is never colorized, re-encoded or converted to the vector symbol on its own", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	const handle = page.getByTestId("comparison-slider-handle");
+	await expect(handle).toHaveAttribute("data-branding-kind", "asset");
+	// No <path fill> exists for the "asset" kind at all — it is an <image>
+	// element rendering raw pixel bytes, never a colorized vector path.
+	await expect(symbolFillLocator(page)).toHaveCount(0);
+
+	// Opening the Symbol option (without an explicit tile click) leaves the
+	// raster asset untouched — merely browsing the grid must never convert
+	// it to the vector symbol on its own.
+	await expect(handle).toHaveAttribute("data-branding-kind", "asset");
+});
+
+test("Preview and Fullscreen render the exact same resolved color", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await page.getByTestId("edit-branding-color-brand").click();
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#4F8CFF");
+
+	await page.getByTestId("fullscreen-open-button").click();
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#4F8CFF");
+	await page.getByTestId("fullscreen-close-button").click();
+});
+
+test("Built-in Symbol color changes never modify Source Data: replacing the workspace restores the original imported branding", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await page.getByTestId("edit-branding-color-brand").click();
+	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#4F8CFF");
+
+	await page
+		.locator("#import-zip-input")
+		.setInputFiles(
+			join(fixturesDir, "android-export", "sample-v6-session_full.zip"),
+		);
+	await expect(page.getByTestId("replace-confirm-dialog")).toBeVisible({
+		timeout: 20_000,
+	});
+	await page.getByTestId("replace-confirm-button").click();
+	await expect(page.getByTestId("replace-confirm-dialog")).toHaveCount(0);
+	await expect(page.getByTestId("comparison-loading")).toHaveCount(0, {
+		timeout: 20_000,
+	});
+
+	// The re-imported Source Data is exactly the original fixture again —
+	// imported Symbol/Star with its own raster asset, never the Brand color
+	// or the Fire symbol from the just-discarded edit.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});

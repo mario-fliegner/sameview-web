@@ -13,18 +13,18 @@
 // Current Working State. The corresponding live rendering lives in
 // src/components/WorkspaceActive.tsx's `PresentationCanvas`.
 //
-// The two local, unexported components below (`OptionGroup`,
-// `CustomColorFields`) exist only because Background, Frame and Text each
-// need the exact same segmented-option-group and Custom Color behavior
+// The local, unexported `OptionGroup` below exists only because Background,
+// Frame and Text each need the exact same segmented-option-group behavior
 // (docs/APPLICATION_LAYOUT.md: "identical in presentation to Background").
-// They are not exported and not meant to generalize beyond this section.
+// It is not exported and not meant to generalize beyond this section.
+// `CustomColorFields` used to live here too, for the same reason, until a
+// second feature (src/components/BrandingSection.tsx's Built-in Symbol
+// Color) needed the identical behavior — see src/components/
+// CustomColorFields.tsx for the now-shared component; nothing about its
+// behavior changed by moving it.
 
-import { useState } from "react";
 import { useLocale } from "../i18n/LocaleContext";
-import {
-	applyPresentationConfiguration,
-	normalizeHexColor,
-} from "../lib/comparison-edit";
+import { applyPresentationConfiguration } from "../lib/comparison-edit";
 import type {
 	CanvasBackground,
 	CornerRadius,
@@ -32,7 +32,7 @@ import type {
 	PresentationFrame,
 	PresentationTextColor,
 } from "../lib/workspace-state";
-import OutlinedField from "./OutlinedField";
+import CustomColorFields from "./CustomColorFields";
 import Switch from "./Switch";
 
 interface PresentationSectionProps {
@@ -121,6 +121,9 @@ export default function PresentationSection({
 									canvasBackground: { kind: "custom", color },
 								})
 							}
+							heading={t.editInspector.presentation.customColorHeading}
+							swatchLabel={t.editInspector.presentation.customColorSwatchLabel}
+							hexLabel={t.editInspector.presentation.customColorHexLabel}
 						/>
 					)}
 				</div>
@@ -170,6 +173,9 @@ export default function PresentationSection({
 							onChange={(color) =>
 								updateConfiguration({ frame: { kind: "custom", color } })
 							}
+							heading={t.editInspector.presentation.customColorHeading}
+							swatchLabel={t.editInspector.presentation.customColorSwatchLabel}
+							hexLabel={t.editInspector.presentation.customColorHexLabel}
 						/>
 					)}
 				</div>
@@ -219,6 +225,9 @@ export default function PresentationSection({
 							onChange={(color) =>
 								updateConfiguration({ textColor: { kind: "custom", color } })
 							}
+							heading={t.editInspector.presentation.customColorHeading}
+							swatchLabel={t.editInspector.presentation.customColorSwatchLabel}
+							hexLabel={t.editInspector.presentation.customColorHexLabel}
 						/>
 					)}
 				</div>
@@ -332,69 +341,6 @@ function OptionGroup({
 					{option.label}
 				</button>
 			))}
-		</div>
-	);
-}
-
-interface CustomColorFieldsProps {
-	readonly idPrefix: string;
-	readonly value: string;
-	readonly onChange: (color: string) => void;
-}
-
-// docs/COMPARISON_PRESENTATION.md "Custom Color Editing": identical behavior
-// for Background, Frame and Text — a native color field plus a HEX input, no
-// aggressive validation while typing, immediate preview once valid, and an
-// invalid value keeps the last valid color with only a subtle error state
-// (no explanatory text).
-function CustomColorFields({
-	idPrefix,
-	value,
-	onChange,
-}: CustomColorFieldsProps) {
-	const { t } = useLocale();
-	const [hasError, setHasError] = useState(false);
-
-	function handleHexChange(rawInput: string) {
-		const normalized = normalizeHexColor(rawInput);
-		if (normalized === undefined) {
-			setHasError(true);
-			return;
-		}
-		setHasError(false);
-		onChange(normalized);
-	}
-
-	return (
-		<div className="presentation-custom-color">
-			<span className="presentation-custom-color__heading">
-				{t.editInspector.presentation.customColorHeading}
-			</span>
-			<div className="presentation-custom-color__fields">
-				<input
-					type="color"
-					className="presentation-custom-color__swatch"
-					value={value}
-					aria-label={t.editInspector.presentation.customColorSwatchLabel}
-					data-testid={`${idPrefix}-swatch`}
-					onChange={(event) => {
-						const normalized = normalizeHexColor(event.target.value);
-						if (normalized !== undefined) {
-							setHasError(false);
-							onChange(normalized);
-						}
-					}}
-				/>
-				<OutlinedField
-					id={`${idPrefix}-hex`}
-					label={t.editInspector.presentation.customColorHexLabel}
-					defaultValue={value}
-					onChange={handleHexChange}
-					error={hasError ? "invalid" : null}
-					hideErrorText
-					testId={`${idPrefix}-hex-input`}
-				/>
-			</div>
 		</div>
 	);
 }

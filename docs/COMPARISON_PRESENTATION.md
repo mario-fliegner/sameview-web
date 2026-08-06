@@ -273,6 +273,14 @@ and vertically.
 Base handle shape and geometry use the existing SameView reference
 specification. No presentation-specific variants are defined.
 
+A Built-in Symbol's fill color is derived from its configured color (Dark,
+Brand or Custom — F-004). Selecting, configuring or changing this color is
+defined exclusively by F-004; this document defines only how the currently
+configured color is rendered inside the Handle. This color applies only to
+a Built-in Symbol's vector rendering; it has no effect on a Custom Image or
+an imported branding asset, both of which continue to render their own
+pixel data unchanged.
+
 ### Slider Date Labels
 
 Displays the Reference Label and Capture Label beside the slider handle,
@@ -599,7 +607,9 @@ takes precedence.
 
 ### Custom Color Editing
 
-Background, Frame and Text use identical Custom Color editing behavior.
+Background, Frame, Text and a Built-in Symbol's Custom color option
+(F-004; APPLICATION_LAYOUT.md "Branding" → "Color") use identical Custom
+Color editing behavior.
 
 This specification describes user-facing behavior only. It does not
 prescribe a browser API or a specific color picker implementation; an

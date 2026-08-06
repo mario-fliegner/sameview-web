@@ -232,12 +232,16 @@ Branding uses:
 
 - `branding.type`,
 - `branding.builtinId`,
+- `branding.symbolColor`,
+- `branding.symbolColorHex`,
 - `branding.handleFile`,
 - `branding.updatedAtMs`,
 - `files.brandingHandle` (the same filename as `branding.handleFile`, referenced from the `files` block), and
 - an optional branding asset referenced by the branding configuration.
 
 `branding.type` is `builtin` or `image`. `branding.builtinId` identifies a built-in symbol and is applicable only to built-in branding. `branding.handleFile` identifies the normalized handle asset when one is present. `branding.updatedAtMs` and `files.brandingHandle` are preserved but have no operative effect on Web V1 branding behavior; an inconsistency between `files.brandingHandle` and the `branding` block is tolerated and treated as no branding, matching the Android reader's own tolerance (`SessionScanner.kt`).
+
+`branding.symbolColor` is `dark`, `brand` or `custom`, and configures the rendered color of a Built-in Symbol (`APPLICATION_LAYOUT.md` "Branding" → "Color"). It is applicable only to `builtin` branding and has no meaning for `image` branding. `branding.symbolColorHex` holds the configured custom color as a normalized `#RRGGBB` value and is present only when `branding.symbolColor` is `custom`. When `branding.symbolColor` is absent — including every existing Android export, which does not write this field — the effective color is `dark`. The configured color belongs to the built-in branding as a whole, not to an individual symbol: selecting a different built-in symbol (for example Heart, then Star, then Fire) preserves the currently configured `branding.symbolColor`/`branding.symbolColorHex` unchanged. Configuring or changing `branding.symbolColor`/`branding.symbolColorHex` never regenerates, replaces or otherwise modifies `files.brandingHandle` or any other raster branding asset.
 
 The supported V1 `branding.builtinId` values, adopted unchanged from the Android built-in symbol catalog, are:
 

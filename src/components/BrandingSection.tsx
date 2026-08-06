@@ -17,7 +17,12 @@
 // PresentationSection.tsx's own — that component's header comment already
 // explains why: Background/Frame/Text/Corners each need the identical
 // segmented-option-group behavior and are deliberately not exported for
-// reuse beyond that file. The same reasoning applies here.
+// reuse beyond that file. The same reasoning applies here. `CustomColorFields`
+// (docs/APPLICATION_LAYOUT.md "Branding" → "Color") is different: unlike
+// `OptionGroup`, it carries real validation/error-state logic, so it is
+// imported from src/components/CustomColorFields.tsx — the same component
+// PresentationSection.tsx's own Background/Frame/Text Custom color areas use
+// — rather than duplicated.
 
 import { type ChangeEvent, useRef, useState } from "react";
 import { useLocale } from "../i18n/LocaleContext";
@@ -25,8 +30,11 @@ import {
 	applyBrandingImage,
 	applyBrandingNone,
 	applyBrandingSymbol,
+	applyBrandingSymbolColor,
 	getBrandingBuiltinId,
+	getBrandingSymbolColor,
 	getBrandingType,
+	resolveHandleBranding,
 } from "../lib/branding";
 import { normalizeBrandingImage } from "../lib/branding-image-normalize";
 import {
@@ -36,6 +44,7 @@ import {
 } from "../lib/builtin-branding-symbols";
 import { useObjectUrl } from "../lib/use-object-url";
 import type { CurrentWorkingState } from "../lib/workspace-state";
+import CustomColorFields from "./CustomColorFields";
 
 interface BrandingSectionProps {
 	readonly currentWorkingState: CurrentWorkingState;
@@ -43,6 +52,14 @@ interface BrandingSectionProps {
 }
 
 type DisplayedOption = "none" | "symbol" | "custom";
+
+// Same starting value as PresentationSection.tsx's own
+// INITIAL_CUSTOM_COLOR, for the identical reason (a concrete `color` is
+// required the instant "custom" is first selected) — declared locally
+// rather than imported: it is a trivial, self-evident literal, not shared
+// logic, so importing it would only add a cross-file coupling for a single
+// hex constant.
+const INITIAL_CUSTOM_COLOR = "#FFFFFF";
 
 export default function BrandingSection({
 	currentWorkingState,
@@ -99,6 +116,16 @@ export default function BrandingSection({
 			? currentWorkingState.files.brandingHandleBytes
 			: undefined,
 	);
+	// The single source of truth for Raster-vs-Vektor-vs-none (the same
+	// function src/components/WorkspaceActive.tsx uses for the live Handle) —
+	// reused here, not re-derived, specifically to decide whether the Color
+	// group applies: it is shown only once a Web vector symbol is genuinely
+	// active (`kind === "symbol"`), never while an imported raster asset is
+	// still the active display (`kind === "asset"`, docs/IMPORTED_COMPARISON_V1.md
+	// "Session Branding": the imported PNG "remains the asset used for
+	// display" until an explicit tile click replaces it).
+	const handleBranding = resolveHandleBranding(currentWorkingState);
+	const symbolColor = getBrandingSymbolColor(currentWorkingState);
 
 	function handleTopLevelSelect(value: DisplayedOption) {
 		setHasImageError(false);
@@ -133,6 +160,30 @@ export default function BrandingSection({
 	function handleSymbolSelect(id: BuiltinSymbolId) {
 		setPendingSymbolSelected(false);
 		onCurrentWorkingStateChange(applyBrandingSymbol(currentWorkingState, id));
+	}
+
+	function handleColorSelect(value: string) {
+		if (value === "custom") {
+			// Keeps the already-configured custom hex if there is one, exactly
+			// like PresentationSection.tsx's own Background/Frame/Text "custom"
+			// selection — a fresh starting value is only needed the first time.
+			const hex =
+				symbolColor.kind === "custom"
+					? symbolColor.color
+					: INITIAL_CUSTOM_COLOR;
+			onCurrentWorkingStateChange(
+				applyBrandingSymbolColor(currentWorkingState, {
+					kind: "custom",
+					color: hex,
+				}),
+			);
+		} else {
+			onCurrentWorkingStateChange(
+				applyBrandingSymbolColor(currentWorkingState, {
+					kind: value as "dark" | "brand",
+				}),
+			);
+		}
 	}
 
 	// Normalizes the upload before it ever reaches applyBrandingImage — see
@@ -229,6 +280,63 @@ export default function BrandingSection({
 								<span>{t.editInspector.branding.symbols[symbol.id]}</span>
 							</button>
 						))}
+					</div>
+				)}
+
+				{/* docs/APPLICATION_LAYOUT.md "Branding" → "Color": shown only while
+				    a Web vector symbol is genuinely active — never while the grid is
+				    merely open (`displayedOption === "symbol"` alone, e.g. Custom is
+				    still effective) and never while an imported raster asset remains
+				    the active display (`handleBranding.kind === "asset"`). Fully
+				    hidden rather than shown-disabled in that raster sub-case: it
+				    reuses the exact same source of truth the Handle itself renders
+				    from, so there is no separate condition that could ever disagree
+				    with what is actually on screen, and no new disabled-state UI or
+				    explanatory text is introduced. */}
+				{displayedOption === "symbol" && handleBranding.kind === "symbol" && (
+					<div className="presentation-option-group">
+						<span className="presentation-option-group__legend">
+							{t.editInspector.branding.colorLegend}
+						</span>
+						<OptionGroup
+							legend={t.editInspector.branding.colorLegend}
+							testIdPrefix="edit-branding-color"
+							selected={symbolColor.kind}
+							options={[
+								{
+									value: "dark",
+									label: t.editInspector.branding.colorOptions.dark,
+								},
+								{
+									value: "brand",
+									label: t.editInspector.branding.colorOptions.brand,
+								},
+								{
+									value: "custom",
+									label: t.editInspector.branding.colorOptions.custom,
+								},
+							]}
+							onSelect={handleColorSelect}
+						/>
+						{symbolColor.kind === "custom" && (
+							<CustomColorFields
+								idPrefix="edit-branding-color-custom"
+								value={symbolColor.color}
+								onChange={(color) =>
+									onCurrentWorkingStateChange(
+										applyBrandingSymbolColor(currentWorkingState, {
+											kind: "custom",
+											color,
+										}),
+									)
+								}
+								heading={t.editInspector.presentation.customColorHeading}
+								swatchLabel={
+									t.editInspector.presentation.customColorSwatchLabel
+								}
+								hexLabel={t.editInspector.presentation.customColorHexLabel}
+							/>
+						)}
 					</div>
 				)}
 

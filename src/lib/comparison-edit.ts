@@ -290,16 +290,11 @@ export function applyPresentationConfiguration(
 	};
 }
 
-// docs/COMPARISON_PRESENTATION.md "Custom Color Editing": accepts a value
-// with or without a leading `#`; the stored value is always normalized to
-// `#RRGGBB` in uppercase. No error code is returned — the same section is
-// explicit that an invalid value receives "only a subtle error state — no
-// explanatory error text", so callers need only a valid/invalid distinction,
-// never a specific reason.
-const HEX_COLOR = /^#?([0-9a-fA-F]{6})$/;
-
-export function normalizeHexColor(rawInput: string): string | undefined {
-	const match = HEX_COLOR.exec(rawInput.trim());
-	if (!match) return undefined;
-	return `#${(match[1] as string).toUpperCase()}`;
-}
+// Moved to src/lib/hex-color.ts (docs/COMPARISON_PRESENTATION.md "Custom
+// Color Editing" applies identically to Presentation Configuration's
+// Background/Frame/Text and to a Built-in Symbol's Color, src/lib/branding.ts
+// — this module's own header comment explicitly scopes it to F-003, so the
+// shared logic now lives in a module neither feature's editing code owns).
+// Re-exported here so existing callers of this module's own public surface
+// are unaffected.
+export { normalizeHexColor } from "./hex-color.ts";

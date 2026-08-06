@@ -162,6 +162,12 @@ export interface Translations {
 				readonly pin: string;
 				readonly fire: string;
 			};
+			readonly colorLegend: string;
+			readonly colorOptions: {
+				readonly dark: string;
+				readonly brand: string;
+				readonly custom: string;
+			};
 			readonly chooseImageButton: string;
 			readonly replaceImageButton: string;
 			readonly invalidImageError: string;
@@ -308,6 +314,12 @@ export const translations: Record<Locale, Translations> = {
 					pin: "Pin",
 					fire: "Fire",
 				},
+				colorLegend: "Color",
+				colorOptions: {
+					dark: "Dark",
+					brand: "Brand",
+					custom: "Custom",
+				},
 				chooseImageButton: "Choose photo",
 				replaceImageButton: "Replace photo",
 				invalidImageError: "Couldn't load that image — try another file.",
@@ -453,6 +465,12 @@ export const translations: Record<Locale, Translations> = {
 					home: "Haus",
 					pin: "Standort",
 					fire: "Flamme",
+				},
+				colorLegend: "Farbe",
+				colorOptions: {
+					dark: "Dunkel",
+					brand: "Markenfarbe",
+					custom: "Benutzerdefiniert",
 				},
 				chooseImageButton: "Foto auswählen",
 				replaceImageButton: "Foto ersetzen",

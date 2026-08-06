@@ -38,7 +38,6 @@ import {
 	RING_STROKE_WIDTH_PX,
 	STANDARD_ARROW_COLOR,
 	STANDARD_HANDLE_VISUAL_REM,
-	SYMBOL_COLOR,
 	SYMBOL_CONTENT_RATIO,
 } from "../lib/comparison-handle-geometry";
 
@@ -164,11 +163,12 @@ export default function ComparisonSliderHandle({
 					aria-hidden="true"
 					focusable="false"
 				>
-					{/* sameview/app/src/main/res/drawable/ic_branding_*.xml:
-					    fillColor="#17202F" for all six built-in symbols — not this
-					    app's own interactive brand accent (that stays reserved for
-					    the standard handle's arrows above). */}
-					<path d={symbol.pathData} fill={SYMBOL_COLOR} />
+					{/* Already-resolved concrete fill color (docs/APPLICATION_LAYOUT.md
+					    "Branding" → "Color": Dark/Brand/Custom) — this component makes
+					    no semantic color decision of its own; src/lib/branding.ts
+					    `resolveHandleBranding` already resolved "dark"/"brand"/"custom"
+					    into this exact value before it ever reached here. */}
+					<path d={symbol.pathData} fill={branding.color} />
 				</svg>
 			)}
 		</svg>

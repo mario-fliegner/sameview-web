@@ -21,7 +21,16 @@ import {
 	type BuiltinSymbolId,
 	isBuiltinSymbolId,
 } from "./builtin-branding-symbols.ts";
-import type { BrandingDraft, CurrentWorkingState } from "./workspace-state.ts";
+import {
+	SYMBOL_COLOR,
+	SYMBOL_COLOR_BRAND,
+} from "./comparison-handle-geometry.ts";
+import { normalizeHexColor } from "./hex-color.ts";
+import type {
+	BrandingDraft,
+	BrandingSymbolColor,
+	CurrentWorkingState,
+} from "./workspace-state.ts";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -48,6 +57,31 @@ export function getBrandingBuiltinId(
 	if (!isPlainObject(block)) return undefined;
 	const id = block.builtinId;
 	return typeof id === "string" && isBuiltinSymbolId(id) ? id : undefined;
+}
+
+// docs/IMPORTED_COMPARISON_V1.md "Session Branding": "`branding.symbolColor`
+// is `dark`, `brand` or `custom`... When `branding.symbolColor` is absent...
+// the effective color is `dark`." A `"custom"` claim with a missing or
+// invalid `symbolColorHex` (re-validated through the same `normalizeHexColor`
+// every other Custom Color control uses) tolerates the same way, per that
+// document's own rule that this must never produce an invalid render state.
+// Reads only the *active* branding block — never `brandingDraft` — so this
+// is the single source of truth while a Built-in Symbol is active; see
+// `applyBrandingSymbol` below for the one place `brandingDraft.lastSymbolColor`
+// is ever read.
+export function getBrandingSymbolColor(
+	cws: CurrentWorkingState,
+): BrandingSymbolColor {
+	const block = cws.metadata.raw.branding;
+	if (!isPlainObject(block)) return { kind: "dark" };
+	if (block.symbolColor === "brand") return { kind: "brand" };
+	if (block.symbolColor === "custom") {
+		const hex = block.symbolColorHex;
+		const normalized =
+			typeof hex === "string" ? normalizeHexColor(hex) : undefined;
+		if (normalized) return { kind: "custom", color: normalized };
+	}
+	return { kind: "dark" };
 }
 
 function withBranding(
@@ -89,16 +123,72 @@ export function applyBrandingNone(
 // F-004: a click "activates it and" the retained memory "remembers the id")
 // — `lastCustomImageBytes` is carried through unchanged, never cleared by a
 // symbol selection.
+//
+// The newly active `symbolColor`/`symbolColorHex` is seeded from
+// `brandingDraft.lastSymbolColor` — this is the one and only place that
+// remembered value is ever read (docs/IMPORTED_COMPARISON_V1.md "Session
+// Branding": "The configured color belongs to the built-in branding as a
+// whole... selecting a different built-in symbol... preserves the currently
+// configured `branding.symbolColor`/`branding.symbolColorHex`"). This single
+// rule uniformly covers both required cases: a direct symbol-to-symbol
+// switch (where `lastSymbolColor` was already kept in sync by
+// `applyBrandingSymbolColor` below, so it equals the just-active color) and
+// a switch back from None/Custom Image (where the active `branding` block
+// was replaced or removed in between, but `lastSymbolColor` was never
+// touched — see `applyBrandingNone`/`applyBrandingImage`, both of which pass
+// `brandingDraft` through unchanged or spread it). `lastSymbolColor` itself
+// is carried through unchanged here — it already equals the value being
+// (re)applied.
 export function applyBrandingSymbol(
 	cws: CurrentWorkingState,
 	builtinId: BuiltinSymbolId,
 ): CurrentWorkingState {
-	return withBranding(
-		cws,
-		{ type: "builtin", builtinId, updatedAtMs: Date.now() },
-		undefined,
-		{ ...cws.brandingDraft, lastBuiltinId: builtinId },
-	);
+	const color = cws.brandingDraft.lastSymbolColor;
+	const branding: Record<string, unknown> = {
+		type: "builtin",
+		builtinId,
+		updatedAtMs: Date.now(),
+		symbolColor: color.kind,
+	};
+	if (color.kind === "custom") branding.symbolColorHex = color.color;
+	return withBranding(cws, branding, undefined, {
+		...cws.brandingDraft,
+		lastBuiltinId: builtinId,
+	});
+}
+
+// Changes only `symbolColor`/`symbolColorHex` on the currently active
+// built-in branding. `builtinId` and every other known field on the block
+// are preserved via the `...block` spread below — a color change must never
+// itself move to a different symbol. `files.brandingHandleBytes` is passed through exactly
+// as it already is (always `undefined` in every state this is reachable
+// from — the Color group is only ever shown while `resolveHandleBranding`
+// already reports `"symbol"`, see src/components/BrandingSection.tsx) —
+// never generated, regenerated or otherwise touched. Also updates
+// `brandingDraft.lastSymbolColor`, kept in sync with the active value here
+// for the identical reason `applyBrandingImage` above keeps `files.
+// brandingHandleBytes` and `brandingDraft.lastCustomImageBytes` in sync: no
+// second, independently drifting copy.
+//
+// A no-op (returns `cws` unchanged) if no built-in branding is currently
+// active — defensive only; the UI never calls this outside that state.
+export function applyBrandingSymbolColor(
+	cws: CurrentWorkingState,
+	color: BrandingSymbolColor,
+): CurrentWorkingState {
+	const block = cws.metadata.raw.branding;
+	if (!isPlainObject(block) || block.type !== "builtin") return cws;
+	const nextBranding: Record<string, unknown> = {
+		...block,
+		updatedAtMs: Date.now(),
+		symbolColor: color.kind,
+	};
+	if (color.kind === "custom") nextBranding.symbolColorHex = color.color;
+	else delete nextBranding.symbolColorHex;
+	return withBranding(cws, nextBranding, cws.files.brandingHandleBytes, {
+		...cws.brandingDraft,
+		lastSymbolColor: color,
+	});
 }
 
 // Records `bytes` into `brandingDraft.lastCustomImageBytes` alongside
@@ -134,7 +224,30 @@ export function applyBrandingImage(
 export type HandleBranding =
 	| { readonly kind: "none" }
 	| { readonly kind: "asset" }
-	| { readonly kind: "symbol"; readonly builtinId: BuiltinSymbolId };
+	| {
+			readonly kind: "symbol";
+			readonly builtinId: BuiltinSymbolId;
+			// Already-resolved concrete `#RRGGBB` — never "dark"/"brand"/"custom"
+			// itself (docs/COMPARISON_PRESENTATION.md Part 2 "Handle"; this is the
+			// one place that semantic-to-concrete resolution happens, exactly
+			// mirroring how src/components/WorkspaceActive.tsx resolves Text's
+			// own Automatic/Light/Dark/Custom for the same reason: the renderer
+			// — src/components/ComparisonSliderHandle.tsx — must never make a
+			// semantic color decision itself, only paint an already-resolved
+			// value).
+			readonly color: string;
+	  };
+
+function resolveSymbolColorHex(color: BrandingSymbolColor): string {
+	switch (color.kind) {
+		case "dark":
+			return SYMBOL_COLOR;
+		case "brand":
+			return SYMBOL_COLOR_BRAND;
+		case "custom":
+			return color.color;
+	}
+}
 
 // The single place that decides Raster-vs-Vektor-vs-none for the Handle
 // (docs/COMPARISON_PRESENTATION.md Part 2 "Handle"). An imported built-in
@@ -145,6 +258,14 @@ export type HandleBranding =
 // Any other inconsistency (`type` present without a usable asset or a
 // recognized `builtinId`) resolves to "none", the same tolerant behavior
 // docs/IMPORTED_COMPARISON_V1.md already documents for the Android reader.
+//
+// Reads `getBrandingSymbolColor` — the *active* branding block — for the
+// `"symbol"` case's resolved color, never `brandingDraft`: the remembered
+// color only ever feeds back into the active truth at the moment of an
+// explicit symbol-tile click (`applyBrandingSymbol`), so a change to
+// `brandingDraft` alone (which never happens outside that function and
+// `applyBrandingSymbolColor`) can never, by construction, change what this
+// function returns.
 export function resolveHandleBranding(
 	cws: CurrentWorkingState,
 ): HandleBranding {
@@ -155,7 +276,12 @@ export function resolveHandleBranding(
 	if (type === "builtin") {
 		if (cws.files.brandingHandleBytes) return { kind: "asset" };
 		const builtinId = getBrandingBuiltinId(cws);
-		return builtinId ? { kind: "symbol", builtinId } : { kind: "none" };
+		if (!builtinId) return { kind: "none" };
+		return {
+			kind: "symbol",
+			builtinId,
+			color: resolveSymbolColorHex(getBrandingSymbolColor(cws)),
+		};
 	}
 	return { kind: "none" };
 }

@@ -1032,4 +1032,18 @@ A symbol in the grid appears selected only while it is the currently active bran
 
 When Custom is selected and a previously used custom image is available, that image becomes the active branding immediately and appears both in the image selector's preview and in the Handle, without requiring a new upload. When no previously used custom image is available, Custom presents only the image selector, and the active branding does not change until an image is uploaded.
 
+### Color
+
+Directly below the symbol grid, a second option group, Color, configures the color of the rendered Built-in Symbol:
+
+- Dark (default)
+- Brand
+- Custom
+
+White is intentionally not offered: the Handle background is always white, so a white symbol would be invisible against it.
+
+Dark uses the existing default Built-in Symbol color already used today. Brand uses the same SameView brand color already used elsewhere in the application (for example the Presentation section's Background "Brand" option). Custom presents the same HEX color picker already used by the Presentation section's Background, Frame and Text Custom color options, and follows the identical editing behavior defined for it (see `COMPARISON_PRESENTATION.md` "Custom Color Editing").
+
+The Color option group is specific to Built-in Symbol: it is shown only while Symbol is selected, never for None or Custom, and it has no effect on a Custom Image or on an imported branding asset. The configured color belongs to the Built-in Symbol branding as a whole, not to an individual symbol — selecting a different symbol in the grid (for example Heart, then Star, then Fire) keeps the currently configured color unchanged.
+
 Changes update the preview immediately.
