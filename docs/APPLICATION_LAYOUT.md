@@ -1028,6 +1028,8 @@ When Symbol is selected, a selection grid of the six built-in symbols appears in
 - Pin
 - Fire
 
-When Custom is selected, the image selector appears inline.
+A symbol in the grid appears selected only while it is the currently active branding. Selecting Symbol itself does not select any symbol in the grid; the user must select one explicitly.
+
+When Custom is selected and a previously used custom image is available, that image becomes the active branding immediately and appears both in the image selector's preview and in the Handle, without requiring a new upload. When no previously used custom image is available, Custom presents only the image selector, and the active branding does not change until an image is uploaded.
 
 Changes update the preview immediately.

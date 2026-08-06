@@ -49,6 +49,7 @@ import {
 	useState,
 } from "react";
 import type { HandleBranding } from "../lib/branding";
+import { getEffectiveRingRadiusPx } from "../lib/comparison-handle-geometry";
 import ComparisonSliderHandle from "./ComparisonSliderHandle";
 
 interface ComparisonSliderProps {
@@ -85,15 +86,11 @@ interface ComparisonSliderProps {
 
 const KEYBOARD_STEP = 5;
 
-// Android CompareScreen.kt: CompareSliderHandleSize = 48.dp (the white
-// circle), CompareSliderRingGap = 1.dp, CompareSliderRingThickness = 2.dp.
-// The ring's own diameter is handle + 2*(gap + thickness) = 54, i.e. radius
-// 27 — this is also the radius Android's own label-position formula
-// (`handleRadiusPx`) measures from, not the smaller 24 handle radius (the
-// handle's own visual radius now lives in src/components/ComparisonSliderHandle.tsx,
-// which this label math does not need).
-const RING_RADIUS_PX = 27;
-// Android CompareHandleLabelGap = 8.dp.
+// Android CompareHandleLabelGap = 8.dp. Unlike the ring radius below, this
+// gap has no Android precedent for scaling with branding enlargement
+// (Android's own interactive divider never shows branding at all — see
+// src/lib/comparison-handle-geometry.ts's own header comment) and is kept
+// as a fixed addend for that reason, not scaled.
 const LABEL_GAP_PX = 8;
 // Label font must match `.comparison-slider__label` in global.css exactly —
 // canvas measureText() only reports the width the browser will actually
@@ -290,15 +287,22 @@ export default function ComparisonSlider({
 	// Android CompareDivider: showLeftLabel/showRightLabel — each label
 	// independently disappears once its own measured bounds would reach or
 	// cross the corresponding Viewer edge, not at an arbitrary percentage.
+	// The ring radius used here must reflect the handle as it is actually
+	// rendered (src/components/ComparisonSliderHandle.tsx) — a fixed,
+	// always-standard radius let labels overlap an enlarged branded handle
+	// (see src/lib/comparison-handle-geometry.ts's own header comment).
 	const dividerXPx = (position / 100) * frameWidthPx;
+	const effectiveRingRadiusPx = getEffectiveRingRadiusPx(
+		branding.kind !== "none",
+	);
 	const showLeftLabel =
 		showDateLabels &&
 		frameWidthPx > 0 &&
-		dividerXPx - RING_RADIUS_PX - LABEL_GAP_PX - leftLabelWidthPx >= 0;
+		dividerXPx - effectiveRingRadiusPx - LABEL_GAP_PX - leftLabelWidthPx >= 0;
 	const showRightLabel =
 		showDateLabels &&
 		frameWidthPx > 0 &&
-		dividerXPx + RING_RADIUS_PX + LABEL_GAP_PX + rightLabelWidthPx <=
+		dividerXPx + effectiveRingRadiusPx + LABEL_GAP_PX + rightLabelWidthPx <=
 			frameWidthPx;
 
 	return (
@@ -339,6 +343,23 @@ export default function ComparisonSlider({
 			/>
 			{bothLoaded && (
 				<>
+					{/* Rendered before the handle, not after: this <div> must sit
+					    *underneath* the opaque ring/circle/branding-content SVG in
+					    paint order so that SVG genuinely occludes it wherever they
+					    overlap, leaving it visible only through the ring's own 12°
+					    gaps — the same visual result Android's CompareDivider relies
+					    on, but achieved here by real stacking rather than by the
+					    coincidence (white-on-white, arrows with a center gap) that
+					    made stacking order irrelevant for Android's own always-
+					    unbranded live handle. Drawing this after the handle (the
+					    previous order) let the line visibly cut across non-white
+					    branding content (a Built-in Symbol or Custom Image) — see
+					    src/lib/comparison-handle-geometry.ts's own header comment. */}
+					<div
+						className="comparison-slider__divider-line"
+						data-testid="comparison-divider-line"
+						style={{ insetInlineStart: `${position}%` }}
+					/>
 					<div
 						className="comparison-slider__handle"
 						role="slider"
@@ -355,17 +376,12 @@ export default function ComparisonSlider({
 							brandingSrc={brandingSrc}
 						/>
 					</div>
-					<div
-						className="comparison-slider__divider-line"
-						data-testid="comparison-divider-line"
-						style={{ insetInlineStart: `${position}%` }}
-					/>
 					{showLeftLabel && (
 						<span
 							className="comparison-slider__label"
 							data-testid="comparison-slider-label-left"
 							style={{
-								insetInlineStart: `${dividerXPx - RING_RADIUS_PX - LABEL_GAP_PX}px`,
+								insetInlineStart: `${dividerXPx - effectiveRingRadiusPx - LABEL_GAP_PX}px`,
 								transform: "translate(-100%, -50%)",
 							}}
 						>
@@ -377,7 +393,7 @@ export default function ComparisonSlider({
 							className="comparison-slider__label"
 							data-testid="comparison-slider-label-right"
 							style={{
-								insetInlineStart: `${dividerXPx + RING_RADIUS_PX + LABEL_GAP_PX}px`,
+								insetInlineStart: `${dividerXPx + effectiveRingRadiusPx + LABEL_GAP_PX}px`,
 								transform: "translateY(-50%)",
 							}}
 						>

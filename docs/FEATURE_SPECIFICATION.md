@@ -217,6 +217,12 @@ Each branding change updates the Current Working State and is immediately reflec
 
 Changing branding does not alter previously generated standalone HTML or previously published comparisons.
 
+Opening the Built-in Symbol selection does not itself activate a symbol; a symbol becomes the active branding only once the user explicitly selects it, and the Built-in Symbol selection shows a symbol as selected only while that symbol is the currently active branding.
+
+Selecting No Branding deactivates the active branding immediately, without discarding the most recently selected built-in symbol or the most recently valid custom branding image. Selecting Custom Image reactivates the most recently valid custom branding image immediately, in both the comparison viewer and its own preview, whenever one exists from earlier in the active workspace; without an existing valid custom branding image, selecting Custom Image only presents the image selection and does not change the currently active branding. An invalid custom branding image upload changes neither the currently active branding nor the most recently valid custom branding image.
+
+The most recently selected built-in symbol and the most recently valid custom branding image are each retained independently of which branding option is currently active, for the duration of the active workspace. Importing a comparison with built-in symbol branding initializes the most recently selected built-in symbol accordingly; importing a comparison with custom image branding initializes the most recently valid custom branding image accordingly. The branding present at import remains the active branding until the user takes an explicit branding action.
+
 ### Result
 
 After configuring branding:

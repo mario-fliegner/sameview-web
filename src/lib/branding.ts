@@ -21,7 +21,7 @@ import {
 	type BuiltinSymbolId,
 	isBuiltinSymbolId,
 } from "./builtin-branding-symbols.ts";
-import type { CurrentWorkingState } from "./workspace-state.ts";
+import type { BrandingDraft, CurrentWorkingState } from "./workspace-state.ts";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -54,6 +54,7 @@ function withBranding(
 	cws: CurrentWorkingState,
 	branding: Record<string, unknown> | undefined,
 	brandingHandleBytes: Uint8Array | undefined,
+	brandingDraft: BrandingDraft,
 ): CurrentWorkingState {
 	const nextRaw = { ...cws.metadata.raw };
 	if (branding === undefined) delete nextRaw.branding;
@@ -62,13 +63,18 @@ function withBranding(
 		...cws,
 		metadata: { ...cws.metadata, raw: nextRaw },
 		files: { ...cws.files, brandingHandleBytes },
+		brandingDraft,
 	};
 }
 
+// docs/FEATURE_SPECIFICATION.md F-004: "Selecting No Branding deactivates
+// the active branding immediately, without discarding the most recently
+// selected built-in symbol or the most recently valid custom branding
+// image." — `brandingDraft` is passed through unchanged, never cleared.
 export function applyBrandingNone(
 	cws: CurrentWorkingState,
 ): CurrentWorkingState {
-	return withBranding(cws, undefined, undefined);
+	return withBranding(cws, undefined, undefined, cws.brandingDraft);
 }
 
 // Every fresh symbol selection made in SameView Web clears any previously
@@ -78,6 +84,11 @@ export function applyBrandingNone(
 // user re-selects the very same id an import already carried, so
 // `resolveHandleBranding` below can tell "imported, still has its PNG"
 // apart from "freshly chosen in the browser" without a separate flag.
+//
+// Also records `builtinId` into `brandingDraft.lastBuiltinId` (docs/FEATURE_SPECIFICATION.md
+// F-004: a click "activates it and" the retained memory "remembers the id")
+// — `lastCustomImageBytes` is carried through unchanged, never cleared by a
+// symbol selection.
 export function applyBrandingSymbol(
 	cws: CurrentWorkingState,
 	builtinId: BuiltinSymbolId,
@@ -86,14 +97,25 @@ export function applyBrandingSymbol(
 		cws,
 		{ type: "builtin", builtinId, updatedAtMs: Date.now() },
 		undefined,
+		{ ...cws.brandingDraft, lastBuiltinId: builtinId },
 	);
 }
 
+// Records `bytes` into `brandingDraft.lastCustomImageBytes` alongside
+// activating them (docs/FEATURE_SPECIFICATION.md F-004: "A valid upload
+// activates and remembers the new image") — `lastBuiltinId` is carried
+// through unchanged. Callers must only invoke this with already-validated
+// bytes (src/lib/import-image.ts `validateImageContent`); an invalid
+// upload must never reach this function, which is what keeps both the
+// active branding and the remembered image untouched on failure.
 export function applyBrandingImage(
 	cws: CurrentWorkingState,
 	bytes: Uint8Array,
 ): CurrentWorkingState {
-	return withBranding(cws, { type: "image", updatedAtMs: Date.now() }, bytes);
+	return withBranding(cws, { type: "image", updatedAtMs: Date.now() }, bytes, {
+		...cws.brandingDraft,
+		lastCustomImageBytes: bytes,
+	});
 }
 
 export type HandleBranding =

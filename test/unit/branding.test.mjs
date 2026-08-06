@@ -18,11 +18,16 @@ import {
 	resolveHandleBranding,
 } from "../../src/lib/branding.ts";
 import {
+	DEFAULT_BRANDING_DRAFT,
 	DEFAULT_PRESENTATION_CONFIGURATION,
 	DEFAULT_PRESENTATION_VISIBILITY,
 } from "../../src/lib/workspace-state.ts";
 
-function fakeCurrentWorkingState(raw = {}, filesPatch = {}) {
+function fakeCurrentWorkingState(
+	raw = {},
+	filesPatch = {},
+	brandingDraft = {},
+) {
 	return {
 		sessionDirectory: "2024-01-15_10-30-00",
 		metadata: {
@@ -44,6 +49,7 @@ function fakeCurrentWorkingState(raw = {}, filesPatch = {}) {
 		},
 		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
 		presentationConfiguration: DEFAULT_PRESENTATION_CONFIGURATION,
+		brandingDraft: { ...DEFAULT_BRANDING_DRAFT, ...brandingDraft },
 	};
 }
 
@@ -133,6 +139,25 @@ describe("applyBrandingNone", () => {
 		assert.equal(cws.metadata.raw.branding.type, "image");
 		assert.notEqual(cws.files.brandingHandleBytes, undefined);
 	});
+
+	// docs/FEATURE_SPECIFICATION.md F-004: "Selecting No Branding deactivates
+	// the active branding immediately, without discarding the most recently
+	// selected built-in symbol or the most recently valid custom branding
+	// image."
+	test("leaves brandingDraft (the remembered symbol id and custom image) unchanged", () => {
+		const draft = {
+			lastBuiltinId: "fire",
+			lastCustomImageBytes: new Uint8Array([7, 8, 9]),
+		};
+		const cws = fakeCurrentWorkingState(
+			{ branding: { type: "image" } },
+			{ brandingHandleBytes: new Uint8Array([9, 9]) },
+			draft,
+		);
+		const next = applyBrandingNone(cws);
+
+		assert.deepEqual(next.brandingDraft, draft);
+	});
 });
 
 describe("applyBrandingSymbol", () => {
@@ -166,6 +191,24 @@ describe("applyBrandingSymbol", () => {
 			builtinId: "star",
 		});
 	});
+
+	// docs/FEATURE_SPECIFICATION.md F-004: "A click activates it and the
+	// retained memory remembers the id."
+	test("records the builtinId into brandingDraft.lastBuiltinId, leaving lastCustomImageBytes untouched", () => {
+		const existingCustomBytes = new Uint8Array([4, 4, 4]);
+		const cws = fakeCurrentWorkingState(
+			{},
+			{},
+			{
+				lastBuiltinId: "heart",
+				lastCustomImageBytes: existingCustomBytes,
+			},
+		);
+		const next = applyBrandingSymbol(cws, "fire");
+
+		assert.equal(next.brandingDraft.lastBuiltinId, "fire");
+		assert.equal(next.brandingDraft.lastCustomImageBytes, existingCustomBytes);
+	});
 });
 
 describe("applyBrandingImage", () => {
@@ -179,6 +222,17 @@ describe("applyBrandingImage", () => {
 		assert.equal(getBrandingType(next), "image");
 		assert.equal(getBrandingBuiltinId(next), undefined);
 		assert.equal(next.files.brandingHandleBytes, bytes);
+	});
+
+	// docs/FEATURE_SPECIFICATION.md F-004: "A valid upload activates and
+	// remembers the new image."
+	test("records the bytes into brandingDraft.lastCustomImageBytes, leaving lastBuiltinId untouched", () => {
+		const cws = fakeCurrentWorkingState({}, {}, { lastBuiltinId: "pin" });
+		const bytes = new Uint8Array([1, 2, 3, 4]);
+		const next = applyBrandingImage(cws, bytes);
+
+		assert.equal(next.brandingDraft.lastCustomImageBytes, bytes);
+		assert.equal(next.brandingDraft.lastBuiltinId, "pin");
 	});
 });
 

@@ -6,13 +6,16 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
 	createWorkspace,
+	DEFAULT_BRANDING_DRAFT,
 	DEFAULT_PRESENTATION_CONFIGURATION,
 	DEFAULT_PRESENTATION_VISIBILITY,
 	initialWorkspaceState,
 	withCurrentWorkingState,
 } from "../../src/lib/workspace-state.ts";
 
-function fakeSourceData() {
+function fakeSourceData({ branding, brandingHandleBytes } = {}) {
+	const raw = { version: 6, nested: { value: 1 } };
+	if (branding !== undefined) raw.branding = branding;
 	return {
 		sessionDirectory: "2024-01-15_10-30-00",
 		metadata: {
@@ -21,7 +24,7 @@ function fakeSourceData() {
 			captureTimestampMs: 1700000000000,
 			referenceFile: "reference.jpg",
 			captureFile: "capture.jpg",
-			raw: { version: 6, nested: { value: 1 } },
+			raw,
 		},
 		files: {
 			referenceBytes: new Uint8Array([1, 2, 3]),
@@ -29,7 +32,7 @@ function fakeSourceData() {
 			referenceOriginalBytes: undefined,
 			captureOriginalBytes: undefined,
 			referenceSourceOriginalBytes: undefined,
-			brandingHandleBytes: undefined,
+			brandingHandleBytes,
 		},
 	};
 }
@@ -86,6 +89,13 @@ describe("createWorkspace", () => {
 			DEFAULT_PRESENTATION_CONFIGURATION,
 		);
 		assert.equal(sourceData.presentationConfiguration, undefined);
+
+		// docs/FEATURE_SPECIFICATION.md F-004: no imported branding means no
+		// remembered symbol or custom image either — same Current-Working-
+		// State-only reasoning as presentationVisibility/presentationConfiguration
+		// above, but see the "brandingDraft seeding" suite below for the case
+		// where an import *does* carry branding.
+		assert.deepEqual(cws.brandingDraft, DEFAULT_BRANDING_DRAFT);
 	});
 
 	test("mutating the Current Working State's bytes never affects Source Data", () => {
@@ -108,6 +118,69 @@ describe("createWorkspace", () => {
 		assert.equal(
 			state.workspace.currentWorkingState.files.brandingHandleBytes,
 			undefined,
+		);
+	});
+});
+
+// docs/FEATURE_SPECIFICATION.md F-004: "Importing a comparison with
+// built-in symbol branding initializes the most recently selected built-in
+// symbol accordingly. Importing a comparison with custom image branding
+// initializes the most recently valid custom branding image accordingly."
+describe("brandingDraft seeding on import", () => {
+	test("a built-in branding import seeds lastBuiltinId, not lastCustomImageBytes", () => {
+		const sourceData = fakeSourceData({
+			branding: { type: "builtin", builtinId: "fire" },
+			brandingHandleBytes: new Uint8Array([1, 2, 3]),
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.equal(
+			state.workspace.currentWorkingState.brandingDraft.lastBuiltinId,
+			"fire",
+		);
+		assert.equal(
+			state.workspace.currentWorkingState.brandingDraft.lastCustomImageBytes,
+			undefined,
+		);
+	});
+
+	test("an image branding import seeds lastCustomImageBytes (cloned, not aliased), not lastBuiltinId", () => {
+		const originalBytes = new Uint8Array([4, 5, 6]);
+		const sourceData = fakeSourceData({
+			branding: { type: "image" },
+			brandingHandleBytes: originalBytes,
+		});
+		const state = createWorkspace(sourceData);
+		const seeded =
+			state.workspace.currentWorkingState.brandingDraft.lastCustomImageBytes;
+
+		assert.deepEqual(seeded, originalBytes);
+		assert.notEqual(seeded, originalBytes);
+		assert.equal(
+			state.workspace.currentWorkingState.brandingDraft.lastBuiltinId,
+			undefined,
+		);
+	});
+
+	test("an unrecognized imported builtinId seeds an undefined lastBuiltinId, tolerantly", () => {
+		const sourceData = fakeSourceData({
+			branding: { type: "builtin", builtinId: "future-symbol" },
+		});
+		const state = createWorkspace(sourceData);
+
+		assert.equal(
+			state.workspace.currentWorkingState.brandingDraft.lastBuiltinId,
+			undefined,
+		);
+	});
+
+	test("no imported branding leaves brandingDraft at its defaults", () => {
+		const sourceData = fakeSourceData();
+		const state = createWorkspace(sourceData);
+
+		assert.deepEqual(
+			state.workspace.currentWorkingState.brandingDraft,
+			DEFAULT_BRANDING_DRAFT,
 		);
 	});
 });

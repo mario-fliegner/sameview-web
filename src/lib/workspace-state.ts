@@ -21,6 +21,10 @@
 // `metadata.raw` (see src/lib/comparison-edit.ts), the same structure the
 // existing derivation/display code already reads.
 
+import {
+	type BuiltinSymbolId,
+	isBuiltinSymbolId,
+} from "./builtin-branding-symbols.ts";
 import type { ResolvedImportedMetadata } from "./import-metadata.ts";
 
 export interface AcceptedComparisonFiles {
@@ -127,16 +131,39 @@ export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
 	showSliderDateLabels: true,
 };
 
-// Adds only the two new concepts Phase 5 and this Presentation Configuration
-// iteration introduce (see the module comment above for why visibility is a
-// sibling field here rather than folded into `metadata`; Presentation
-// Configuration follows the identical reasoning). Editable values have no
-// separate representation: they live in `metadata.raw`, identical in shape
-// to Source Data, and are changed in place on a cloned Current Working
-// State by src/lib/comparison-edit.ts.
+// docs/FEATURE_SPECIFICATION.md F-004: "the most recently selected built-in
+// symbol and the most recently valid custom branding image are each
+// retained independently of which branding option is currently active."
+// Purely a UI/workspace memory for values that are *not* currently
+// effective — the currently effective branding remains exclusively
+// `metadata.raw.branding` + `files.brandingHandleBytes` (src/lib/branding.ts
+// `resolveHandleBranding`, which never reads this type). Modeled the same
+// way as PresentationVisibility/PresentationConfiguration above and for the
+// identical reason: no Source Data counterpart exists for "a value the user
+// chose earlier but is not currently using" — Android's own session
+// branding is a single-slot model with no such memory of its own.
+export interface BrandingDraft {
+	readonly lastBuiltinId: BuiltinSymbolId | undefined;
+	readonly lastCustomImageBytes: Uint8Array | undefined;
+}
+
+export const DEFAULT_BRANDING_DRAFT: BrandingDraft = {
+	lastBuiltinId: undefined,
+	lastCustomImageBytes: undefined,
+};
+
+// Adds only the new concepts Phase 5, the Presentation Configuration
+// iteration and Session Branding retention introduce (see the module
+// comment above for why visibility is a sibling field here rather than
+// folded into `metadata`; Presentation Configuration and BrandingDraft
+// follow the identical reasoning). Editable values have no separate
+// representation: they live in `metadata.raw`, identical in shape to
+// Source Data, and are changed in place on a cloned Current Working State
+// by src/lib/comparison-edit.ts.
 export interface CurrentWorkingState extends SourceData {
 	readonly presentationVisibility: PresentationVisibility;
 	readonly presentationConfiguration: PresentationConfiguration;
+	readonly brandingDraft: BrandingDraft;
 }
 
 export interface Workspace {
@@ -168,6 +195,39 @@ function cloneOptionalBytes(
 	return bytes === undefined ? undefined : bytes.slice();
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Deliberately duplicates src/lib/branding.ts's own tolerant
+// `getBrandingType`/`getBrandingBuiltinId` reading, rather than importing
+// them: this module is imported BY branding.ts (for the `CurrentWorkingState`
+// type), so importing the other direction here would be circular. The same
+// small-helper duplication already used between src/lib/comparison-edit.ts,
+// src/lib/comparison-presentation.ts and src/lib/import-metadata.ts.
+function seedBrandingDraft(
+	raw: Record<string, unknown>,
+	brandingHandleBytes: Uint8Array | undefined,
+): BrandingDraft {
+	const block = raw.branding;
+	if (!isPlainObject(block)) return DEFAULT_BRANDING_DRAFT;
+	if (block.type === "builtin") {
+		const id = block.builtinId;
+		return {
+			lastBuiltinId:
+				typeof id === "string" && isBuiltinSymbolId(id) ? id : undefined,
+			lastCustomImageBytes: undefined,
+		};
+	}
+	if (block.type === "image") {
+		return {
+			lastBuiltinId: undefined,
+			lastCustomImageBytes: cloneOptionalBytes(brandingHandleBytes),
+		};
+	}
+	return DEFAULT_BRANDING_DRAFT;
+}
+
 function cloneAsCurrentWorkingState(
 	sourceData: SourceData,
 ): CurrentWorkingState {
@@ -195,9 +255,16 @@ function cloneAsCurrentWorkingState(
 		},
 		// A fresh import (or a replacement) always starts from the documented
 		// defaults — there is no Source Data value to carry forward (see the
-		// module comment above).
+		// module comment above). BrandingDraft is the one exception: it starts
+		// seeded from the imported branding, not from a fixed default (docs/FEATURE_SPECIFICATION.md
+		// F-004: "Importing a comparison with built-in symbol branding
+		// initializes the most recently selected built-in symbol accordingly").
 		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
 		presentationConfiguration: DEFAULT_PRESENTATION_CONFIGURATION,
+		brandingDraft: seedBrandingDraft(
+			sourceData.metadata.raw,
+			sourceData.files.brandingHandleBytes,
+		),
 	};
 }
 

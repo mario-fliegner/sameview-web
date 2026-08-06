@@ -49,28 +49,49 @@ export default function BrandingSection({
 }: BrandingSectionProps) {
 	const { t } = useLocale();
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	// "Custom" has no sensible default value the instant it is selected
-	// (unlike Symbol, which applies its first entry immediately, mirroring
-	// PresentationSection's `INITIAL_CUSTOM_COLOR`) — so, until a valid file
-	// is actually chosen, "Custom is the displayed option" is UI-only local
-	// state, never written to the Current Working State
-	// (docs/FEATURE_SPECIFICATION.md F-004: "invalid custom images leave the
-	// previous branding intact" — extended here to "no file chosen yet").
+	// Neither "Symbol" nor "Custom" activates anything the instant it is
+	// merely opened (docs/FEATURE_SPECIFICATION.md F-004: "Opening the
+	// Built-in Symbol selection does not itself activate a symbol"; "without
+	// an existing valid custom branding image, selecting Custom Image only
+	// presents the image selection"). These two local flags are what let
+	// each option's grid/picker render while the Current Working State's
+	// effective branding stays untouched — Custom additionally short-circuits
+	// this by immediately activating a remembered image when one exists (see
+	// `handleTopLevelSelect` below), so `pendingCustomSelected` in practice
+	// only matters the first time a workspace has no remembered image yet.
 	// Reset on every session replace via EditInspector's `key={sessionDirectory}`,
 	// the same reset boundary every other workspace-scoped local UI state in
 	// this app already uses.
+	const [pendingSymbolSelected, setPendingSymbolSelected] = useState(false);
 	const [pendingCustomSelected, setPendingCustomSelected] = useState(false);
 	const [hasImageError, setHasImageError] = useState(false);
 
 	const brandingType = getBrandingType(currentWorkingState);
-	const displayedOption: DisplayedOption =
-		brandingType === "image"
+	// The pending flags are checked *before* the effective type: opening
+	// Symbol while Custom (or an imported Built-in Symbol) is currently
+	// effective must still switch the displayed panel to Symbol — otherwise
+	// clicking "Symbol" while Custom is active would appear to do nothing,
+	// since `brandingType` alone does not change until a tile is actually
+	// clicked (docs/FEATURE_SPECIFICATION.md F-004: "Opening the Built-in
+	// Symbol selection does not itself activate a symbol"). Exactly one of
+	// the two pending flags is ever true at a time (every branch below that
+	// sets one clears the other), so the order between them here never
+	// matters — only that both are checked ahead of the effective type.
+	const displayedOption: DisplayedOption = pendingSymbolSelected
+		? "symbol"
+		: pendingCustomSelected
 			? "custom"
-			: pendingCustomSelected
+			: brandingType === "image"
 				? "custom"
 				: brandingType === "builtin"
 					? "symbol"
 					: "none";
+	// Driven exclusively by the *effective* branding, never by
+	// `brandingDraft` (docs/FEATURE_SPECIFICATION.md F-004: "the Built-in
+	// Symbol selection shows a symbol as selected only while that symbol is
+	// the currently active branding") — so the grid correctly shows nothing
+	// selected while Symbol is merely open (pendingSymbolSelected) even if a
+	// built-in was chosen earlier in the session.
 	const selectedBuiltinId = getBrandingBuiltinId(currentWorkingState);
 	const customPreviewSrc = useObjectUrl(
 		brandingType === "image"
@@ -81,22 +102,35 @@ export default function BrandingSection({
 	function handleTopLevelSelect(value: DisplayedOption) {
 		setHasImageError(false);
 		if (value === "none") {
+			setPendingSymbolSelected(false);
 			setPendingCustomSelected(false);
 			onCurrentWorkingStateChange(applyBrandingNone(currentWorkingState));
 		} else if (value === "symbol") {
 			setPendingCustomSelected(false);
-			const firstSymbol = BUILTIN_BRANDING_SYMBOLS[0];
-			if (firstSymbol) {
-				onCurrentWorkingStateChange(
-					applyBrandingSymbol(currentWorkingState, firstSymbol.id),
-				);
-			}
+			// Opening Symbol never activates one on its own — the grid is
+			// revealed, but the Current Working State is untouched until an
+			// explicit tile click (`handleSymbolSelect` below).
+			setPendingSymbolSelected(true);
 		} else {
-			setPendingCustomSelected(true);
+			setPendingSymbolSelected(false);
+			const lastCustomImageBytes =
+				currentWorkingState.brandingDraft.lastCustomImageBytes;
+			if (lastCustomImageBytes) {
+				// docs/FEATURE_SPECIFICATION.md F-004: "Selecting Custom Image
+				// reactivates the most recently valid custom branding image
+				// immediately... whenever one exists" — no re-upload required.
+				setPendingCustomSelected(false);
+				onCurrentWorkingStateChange(
+					applyBrandingImage(currentWorkingState, lastCustomImageBytes),
+				);
+			} else {
+				setPendingCustomSelected(true);
+			}
 		}
 	}
 
 	function handleSymbolSelect(id: BuiltinSymbolId) {
+		setPendingSymbolSelected(false);
 		onCurrentWorkingStateChange(applyBrandingSymbol(currentWorkingState, id));
 	}
 

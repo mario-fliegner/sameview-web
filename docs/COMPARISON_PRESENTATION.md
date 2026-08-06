@@ -262,8 +262,13 @@ Selecting, uploading or replacing branding is defined exclusively by F-004.
 This document defines only how the currently configured branding is
 rendered inside the Handle; it introduces no branding option of its own.
 
-The Handle automatically increases in size when displaying a Built-in
-Symbol or a Custom Image.
+The Handle is 1.5 times its standard diameter when displaying a Built-in
+Symbol or a Custom Image; ring and label geometry are otherwise unchanged.
+
+A Custom Image or an imported branding image occupies 72% of the Handle's
+diameter. A Built-in Symbol occupies 57.6% of the Handle's diameter. Both
+proportions are centered exactly on the Handle's own center, horizontally
+and vertically.
 
 Base handle shape and geometry use the existing SameView reference
 specification. No presentation-specific variants are defined.

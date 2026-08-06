@@ -1755,14 +1755,31 @@ test("the Handle enlarges for Symbol and Custom Image but not for None", async (
 	await expandBrandingSection(page);
 	const handle = page.getByTestId("comparison-slider-handle");
 
+	// src/lib/comparison-handle-geometry.ts: STANDARD_HANDLE_VISUAL_REM=3.375
+	// (54px), BRANDED_HANDLE_VISUAL_REM=5.0625 (81px) at the default 16px
+	// root font size — the one shared source for both the visual size here
+	// and the date-label placement asserted elsewhere in this file.
+	const STANDARD_WIDTH_PX = "54px";
+	const BRANDED_WIDTH_PX = "81px";
+
 	// Imported branding (Symbol/Star, an asset) already starts enlarged.
-	await expect(handle).toHaveClass(/handle-visual--branded/);
+	await expect(handle).toHaveCSS("width", BRANDED_WIDTH_PX);
+	await expect(handle).toHaveCSS("height", BRANDED_WIDTH_PX);
 
 	await page.getByTestId("edit-branding-option-none").click();
-	await expect(handle).not.toHaveClass(/handle-visual--branded/);
+	await expect(handle).toHaveCSS("width", STANDARD_WIDTH_PX);
+	await expect(handle).toHaveCSS("height", STANDARD_WIDTH_PX);
 
+	// docs/FEATURE_SPECIFICATION.md F-004: "Opening the Built-in Symbol
+	// selection does not itself activate a symbol" — merely opening it must
+	// not enlarge the Handle either, since nothing became active.
 	await page.getByTestId("edit-branding-option-symbol").click();
-	await expect(handle).toHaveClass(/handle-visual--branded/);
+	await expect(handle).toHaveCSS("width", STANDARD_WIDTH_PX);
+	await expect(handle).toHaveCSS("height", STANDARD_WIDTH_PX);
+
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await expect(handle).toHaveCSS("width", BRANDED_WIDTH_PX);
+	await expect(handle).toHaveCSS("height", BRANDED_WIDTH_PX);
 });
 
 test("uploading a valid custom image sets Custom branding and displays it in the Handle", async ({
@@ -1772,17 +1789,16 @@ test("uploading a valid custom image sets Custom branding and displays it in the
 	await expandBrandingSection(page);
 
 	await page.getByTestId("edit-branding-option-custom").click();
-	await expect(
-		page.getByTestId("edit-branding-option-custom"),
-	).toHaveAttribute("aria-checked", "true");
+	await expect(page.getByTestId("edit-branding-option-custom")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
 
 	await page
 		.getByTestId("edit-branding-custom-input")
 		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
 
-	await expect(
-		page.getByTestId("edit-branding-custom-preview"),
-	).toBeVisible();
+	await expect(page.getByTestId("edit-branding-custom-preview")).toBeVisible();
 	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
 		"data-branding-kind",
 		"asset",
@@ -1811,6 +1827,142 @@ test("an invalid custom image shows an error and leaves the previous branding in
 	// docs/FEATURE_SPECIFICATION.md F-004 "Rules and Limitations": an invalid
 	// custom image must not change the current branding — the Handle still
 	// renders the fixture's original imported Star asset, untouched.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+// Retain & restore (docs/FEATURE_SPECIFICATION.md F-004 "Selection,
+// Activation and Retention") — the most recently selected built-in symbol
+// and the most recently valid custom branding image are each retained
+// independently of which branding option is currently active.
+
+test("opening Symbol shows no tile selected, even after a symbol was already chosen earlier in the session", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await expect(page.getByTestId("edit-branding-symbol-fire")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+
+	await page.getByTestId("edit-branding-option-none").click();
+	await page.getByTestId("edit-branding-option-symbol").click();
+
+	// The grid is visible (Symbol is open) but nothing is marked selected —
+	// Fire is still remembered internally, but only an explicit tile click
+	// reactivates it.
+	await expect(page.getByTestId("edit-branding-symbol-fire")).toHaveAttribute(
+		"aria-checked",
+		"false",
+	);
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"none",
+	);
+});
+
+test("switching to Custom reactivates the most recently valid custom image immediately, without re-upload", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
+	await expect(page.getByTestId("edit-branding-custom-preview")).toBeVisible();
+
+	// Detour through Symbol — Custom's remembered image must survive it.
+	await page.getByTestId("edit-branding-option-symbol").click();
+	await page.getByTestId("edit-branding-symbol-fire").click();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"symbol",
+	);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+
+	// Reactivated immediately — no file input interaction here.
+	await expect(page.getByTestId("edit-branding-option-custom")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(page.getByTestId("edit-branding-custom-preview")).toBeVisible();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+test("None deactivates branding immediately but keeps the remembered symbol and custom image restorable", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
+	await page.getByTestId("edit-branding-option-symbol").click();
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	await page.getByTestId("edit-branding-option-none").click();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"none",
+	);
+
+	// Custom still restores the remembered image immediately.
+	await page.getByTestId("edit-branding-option-custom").click();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+test("without a remembered custom image, opening Custom only presents the picker and leaves the active branding unchanged", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	// The fixture's imported branding is a Built-in Symbol (Star, an asset)
+	// — no custom image has ever been chosen in this session.
+	await page.getByTestId("edit-branding-option-custom").click();
+
+	await expect(page.getByTestId("edit-branding-custom-preview")).toHaveCount(0);
+	// The previously active branding (imported Star) is untouched.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+test("an invalid upload while a custom image is already remembered leaves that image active", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
+	await expect(page.getByTestId("edit-branding-custom-preview")).toBeVisible();
+
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "non-image-bytes.png"));
+
+	await expect(page.getByTestId("edit-branding-custom-error")).toBeVisible();
+	await expect(page.getByTestId("edit-branding-custom-preview")).toBeVisible();
 	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
 		"data-branding-kind",
 		"asset",

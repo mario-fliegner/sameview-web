@@ -867,12 +867,17 @@ main {
 	cursor: ew-resize;
 }
 
+/* Width/height (standard vs. 1.5× branding-enlarged) are set inline by
+   src/components/ComparisonSliderHandle.tsx itself, from
+   src/lib/comparison-handle-geometry.ts's STANDARD_HANDLE_VISUAL_REM /
+   BRANDED_HANDLE_VISUAL_REM — not declared here, so that single module
+   stays the only place either size is written down (docs/FEATURE_SPECIFICATION.md
+   F-004; docs/COMPARISON_PRESENTATION.md Part 2 "Handle": "automatically
+   increases in size"). */
 .comparison-slider__handle-visual {
 	position: absolute;
 	inset-block-start: 50%;
 	inset-inline-start: 50%;
-	width: 3.375rem;
-	height: 3.375rem;
 	transform: translate(-50%, -50%);
 	/* Approximates Android's `shadow(3.dp, CircleShape)` on the handle. */
 	filter: drop-shadow(0 0.1875rem 0.1875rem rgba(0, 0, 0, 0.3));
@@ -882,19 +887,6 @@ main {
 	outline: 0.1875rem solid #ffffff;
 	outline-offset: 0.1875rem;
 	border-radius: 50%;
-}
-
-/* Session Branding (docs/FEATURE_SPECIFICATION.md F-004;
-   docs/COMPARISON_PRESENTATION.md Part 2 "Handle": "automatically increases
-   in size" when a Built-in Symbol or Custom Image is active). 1.5× the
-   standard 3.375rem handle, matching the SameView Android app's own
-   branding handle sizing (sameview/docs/SESSION_BRANDING_V1.md §8.4:
-   "brandingHandleSize = standardHandleSize × 1.5") — the same viewBox
-   content in src/components/ComparisonSliderHandle.tsx scales up with it,
-   no separate geometry needed. */
-.comparison-slider__handle-visual--branded {
-	width: 5.0625rem;
-	height: 5.0625rem;
 }
 
 .comparison-slider__divider-line {

@@ -26,6 +26,7 @@ import {
 	validateReferenceDateInput,
 } from "../../src/lib/comparison-edit.ts";
 import {
+	DEFAULT_BRANDING_DRAFT,
 	DEFAULT_PRESENTATION_CONFIGURATION,
 	DEFAULT_PRESENTATION_VISIBILITY,
 } from "../../src/lib/workspace-state.ts";
@@ -51,6 +52,7 @@ function fakeCurrentWorkingState(raw = {}) {
 		},
 		presentationVisibility: DEFAULT_PRESENTATION_VISIBILITY,
 		presentationConfiguration: DEFAULT_PRESENTATION_CONFIGURATION,
+		brandingDraft: DEFAULT_BRANDING_DRAFT,
 	};
 }
 
