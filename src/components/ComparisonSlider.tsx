@@ -31,8 +31,12 @@
 // `CompareDivider`), transcribed 1:1 from its dp constants and Canvas/Path
 // drawing into an inline SVG — an SVG reproduces the two gapped ring arcs
 // and the chevron paths far more faithfully than a CSS-only approximation
-// could. See the constants below for the exact Android values each figure
-// come from.
+// could. See src/components/ComparisonSliderHandle.tsx for the exact
+// Android values each figure comes from: that component now owns the
+// handle's full visual (ring, circle and its Standard/Symbol/Custom-Image
+// inner content, docs/FEATURE_SPECIFICATION.md F-004), so this component
+// only positions/drags a plain wrapper around it and never needs to know
+// which of the three Session Branding states is currently active.
 
 import {
 	type CSSProperties,
@@ -44,6 +48,8 @@ import {
 	useRef,
 	useState,
 } from "react";
+import type { HandleBranding } from "../lib/branding";
+import ComparisonSliderHandle from "./ComparisonSliderHandle";
 
 interface ComparisonSliderProps {
 	readonly referenceSrc: string | undefined;
@@ -54,6 +60,12 @@ interface ComparisonSliderProps {
 	readonly loadingLabel: string;
 	readonly leftLabel: string;
 	readonly rightLabel: string;
+	// Session Branding (docs/FEATURE_SPECIFICATION.md F-004) — an
+	// already-resolved value; this component never reads Current Working
+	// State or decides which branding state is active, exactly like every
+	// other prop here (see the module comment above).
+	readonly branding: HandleBranding;
+	readonly brandingSrc: string | undefined;
 	// docs/COMPARISON_PRESENTATION.md Part 3 "Comparison Stage": "Show Slider
 	// Date Labels", default On. Gates the same auto-hide-at-edge labels below
 	// as one additional condition — it never changes the edge-collision math
@@ -77,33 +89,17 @@ const KEYBOARD_STEP = 5;
 // circle), CompareSliderRingGap = 1.dp, CompareSliderRingThickness = 2.dp.
 // The ring's own diameter is handle + 2*(gap + thickness) = 54, i.e. radius
 // 27 — this is also the radius Android's own label-position formula
-// (`handleRadiusPx`) measures from, not the smaller 24 handle radius.
-const HANDLE_RADIUS_PX = 24;
+// (`handleRadiusPx`) measures from, not the smaller 24 handle radius (the
+// handle's own visual radius now lives in src/components/ComparisonSliderHandle.tsx,
+// which this label math does not need).
 const RING_RADIUS_PX = 27;
-const RING_STROKE_WIDTH_PX = 2;
 // Android CompareHandleLabelGap = 8.dp.
 const LABEL_GAP_PX = 8;
-// Android's accent color (SameViewAccent = 0xFF4F8CFF), already identical to
-// this app's existing accent — reused as-is rather than introducing a
-// second, slightly different blue.
-const ACCENT_COLOR = "#4f8cff";
 // Label font must match `.comparison-slider__label` in global.css exactly —
 // canvas measureText() only reports the width the browser will actually
 // render for this font, not an approximation.
 const LABEL_FONT =
 	'600 0.875rem ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
-
-// Two broken ring arcs (viewBox 0 0 54 54, center 27,27, radius 26 — the
-// stroke's own centerline so a 2px stroke spans radius 25–27, matching
-// Android's ring canvas) with a 12° gap top and bottom for the divider line
-// to visually pass through, transcribed from CompareSliderRingGapAngle = 12f
-// and the two drawArc() calls in CompareDivider.
-const RING_ARC_LEFT = "M 21.594 52.432 A 26 26 0 0 1 21.594 1.568";
-const RING_ARC_RIGHT = "M 32.406 1.568 A 26 26 0 0 1 32.406 52.432";
-// Chevron paths, transcribed from CompareDivider's Canvas: unit = 48/48 = 1,
-// arrowCenterOffset = 9, halfDepth = 4, halfH = 7, centered on (27, 27).
-const CHEVRON_LEFT = "M 22 20 L 14 27 L 22 34";
-const CHEVRON_RIGHT = "M 32 20 L 40 27 L 32 34";
 
 let measurementCanvas: HTMLCanvasElement | null = null;
 
@@ -133,6 +129,8 @@ export default function ComparisonSlider({
 	leftLabel,
 	rightLabel,
 	showDateLabels,
+	branding,
+	brandingSrc,
 	onDimensionsChange,
 }: ComparisonSliderProps) {
 	const frameRef = useRef<HTMLDivElement>(null);
@@ -352,42 +350,10 @@ export default function ComparisonSlider({
 						style={{ insetInlineStart: `${position}%` }}
 						onKeyDown={handleHandleKeyDown}
 					>
-						<svg
-							className="comparison-slider__handle-visual"
-							viewBox="0 0 54 54"
-							aria-hidden="true"
-							focusable="false"
-						>
-							<path
-								d={RING_ARC_LEFT}
-								fill="none"
-								stroke="#ffffff"
-								strokeWidth={RING_STROKE_WIDTH_PX}
-							/>
-							<path
-								d={RING_ARC_RIGHT}
-								fill="none"
-								stroke="#ffffff"
-								strokeWidth={RING_STROKE_WIDTH_PX}
-							/>
-							<circle cx="27" cy="27" r={HANDLE_RADIUS_PX} fill="#ffffff" />
-							<path
-								d={CHEVRON_LEFT}
-								fill="none"
-								stroke={ACCENT_COLOR}
-								strokeWidth="2.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							/>
-							<path
-								d={CHEVRON_RIGHT}
-								fill="none"
-								stroke={ACCENT_COLOR}
-								strokeWidth="2.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							/>
-						</svg>
+						<ComparisonSliderHandle
+							branding={branding}
+							brandingSrc={brandingSrc}
+						/>
 					</div>
 					<div
 						className="comparison-slider__divider-line"

@@ -799,9 +799,9 @@ Initial expanded/collapsed state per section, subject to the accordion rule abov
 
 - Comparison information: expanded by default
 - Presentation: collapsed by default
-- Branding: expanded by default, once this section exists
+- Branding: collapsed by default
 
-Because at most one section may be open at a time, these per-section defaults never apply simultaneously. For the sections currently implemented, only Comparison information starts open.
+At most one section is open at a time; Comparison information is the only section that starts open.
 
 Users may collapse individual sections to reduce visual complexity.
 

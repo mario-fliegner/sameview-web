@@ -47,6 +47,13 @@ async function expandPresentationSection(
 	await page.getByTestId("edit-inspector-presentation-toggle").click();
 }
 
+// Branding starts collapsed alongside Presentation (see
+// src/components/EditInspector.tsx's own header comment on the still-open
+// "expanded by default" wording for Branding in APPLICATION_LAYOUT.md).
+async function expandBrandingSection(page: import("@playwright/test").Page) {
+	await page.getByTestId("edit-inspector-branding-toggle").click();
+}
+
 test("editing the title updates the Presentation Preview immediately, with no Apply action", async ({
 	page,
 }) => {
@@ -1484,11 +1491,16 @@ test("Comparison Information starts expanded and Presentation starts collapsed, 
 		page.getByTestId("edit-presentation-background-brand"),
 	).toHaveCount(0);
 
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-branding-option-none")).toHaveCount(0);
+
 	// Each section is its own panel; the outer `.edit-inspector` is only a
 	// layout container and must carry none of that panel styling itself.
 	const sections = page.locator(".edit-inspector__section");
-	await expect(sections).toHaveCount(2);
-	for (let i = 0; i < 2; i++) {
+	await expect(sections).toHaveCount(3);
+	for (let i = 0; i < 3; i++) {
 		const style = await sections.nth(i).evaluate((el) => {
 			const cs = getComputedStyle(el);
 			return {
@@ -1510,14 +1522,15 @@ test("Comparison Information starts expanded and Presentation starts collapsed, 
 	expect(outerStyle.borderWidth).toBe("0px");
 	expect(outerStyle.background).toBe("rgba(0, 0, 0, 0)");
 
-	// A measurable visual gap separates the two section panels.
+	// A measurable visual gap separates every pair of section panels.
 	const firstBox = await sections.nth(0).boundingBox();
 	const secondBox = await sections.nth(1).boundingBox();
-	if (!firstBox || !secondBox) {
+	const thirdBox = await sections.nth(2).boundingBox();
+	if (!firstBox || !secondBox || !thirdBox) {
 		throw new Error("section has no bounding box");
 	}
-	const gap = secondBox.y - (firstBox.y + firstBox.height);
-	expect(gap).toBeGreaterThan(4);
+	expect(secondBox.y - (firstBox.y + firstBox.height)).toBeGreaterThan(4);
+	expect(thirdBox.y - (secondBox.y + secondBox.height)).toBeGreaterThan(4);
 });
 
 // docs/APPLICATION_LAYOUT.md "Structure": "The Edit Inspector behaves as a
@@ -1648,4 +1661,158 @@ test("replacing the workspace resets Presentation Configuration to the documente
 	await expect(
 		page.getByTestId("edit-presentation-text-automatic"),
 	).toHaveAttribute("aria-checked", "true");
+});
+
+// Branding (docs/FEATURE_SPECIFICATION.md F-004;
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 6) — src/components/BrandingSection.tsx,
+// src/components/ComparisonSliderHandle.tsx. `sample-v6-session_full.zip`
+// carries real Android built-in branding (`branding.type: "builtin"`,
+// `branding.builtinId: "star"`, plus its own `branding-handle.png`), so it
+// is also this suite's fixture for the imported-branding assertions.
+
+test("Comparison information starts open and Branding starts collapsed", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-branding-option-none")).toHaveCount(0);
+});
+
+test("imported built-in branding pre-selects Symbol/Star and the Handle renders the imported asset", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await expect(page.getByTestId("edit-branding-option-symbol")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(page.getByTestId("edit-branding-symbol-star")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+});
+
+test("selecting a different built-in symbol switches the Handle to the shared vector registry", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	await expect(page.getByTestId("edit-branding-symbol-fire")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(page.getByTestId("edit-branding-symbol-star")).toHaveAttribute(
+		"aria-checked",
+		"false",
+	);
+	// The freshly chosen symbol is rendered from the registry, not the
+	// imported PNG that came with the fixture's original "star" branding —
+	// this is the one behavior the whole feature hinges on
+	// (src/lib/branding.ts `applyBrandingSymbol`).
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"symbol",
+	);
+});
+
+test("selecting None removes branding and restores the standard Handle", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-option-none").click();
+
+	await expect(page.getByTestId("edit-branding-option-none")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	await expect(page.getByTestId("edit-branding-symbol-star")).toHaveCount(0);
+	const handle = page.getByTestId("comparison-slider-handle");
+	await expect(handle).toHaveAttribute("data-branding-kind", "none");
+	await expect(handle).not.toHaveClass(/handle-visual--branded/);
+});
+
+test("the Handle enlarges for Symbol and Custom Image but not for None", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	const handle = page.getByTestId("comparison-slider-handle");
+
+	// Imported branding (Symbol/Star, an asset) already starts enlarged.
+	await expect(handle).toHaveClass(/handle-visual--branded/);
+
+	await page.getByTestId("edit-branding-option-none").click();
+	await expect(handle).not.toHaveClass(/handle-visual--branded/);
+
+	await page.getByTestId("edit-branding-option-symbol").click();
+	await expect(handle).toHaveClass(/handle-visual--branded/);
+});
+
+test("uploading a valid custom image sets Custom branding and displays it in the Handle", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+	await expect(
+		page.getByTestId("edit-branding-option-custom"),
+	).toHaveAttribute("aria-checked", "true");
+
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "tiny-valid.png"));
+
+	await expect(
+		page.getByTestId("edit-branding-custom-preview"),
+	).toBeVisible();
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	await expect(page.getByTestId("edit-branding-custom-error")).toHaveCount(0);
+});
+
+test("an invalid custom image shows an error and leaves the previous branding intact", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	// Starting point: the fixture's imported Symbol/Star branding.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+
+	await page.getByTestId("edit-branding-option-custom").click();
+	await page
+		.getByTestId("edit-branding-custom-input")
+		.setInputFiles(join(fixturesDir, "images", "non-image-bytes.png"));
+
+	await expect(page.getByTestId("edit-branding-custom-error")).toBeVisible();
+	// docs/FEATURE_SPECIFICATION.md F-004 "Rules and Limitations": an invalid
+	// custom image must not change the current branding — the Handle still
+	// renders the fixture's original imported Star asset, untouched.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
 });

@@ -63,6 +63,7 @@ import {
 	useState,
 } from "react";
 import { useLocale } from "../i18n/LocaleContext";
+import { type HandleBranding, resolveHandleBranding } from "../lib/branding";
 import {
 	CANVAS_CONTENT_GAP_PX,
 	CANVAS_PADDING_PX,
@@ -410,6 +411,18 @@ export default function WorkspaceActive({
 
 	const referenceSrc = useObjectUrl(currentWorkingState.files.referenceBytes);
 	const captureSrc = useObjectUrl(currentWorkingState.files.captureBytes);
+	// Session Branding (docs/FEATURE_SPECIFICATION.md F-004): which of
+	// None/Built-in Symbol/Custom Image is active, and — for an imported
+	// built-in branding or a Custom Image — the object URL for its asset.
+	// `resolveHandleBranding` never needs this URL itself (it only reasons
+	// about *whether* `brandingHandleBytes` is present, not its contents),
+	// so it stays a pure function while this remains the one place the
+	// bytes are actually turned into a displayable `src`, exactly like
+	// `referenceSrc`/`captureSrc` above.
+	const handleBranding = resolveHandleBranding(currentWorkingState);
+	const brandingSrc = useObjectUrl(
+		currentWorkingState.files.brandingHandleBytes,
+	);
 
 	return (
 		<section
@@ -545,6 +558,8 @@ export default function WorkspaceActive({
 							presentation={presentation}
 							visibility={currentWorkingState.presentationVisibility}
 							configuration={currentWorkingState.presentationConfiguration}
+							branding={handleBranding}
+							brandingSrc={brandingSrc}
 						/>
 					</div>
 				</div>
@@ -587,6 +602,8 @@ interface PresentationCanvasProps {
 	readonly presentation: ComparisonPresentation;
 	readonly visibility: PresentationVisibility;
 	readonly configuration: PresentationConfiguration;
+	readonly branding: HandleBranding;
+	readonly brandingSrc: string | undefined;
 }
 
 // docs/BRAND_GUIDE.md "Brand Accent Color" (#4F8CFF) — already reused as-is
@@ -711,6 +728,8 @@ function PresentationCanvas({
 	presentation,
 	visibility,
 	configuration,
+	branding,
+	brandingSrc,
 }: PresentationCanvasProps) {
 	const infoRef = useRef<HTMLDivElement>(null);
 	const [ratio, setRatio] = useState<number | null>(null);
@@ -959,6 +978,8 @@ function PresentationCanvas({
 					leftLabel={leftLabel}
 					rightLabel={rightLabel}
 					showDateLabels={configuration.showSliderDateLabels}
+					branding={branding}
+					brandingSrc={brandingSrc}
 					onDimensionsChange={handleDimensionsChange}
 				/>
 				<div ref={infoRef} className="presentation-canvas__info-wrapper">

@@ -146,6 +146,26 @@ export interface Translations {
 			readonly sliderLegend: string;
 			readonly showSliderDateLabelsLabel: string;
 		};
+		readonly branding: {
+			readonly heading: string;
+			readonly options: {
+				readonly none: string;
+				readonly symbol: string;
+				readonly custom: string;
+			};
+			readonly symbolsLegend: string;
+			readonly symbols: {
+				readonly heart: string;
+				readonly star: string;
+				readonly camera: string;
+				readonly home: string;
+				readonly pin: string;
+				readonly fire: string;
+			};
+			readonly chooseImageButton: string;
+			readonly replaceImageButton: string;
+			readonly invalidImageError: string;
+		};
 	};
 }
 
@@ -272,6 +292,26 @@ export const translations: Record<Locale, Translations> = {
 				sliderLegend: "Slider",
 				showSliderDateLabelsLabel: "Show date labels",
 			},
+			branding: {
+				heading: "Branding",
+				options: {
+					none: "None",
+					symbol: "Symbol",
+					custom: "Custom",
+				},
+				symbolsLegend: "Symbol",
+				symbols: {
+					heart: "Heart",
+					star: "Star",
+					camera: "Camera",
+					home: "Home",
+					pin: "Pin",
+					fire: "Fire",
+				},
+				chooseImageButton: "Choose photo",
+				replaceImageButton: "Replace photo",
+				invalidImageError: "Couldn't load that image — try another file.",
+			},
 		},
 	},
 	de: {
@@ -397,6 +437,27 @@ export const translations: Record<Locale, Translations> = {
 				customColorHexLabel: "HEX",
 				sliderLegend: "Regler",
 				showSliderDateLabelsLabel: "Datumsangaben anzeigen",
+			},
+			branding: {
+				heading: "Branding",
+				options: {
+					none: "Kein",
+					symbol: "Symbol",
+					custom: "Benutzerdefiniert",
+				},
+				symbolsLegend: "Symbol",
+				symbols: {
+					heart: "Herz",
+					star: "Stern",
+					camera: "Kamera",
+					home: "Haus",
+					pin: "Standort",
+					fire: "Flamme",
+				},
+				chooseImageButton: "Foto auswählen",
+				replaceImageButton: "Foto ersetzen",
+				invalidImageError:
+					"Dieses Bild konnte nicht geladen werden — versuche eine andere Datei.",
 			},
 		},
 	},

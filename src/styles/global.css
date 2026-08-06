@@ -884,6 +884,19 @@ main {
 	border-radius: 50%;
 }
 
+/* Session Branding (docs/FEATURE_SPECIFICATION.md F-004;
+   docs/COMPARISON_PRESENTATION.md Part 2 "Handle": "automatically increases
+   in size" when a Built-in Symbol or Custom Image is active). 1.5× the
+   standard 3.375rem handle, matching the SameView Android app's own
+   branding handle sizing (sameview/docs/SESSION_BRANDING_V1.md §8.4:
+   "brandingHandleSize = standardHandleSize × 1.5") — the same viewBox
+   content in src/components/ComparisonSliderHandle.tsx scales up with it,
+   no separate geometry needed. */
+.comparison-slider__handle-visual--branded {
+	width: 5.0625rem;
+	height: 5.0625rem;
+}
+
 .comparison-slider__divider-line {
 	position: absolute;
 	inset-block: 0;
@@ -1424,6 +1437,89 @@ main {
 .presentation-custom-color__fields > .outlined-field {
 	flex: 1;
 	min-width: 0;
+}
+
+/* Branding section (docs/APPLICATION_LAYOUT.md "Branding";
+   docs/FEATURE_SPECIFICATION.md F-004) — src/components/BrandingSection.tsx.
+   The Symbol grid: same "small area expands directly below the option
+   group" placement as `.presentation-custom-color` above, a wrapping grid
+   of icon+label buttons instead of color fields. */
+.branding-symbol-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.branding-symbol-grid__button {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.375rem;
+	width: 4.5rem;
+	padding: 0.625rem 0.5rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: #c7ccd6;
+	font: inherit;
+	font-size: 0.75rem;
+	cursor: pointer;
+}
+
+.branding-symbol-grid__button--selected {
+	border-color: #4f8cff;
+	background: rgba(79, 140, 255, 0.16);
+	color: #ffffff;
+}
+
+.branding-symbol-grid__button:focus-visible {
+	outline: 0.1875rem solid #4f8cff;
+	outline-offset: 0.125rem;
+}
+
+.branding-symbol-grid__icon {
+	width: 1.5rem;
+	height: 1.5rem;
+}
+
+.branding-custom-image {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.625rem;
+	padding: 0.75rem;
+	border: 1px solid #2a3445;
+	border-radius: 0.5rem;
+}
+
+.branding-custom-image__preview {
+	width: 3.375rem;
+	height: 3.375rem;
+	object-fit: contain;
+	border-radius: 0.5rem;
+	background: #17202f;
+}
+
+.branding-custom-image__button {
+	padding: 0.5rem 0.75rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.branding-custom-image__button:focus-visible {
+	outline: 0.1875rem solid #4f8cff;
+	outline-offset: 0.125rem;
+}
+
+.branding-custom-image__error {
+	margin: 0;
+	color: #ff8080;
+	font-size: 0.8125rem;
 }
 
 /* Outlined field (docs/APPLICATION_LAYOUT.md "Input Fields": "The field
