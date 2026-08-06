@@ -31,6 +31,7 @@ import {
 import {
 	BUILTIN_BRANDING_SYMBOLS,
 	type BuiltinSymbolId,
+	getSymbolViewBox,
 } from "../lib/builtin-branding-symbols";
 import { validateImageContent } from "../lib/import-image";
 import { useObjectUrl } from "../lib/use-object-url";
@@ -204,7 +205,7 @@ export default function BrandingSection({
 							>
 								<svg
 									className="branding-symbol-grid__icon"
-									viewBox={`0 0 ${symbol.viewBoxWidth} ${symbol.viewBoxHeight}`}
+									viewBox={getSymbolViewBox(symbol)}
 									aria-hidden="true"
 									focusable="false"
 								>

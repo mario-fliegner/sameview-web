@@ -135,6 +135,35 @@ const BY_ID: ReadonlyMap<BuiltinSymbolId, BuiltinSymbolDefinition> = new Map(
 	SYMBOLS.map((symbol) => [symbol.id, symbol]),
 );
 
+// A uniform safety margin added around every symbol's own declared viewBox
+// before rendering, as a fraction of that symbol's own width/height. Not
+// precautionary: confirmed against the installed package via a real
+// browser `getBBox()` measurement that faStar's tip reaches y≈-32 (of its
+// own 512-unit height) and faFire's flame tip reaches y≈-32 the same way —
+// both ~6.25% above the declared box — which a plain `viewBox="0 0 W H"`
+// silently clips, since a nested <svg> viewport clips to its viewBox by
+// default. 15% comfortably covers that with visible margin to spare. The
+// other four symbols do not need it, but receive the identical padding
+// anyway so every symbol renders at the same relative scale within its own
+// box rather than four unpadded icons sitting visually larger than two
+// padded ones.
+const SYMBOL_VIEWBOX_PADDING_RATIO = 0.15;
+
+// The one place a symbol's padded viewBox is computed — used identically by
+// the Branding selector (src/components/BrandingSection.tsx) and the
+// Handle preview (src/components/ComparisonSliderHandle.tsx), so neither
+// can drift from the other. Padding is symmetric on every axis, so it only
+// ever shrinks the rendered icon within its existing content box; it does
+// not change that box's own size, position or centering (both callers keep
+// their already-correct `preserveAspectRatio="xMidYMid meet"`).
+export function getSymbolViewBox(symbol: BuiltinSymbolDefinition): string {
+	const padX = symbol.viewBoxWidth * SYMBOL_VIEWBOX_PADDING_RATIO;
+	const padY = symbol.viewBoxHeight * SYMBOL_VIEWBOX_PADDING_RATIO;
+	const width = symbol.viewBoxWidth + 2 * padX;
+	const height = symbol.viewBoxHeight + 2 * padY;
+	return `${-padX} ${-padY} ${width} ${height}`;
+}
+
 // Accepts a plain `string` (not just `BuiltinSymbolId`) so callers reading
 // an imported or otherwise untrusted `branding.builtinId` value never need
 // their own separate type guard first — this is the one place that decides

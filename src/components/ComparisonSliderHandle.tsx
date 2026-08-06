@@ -26,7 +26,10 @@
 // source values each constant below is derived from.
 
 import type { HandleBranding } from "../lib/branding";
-import { getBuiltinBrandingSymbol } from "../lib/builtin-branding-symbols";
+import {
+	getBuiltinBrandingSymbol,
+	getSymbolViewBox,
+} from "../lib/builtin-branding-symbols";
 import {
 	BRANDED_HANDLE_VISUAL_REM,
 	getContentBox,
@@ -147,13 +150,16 @@ export default function ComparisonSliderHandle({
 				// than the "asset" case above (docs/COMPARISON_PRESENTATION.md
 				// Part 2 "Handle": SYMBOL_CONTENT_RATIO vs. IMAGE_CONTENT_RATIO) —
 				// both still go through the exact same getContentBox formula, only
-				// the ratio input differs.
+				// the ratio input differs. `getSymbolViewBox` (not a plain
+				// "0 0 W H") adds the same safety margin the Branding selector's
+				// grid icons use, so a symbol never renders larger here than it
+				// does there (src/lib/builtin-branding-symbols.ts).
 				<svg
 					x={symbolBox.offset}
 					y={symbolBox.offset}
 					width={symbolBox.side}
 					height={symbolBox.side}
-					viewBox={`0 0 ${symbol.viewBoxWidth} ${symbol.viewBoxHeight}`}
+					viewBox={getSymbolViewBox(symbol)}
 					preserveAspectRatio="xMidYMid meet"
 					aria-hidden="true"
 					focusable="false"
