@@ -11,6 +11,8 @@ import {
 import { validateImageContent } from "../../../src/lib/import-image.ts";
 import { parseImportedMetadata } from "../../../src/lib/import-metadata.ts";
 import { resolveImportedSession } from "../../../src/lib/import-resolve.ts";
+import { removeEmbeddedLocationData } from "../../../src/lib/jpeg-location-metadata.ts";
+import { removeXmpLocation } from "../../../src/lib/xmp-location-removal.ts";
 
 declare global {
 	interface Window {
@@ -20,6 +22,8 @@ declare global {
 			validateImageContent: typeof validateImageContent;
 			resolveImportedSession: typeof resolveImportedSession;
 			parseImportedMetadata: typeof parseImportedMetadata;
+			removeXmpLocation: typeof removeXmpLocation;
+			removeEmbeddedLocationData: typeof removeEmbeddedLocationData;
 		};
 	}
 }
@@ -30,4 +34,6 @@ window.__importHarness__ = {
 	validateImageContent,
 	resolveImportedSession,
 	parseImportedMetadata,
+	removeXmpLocation,
+	removeEmbeddedLocationData,
 };

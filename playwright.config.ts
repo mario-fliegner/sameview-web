@@ -31,7 +31,8 @@ export default defineConfig({
 	projects: [
 		{
 			name: "harness",
-			testMatch: /import-pipeline\.spec\.ts/,
+			testMatch:
+				/(import-pipeline|xmp-location-removal|jpeg-location-metadata)\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"], baseURL: HARNESS_URL },
 		},
 		{
