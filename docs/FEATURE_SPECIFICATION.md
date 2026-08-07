@@ -261,18 +261,16 @@ Generate Comparison Output allows the user to create a new comparison output art
 
 SameView Web supports multiple comparison output types generated from the same comparison.
 
-The currently supported Version 1 output type is:
+The currently supported Version 1 output types are:
 
 - Standalone HTML
+- Static Microsite
+
+CMS Package is visible as a Coming Soon output type but is not implemented in Version 1.
 
 The output type planned for Version 2 is:
 
 - Hosted Comparison
-
-Later possible output types include:
-
-- Static Microsite
-- CMS Package
 
 Additional comparison output types may be introduced in future versions.
 
@@ -295,6 +293,16 @@ For Version 1, Standalone HTML is generated and immediately handed to the browse
 No additional output-specific configuration is required beyond the Current Working State.
 
 The generated HTML reproduces the current Workspace Preview as closely as technically possible.
+
+Generation and browser download form one continuous user action.
+
+### Static Microsite
+
+For Version 1, Static Microsite is generated and immediately handed to the browser as a ZIP download.
+
+No additional output-specific configuration is required beyond the Current Working State.
+
+The generated microsite reproduces the current Workspace Preview as closely as technically possible, using the same presentation and interaction source as Standalone HTML. No independent presentation or interaction implementation is defined for this output type.
 
 Generation and browser download form one continuous user action.
 

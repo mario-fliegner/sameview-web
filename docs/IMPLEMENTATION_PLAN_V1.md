@@ -4,7 +4,7 @@
 
 This plan translates the approved specifications and the current repository baseline into an executable order for the remaining Version 1 work. It is not a product specification and does not replace one. If this plan conflicts with an approved specification, the specification remains authoritative.
 
-Version 1 ends with a browser-local workflow whose only output is downloadable Standalone HTML. Hosted Publication and its infrastructure are not implementation steps in this plan.
+Version 1 ends with a browser-local workflow whose two outputs are downloadable Standalone HTML and a downloadable Static Microsite ZIP, both generated from the same shared presentation and interaction source. Hosted Publication and its infrastructure are not implementation steps in this plan.
 
 ## 2. Current Baseline
 
@@ -28,7 +28,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - Create immutable Source Data only after complete import validation. Initialize a separate Current Working State from it and make that state the sole source of new outcomes.
 - Commit workspace replacement atomically. Cancellation or any failed import leaves the active workspace and previous outcomes unchanged.
 - Derive display and snapshot values instead of duplicating them in mutable state. Generating an outcome must not mutate Source Data or Current Working State.
-- Keep viewer rendering reusable by the workspace and generated Standalone HTML without coupling it to ZIP import UI or adding a future service layer.
+- Keep viewer rendering reusable by the workspace, generated Standalone HTML and generated Static Microsite without coupling it to ZIP import UI or adding a future service layer. Never implement an independent slider, tooltip, branding or presentation implementation per output type; both outputs are packaging layers over the same shared presentation and interaction source.
 - Add no repository, service, database, upload or publication abstraction without a demonstrated V1 responsibility.
 - Extend the current test stack where it is sufficient. Use Playwright for critical browser workflows that cannot be proportionately covered by Node unit tests alone, per the approved Testing strategy in `AI_ENGINEERING_GUIDE.md`.
 - Every iteration ends in a buildable, type-safe state with focused automated tests where supported and explicit manual verification where browser behavior is involved.
@@ -126,20 +126,20 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** New logo design, external asset hosting, server processing, converting or copying Android's VectorDrawable assets; Outcome Snapshot, Standalone HTML or any other output reusing the configured Built-in Symbol color (later phases).
 - **Risks/open decisions:** None; the built-in symbol catalog (`heart`, `star`, `camera`, `home`, `pin`, `fire`, adopted unchanged from Android), Font Awesome Free as its local icon source, and the Built-in Symbol color options (Dark/Brand/Custom, no White) are decided.
 
-### Phase 7 – Create an Immutable Standalone Outcome Snapshot (F-005)
+### Phase 7 – Create an Immutable Outcome Snapshot (F-005)
 
-- **Goal:** Capture all and only the data needed for one Standalone HTML generation cycle.
+- **Goal:** Capture all and only the data needed for one output generation cycle, shared by every Version 1 output type.
 - **Specs/features:** F-005; User Workflow Outcome Rules, Inspector Transition, Outcome Selection; `IMPORTED_COMPARISON_V1.md` Derived Slider Labels, Snapshot Semantics and outcome allowlist; `APPLICATION_LAYOUT.md` Output Inspector, Output Cards.
 - **Existing basis:** Valid Current Working State, viewer presentation and branding.
-- **Implement:** Enter the output-selection context through the Edit Inspector's **Create Output** action, switching the Context Inspector from the Edit Inspector to the Output Inspector while the Presentation Preview stays unchanged; select the sole available V1 output type (Standalone HTML); derive localized reference/capture labels at generation time; copy allowlisted presentation data, visibility, configuration and required assets — including the currently active branding asset, copied unchanged with no branding-specific image processing, since Phase 6 already normalizes it to its final form — into an immutable Outcome Snapshot; keep prior snapshots independent. A dedicated **Edit** action returns to the Edit Inspector without discarding the Current Working State or the selected output.
+- **Implement:** Enter the output-selection context through the Edit Inspector's **Create Output** action, switching the Context Inspector from the Edit Inspector to the Output Inspector while the Presentation Preview stays unchanged; select one of the two available V1 output types (Standalone HTML or Static Microsite); derive localized reference/capture labels at generation time; copy allowlisted presentation data, visibility, configuration and required assets — including the currently active branding asset, copied unchanged with no branding-specific image processing, since Phase 6 already normalizes it to its final form — into an immutable Outcome Snapshot shared by both output types; keep prior snapshots independent. A dedicated **Edit** action returns to the Edit Inspector without discarding the Current Working State or the selected output.
 - **Likely areas:** Pure label derivation, snapshot builder and the Output Inspector's minimal outcome-selection state in the workspace UI.
 - **Dependencies:** Phases 5–6.
 - **Definition of Done:** Snapshots reflect generation-time state; later edits do not change them; unknown metadata, device URIs, GPS blocks, provenance and unused originals are excluded.
 - **Tests/manual:** Unit tests across date precision, locale/time-zone seams and allowlist exclusion; snapshot immutability tests.
-- **Not included:** HTML serialization, download, publication DTO/API.
+- **Not included:** HTML or microsite packaging/serialization, download, publication DTO/API.
 - **Risks/open decisions:** Tests need deterministic locale/time-zone inputs without changing the browser-facing formatting requirement.
 
-### Phase 8 – Process Images Locally for Standalone HTML
+### Phase 8 – Process Images Locally for Standalone HTML and Static Microsite
 
 - **Goal:** Produce privacy-safe, optimized browser-local image assets for the snapshot without server upload.
 - **Specs/features:** V1 Product Scope item 5; Architecture V1 image input limits; Data and Privacy local-output rules.
@@ -150,20 +150,20 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Definition of Done:** Processed output contains no original binary payload or embedded metadata, remains visually usable, stays local, and failure is atomic.
 - **Tests/manual:** Pure limit tests plus automated Playwright E2E tests with metadata-bearing, malformed, oversized and valid fixtures; manual quality/file-size review.
 - **Not included:** V2 WebP publication limits, server validation, upload pipeline, persistent files.
-- **Risks/open decisions:** Current specs do not define Standalone HTML image format, dimensions, quality or absolute size; define these before implementation rather than copying V2 hosted-output limits.
+- **Risks/open decisions:** Current specs do not define the standalone image format, dimensions, quality or absolute size shared by Standalone HTML and Static Microsite; define these before implementation rather than copying V2 hosted-output limits.
 
-### Phase 9 – Generate and Download Standalone HTML (F-005)
+### Phase 9 – Generate and Download Standalone HTML and Static Microsite (F-005)
 
-- **Goal:** Generate one self-contained interactive HTML artifact entirely in the browser and download it.
+- **Goal:** Generate both Version 1 output artifacts — a self-contained interactive HTML document and a static microsite ZIP — entirely in the browser, from the same shared presentation and interaction source, and download them.
 - **Specs/features:** V1 Product Scope and Outputs; F-005; User Workflow Generate/Make Outcome Available, Download; `APPLICATION_LAYOUT.md` Output Inspector, Download Flow, Progress, Completion; privacy rules.
 - **Existing basis:** Immutable snapshot, processed assets and reusable comparison behavior.
-- **Implement:** Serialize a self-contained, safe HTML document from the snapshot; embed required styles, behavior and assets — the branding asset is embedded via Base64/transport encoding only, never re-encoded or reprocessed; prevent user text from executing as markup; drive the Output Inspector's progress indicator through its generation phases (preparing the comparison, processing images, building the HTML, starting the download) while workspace interactions stay temporarily disabled; create a browser download as one continuous action with generation; keep each generated artifact unchanged and independent from subsequent edits or generations; after the download starts, re-enable **Download HTML** and leave the Output Inspector open with no separate success screen.
-- **Likely areas:** Standalone document renderer, client download orchestration, Output Inspector progress presentation and reusable viewer behavior with no dependency on the workspace page.
-- **Dependencies:** Phases 7–8; standalone artifact contract decision.
-- **Definition of Done:** Downloaded HTML opens without network/server access, presents the snapshot interactively and accessibly, contains only allowlisted data, and remains unchanged after workspace edits.
-- **Tests/manual:** Unit tests for escaping, allowlist serialization and deterministic document structure; build/typecheck/lint; automated Playwright E2E tests for download, offline execution and responsive/keyboard checks inside the artifact; manual spot checks in additional real browsers/devices.
-- **Not included:** Hosted output, URL, QR/iframe code, upload or management; the two other Output Cards remain visible as non-selectable "Coming Soon" placeholders and are not implemented as functioning outputs.
-- **Risks/open decisions:** The specs do not define filename, exact self-contained document contract or code-sharing/build mechanism; settle these before this phase while preserving fully client-side generation.
+- **Implement:** Package the shared presentation and interaction source into each output's packaging layer — a self-contained, safe HTML document with inline styles, behavior and assets for Standalone HTML, and an `index.html` plus local CSS/JS/image asset files packaged into a ZIP for Static Microsite; no independent slider, tooltip, branding or presentation implementation exists per output type. The branding asset is embedded via Base64/transport encoding for Standalone HTML and copied as a local asset file for Static Microsite, in both cases never re-encoded or reprocessed; prevent user text from executing as markup in both. Drive the Output Inspector's progress indicator through its generation phases (preparing the comparison, processing images, building the output, starting the download) while workspace interactions stay temporarily disabled; create a browser download as one continuous action with generation, for either output type; keep each generated artifact unchanged and independent from subsequent edits or generations; after the download starts, re-enable the primary download action and leave the Output Inspector open with no separate success screen.
+- **Likely areas:** Shared presentation/interaction renderer, Standalone HTML packaging, Static Microsite ZIP packaging, client download orchestration, Output Inspector progress presentation and reusable viewer behavior with no dependency on the workspace page.
+- **Dependencies:** Phases 7–8; standalone and microsite artifact contract decisions.
+- **Definition of Done:** Downloaded Standalone HTML opens without network/server access; a downloaded Static Microsite ZIP, once unpacked, works the same way on ordinary static webspace; both present the snapshot interactively and accessibly using the same presentation and interaction source, contain only allowlisted data, and remain unchanged after workspace edits.
+- **Tests/manual:** Unit tests for escaping, allowlist serialization and deterministic document/package structure; build/typecheck/lint; automated Playwright E2E tests for download, offline execution (Standalone HTML) and unpack-and-serve execution (Static Microsite), and responsive/keyboard checks inside each artifact; manual spot checks in additional real browsers/devices.
+- **Not included:** Hosted output, URL, QR/iframe code, upload or management; CMS Package remains visible as a non-selectable "Coming Soon" Output Card and is not implemented as a functioning output.
+- **Risks/open decisions:** The specs do not define filename, exact self-contained document contract, static microsite folder/asset structure beyond `index.html` plus local assets, or the code-sharing/build mechanism between the two packaging paths; settle these before this phase while preserving fully client-side generation and a single shared presentation/interaction source.
 
 ### Phase 10 – V1 Integration and Release Readiness
 
@@ -193,7 +193,7 @@ The repository is not an empty Astro starter. The following is present and verif
 11. **Configure branding:** import and switch No Branding/Built-in/Custom, including atomic invalid-image handling. Predecessor: 8.
 12. **Derive labels and build Outcome Snapshots:** generation-time locale formatting, explicit allowlist and snapshot immutability. Predecessor: 10–11.
 13. **Process comparison images in-browser:** content validation, 40 MP guard, metadata removal and agreed Standalone optimization. Predecessor: 12 and image-output decision.
-14. **Generate safe self-contained HTML:** embed one snapshot, assets, style and viewer behavior without network dependencies. Predecessor: 13 and artifact-contract decision.
+14. **Generate safe self-contained HTML and static microsite packaging:** embed one shared snapshot, assets, style and viewer behavior into each output's packaging without network dependencies. Predecessor: 13 and artifact-contract decisions.
 15. **Download and preserve independent outcomes:** browser download plus repeated generation without changing older artifacts or workspace state. Predecessor: 14.
 16. **Run the complete V1 integration pass:** error recovery, accessibility, responsiveness, offline output and repository quality gates. Predecessor: 1–15.
 
@@ -229,7 +229,7 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 - Anonymous-publishing abuse protection
 - Multiple active or managed workspaces
 - Automatic Android-to-web transfer
-- Static Microsite, CMS Package and all further output types
+- CMS Package (visible as Coming Soon, not implemented) and all further output types beyond Standalone HTML and Static Microsite
 
 ## 9. Open Decisions and Specification Conflicts
 
@@ -241,7 +241,7 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 | Presentation visibility representation | It must be independent of preserved imported `additional.visibility`, but no concrete working-state field is specified. | Iteration 10 | F-003 visibility table and metadata preservation rules. |
 | Built-in branding catalog | Resolved: Web V1 adopts the Android built-in symbol catalog unchanged (`heart`, `star`, `camera`, `home`, `pin`, `fire`), rendered from local Font Awesome Free icons bundled with the build. | Iteration 11 | Only No Branding, Built-in Symbol and Custom Image; Brand Guide; no new brand design; no CDN or externally loaded webfont; only the six needed icons bundled. |
 | Standalone image profile | V1 requires metadata removal and optimization for the reference and capture images, but does not specify their format, dimensions, quality or size (the branding asset's format is already fixed by Phase 6 and is not part of this decision). V2 hosted WebP limits must not be copied silently. | Iteration 13 | 40 MP input limit, local processing, usable visual quality, no upload. |
-| Standalone artifact contract | Filename, exact self-contained document shape and viewer code-sharing/build approach are unspecified. | Iteration 14 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot, Standalone HTML only. |
+| Standalone and microsite artifact contract | Filename, exact self-contained document shape, static microsite folder/asset structure and shared code-sharing/build approach are unspecified. | Iteration 14 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot shared by Standalone HTML and Static Microsite. |
 
 These decisions need narrow technical or product clarification in their named iteration; they do not justify advance infrastructure.
 
@@ -262,7 +262,7 @@ Version 1 is complete when:
 - every specified editable value and visibility can be changed, all immutable/preserved data remains intact, and branding supports exactly the three specified options;
 - reference and capture labels are derived into an immutable Outcome Snapshot at generation time;
 - the two comparison images are validated, stripped of embedded metadata and optimized locally under the agreed Standalone profile, and any active branding asset — already normalized to its final form when selected in Phase 6 — is embedded unchanged;
-- a self-contained Standalone HTML file can be generated and downloaded without upload, database or network dependence, opens offline, and contains only allowlisted snapshot data;
+- a self-contained Standalone HTML file and a Static Microsite ZIP can each be generated and downloaded without upload, database or network dependence — the HTML opens offline and the unpacked microsite works on ordinary static webspace — both from the same shared presentation and interaction source, and both containing only allowlisted snapshot data;
 - editing or regenerating never changes Source Data or previously generated outcomes;
 - focused automated tests pass together with `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`, and the defined manual browser/download/accessibility checks pass;
 - none of the Deferred Work or preventative publication infrastructure has been implemented as part of V1.

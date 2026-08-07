@@ -33,12 +33,12 @@ listed in [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md#outputs). PRODUCT_SCOPE.md
 remains the sole authority on which output types are approved for a given
 version; naming an output type in this document does not add it to the
 approved scope. Beyond the Workspace Preview and the currently approved
-Standalone HTML and (planned Version 2) Hosted Comparison outputs, this
-document may refer to further output types, such as a Share Image or Share
-Video, purely as illustrative examples of the kind of additional output type
-this presentation model is designed to support if such a type is approved in
-the future. Such examples are not themselves part of the approved Version 1
-or Version 2 product scope.
+Standalone HTML and Static Microsite outputs (and the planned Version 2
+Hosted Comparison output), this document may refer to further output types,
+such as a Share Image or Share Video, purely as illustrative examples of the
+kind of additional output type this presentation model is designed to
+support if such a type is approved in the future. Such examples are not
+themselves part of the approved Version 1 or Version 2 product scope.
 
 The Workspace Preview is the visual reference for this presentation model. It
 corresponds to the Presentation Preview described in APPLICATION_LAYOUT.md. Every generated output should reproduce the Workspace Preview as
@@ -159,12 +159,15 @@ than to the Presentation Canvas itself.
 Generation never replaces the Workspace Preview with a separate success,
 loading or result presentation.
 
-## Standalone HTML Fidelity
+## Standalone HTML and Static Microsite Fidelity
 
-The Version 1 Standalone HTML output reproduces the Workspace Preview as
-closely as technically possible.
+The Version 1 Standalone HTML and Static Microsite outputs reproduce the
+Workspace Preview as closely as technically possible, from the same shared
+presentation and interaction source. Neither output defines its own
+independent slider, tooltip, branding or presentation implementation; they
+differ only in packaging.
 
-The generated HTML contains the same visual presentation, including:
+Both outputs contain the same visual presentation, including:
 
 - comparison stage,
 - comparison information,
@@ -175,9 +178,9 @@ The generated HTML contains the same visual presentation, including:
 - corner radius, and
 - visibility configuration.
 
-The output is intended to be WYSIWYG. Any unavoidable technical differences
-between browser rendering environments should be minimized but do not alter
-the presentation model defined by this specification.
+Both outputs are intended to be WYSIWYG. Any unavoidable technical
+differences between browser rendering environments should be minimized but
+do not alter the presentation model defined by this specification.
 
 
 ------------------------------------------------------------------------
@@ -522,8 +525,8 @@ reverse geocoding is performed in either direction.
 This document defines only how Map Preview is rendered when it is present.
 It does not decide, for any specific output type, whether a Map Preview is
 included. That inclusion decision belongs to the specification owning each
-output type (e.g. Standalone HTML, Hosted Comparison) and remains
-unspecified here until that specification defines it.
+output type (e.g. Standalone HTML, Static Microsite, Hosted Comparison) and
+remains unspecified here until that specification defines it.
 
 Any output type that includes a Map Preview remains fully subject to the
 existing privacy rules in DATA_AND_PRIVACY.md and IMPORTED_COMPARISON_V1.md,
@@ -765,9 +768,9 @@ pixel value and no renderer-specific state become part of the Current
 Working State for Text.
 
 Its goal is a consistent WYSIWYG presentation across the Workspace
-Preview, Standalone HTML and any further approved output type —
-illustratively including a possible future Image Export or Microsite
-output, in the same illustrative sense as "Purpose" above — regardless of
-that output's own concrete rendered size. Naming an output type here does
-not add it to the approved product scope; PRODUCT_SCOPE.md remains the
-sole authority on that.
+Preview, Standalone HTML, Static Microsite and any further approved output
+type — illustratively including a possible future Image Export output, in
+the same illustrative sense as "Purpose" above — regardless of that
+output's own concrete rendered size. Naming an output type here does not
+add it to the approved product scope; PRODUCT_SCOPE.md remains the sole
+authority on that.

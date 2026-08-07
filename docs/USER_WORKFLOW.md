@@ -164,17 +164,18 @@ The user may return to editing at any time through the dedicated **Edit** action
 
 Choosing an output establishes the current outcome-generation context without replacing or recreating the workspace.
 
-Version 1 currently provides one available outcome type:
+Version 1 currently provides two available outcome types:
 
 - Standalone HTML
+- Static Microsite
 
 Additional outcome types may be introduced in future versions without changing the overall workflow model.
 
 ### Download
 
-For the Standalone HTML outcome, generation and browser download form one continuous user action.
+For both the Standalone HTML and Static Microsite outcomes, generation and browser download form one continuous user action.
 
-The workflow cycle concludes when the generated HTML has been handed to the browser for download.
+The workflow cycle concludes when the generated artifact — a single HTML file for Standalone HTML, a ZIP archive for Static Microsite — has been handed to the browser for download.
 
 The workspace remains available for further editing or additional outcome generation.
 

@@ -492,7 +492,7 @@ A back action (`← Edit`) returns to the Edit Inspector without losing any work
 Version 1 provides three output cards:
 
 - Standalone HTML (available)
-- Static Microsite (Coming Soon)
+- Static Microsite (available)
 - CMS Package (Coming Soon)
 
 Hosted Comparison is not presented in Version 1.
@@ -503,7 +503,7 @@ Each card contains:
 - short explanation
 - optional status badge (Coming Soon)
 
-Only Standalone HTML can be selected.
+Standalone HTML and Static Microsite can be selected. CMS Package cannot be selected.
 
 ## Standalone HTML
 
@@ -520,13 +520,26 @@ The export consists of:
 - no external resources
 - complete offline functionality
 
+## Static Microsite
+
+Static Microsite requires no additional output settings.
+
+The generated microsite represents the current Presentation Preview exactly at the moment of download, using the same presentation and interaction source as Standalone HTML — no separate presentation renderer exists for this output type.
+
+The export consists of:
+
+- a ZIP archive
+- an `index.html`
+- local CSS, JavaScript and image assets in a sensible subfolder structure
+- no external resources or CDNs
+- no unnecessary fonts; the existing system font stack is used
+- complete offline functionality once unpacked onto ordinary static webspace
+
 ## Download Flow
 
-The primary action is:
+The primary action reflects the selected output type, for example `Download HTML` for Standalone HTML or `Download ZIP` for Static Microsite.
 
-`Download HTML`
-
-Internally the application generates the HTML document and immediately starts the browser download.
+Internally the application generates the selected output and immediately starts the browser download.
 
 Generation and download are presented as one continuous user action.
 
@@ -542,7 +555,7 @@ Examples:
 
 - Preparing comparison
 - Processing images
-- Building HTML
+- Building output
 - Starting download
 
 The Presentation Preview remains visible.
@@ -554,7 +567,7 @@ Workspace interactions are temporarily disabled until generation completes.
 After the browser download starts:
 
 - the progress UI disappears
-- Download HTML becomes available again
+- the primary download action becomes available again
 - the Output Inspector remains open
 - the current workspace remains unchanged
 

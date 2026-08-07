@@ -36,8 +36,8 @@ SameView Web presents, exports and optionally publishes it.
 2. Display an interactive comparison slider.
 3. Edit supported comparison metadata: title, description, reference date, user-authored location and session branding.
 4. Derive slider labels from the reference date and immutable capture timestamp; slider labels are not independently editable.
-5. Remove image metadata and optimize images as required for the client-side standalone HTML output.
-6. Download as standalone HTML, generated entirely in the browser without uploading to the server.
+5. Remove image metadata and optimize images as required for the client-side standalone HTML and static microsite outputs.
+6. Download as standalone HTML or as a static microsite ZIP, both generated entirely in the browser from the same shared presentation and interaction source, without uploading to the server.
 
 The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md).
 
@@ -46,6 +46,11 @@ The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](
 Currently supported in Version 1:
 
 - Standalone HTML
+- Static Microsite
+
+Visible in the Output Inspector as Coming Soon, not implemented in Version 1:
+
+- CMS Package
 
 Planned for Version 2:
 
@@ -53,7 +58,7 @@ Planned for Version 2:
 - QR code
 - iframe embed code
 
-SameView Web is designed to support multiple comparison output types generated from the same comparison. Version 1 supports Standalone HTML. Version 2 is planned to add Hosted Comparison, QR code and iframe embed code. Later versions may additionally support a Static Microsite and a CMS Package, and further comparison output types may be added in the future.
+SameView Web is designed to support multiple comparison output types generated from the same comparison. Version 1 supports Standalone HTML and Static Microsite, both produced from the same shared presentation and interaction source and differing only in packaging. CMS Package is shown as Coming Soon but has no Version 1 implementation. Version 2 is planned to add Hosted Comparison, QR code and iframe embed code. Further comparison output types may be added in the future.
 
 ## Out of Scope (V1)
 
