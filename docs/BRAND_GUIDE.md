@@ -52,16 +52,28 @@ Nicht:
 
 ## Typography
 
-### Primary Typeface
+Two independent typography scopes exist for sameview-web: the Application UI
+(this project's own interface — header, footer, Edit/Output Inspector,
+controls, loading/status text) and, only within sameview-web, the
+Comparison Presentation (the previewed/exported comparison itself).
+`sameview.app` has only the Application UI scope; it has no Comparison
+Presentation.
+
+### Application UI Typeface
 
 Name:
-None — SameView's typography standard is the operating system's default UI
-font, delivered via Tailwind CSS v4's built-in `font-sans` stack. No custom
-font file, font package, or external font provider is used. This is the
-current, intentional shared typography standard, not a placeholder.
+None — SameView's Application UI typography standard is the operating
+system's default UI font, delivered via Tailwind CSS v4's built-in
+`font-sans` stack. No custom font file, font package, or external font
+provider is used for the Application UI. This is the current, intentional
+Application UI typography standard, not a placeholder — see "Comparison
+Presentation Typography" below for sameview-web's separate, selectable
+Comparison Presentation typeface.
 
 Usage:
 All headings, body copy, navigation, and buttons across the entire site.
+This does not include sameview-web's Comparison Presentation, which is
+covered separately below.
 
 Fallback stack (= the full active stack, since no custom font precedes it):
 `ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
@@ -86,27 +98,69 @@ Italic is used only for `.prose blockquote` (markdown content).
 
 ### Font Hosting
 
-- The current shared SameView typography standard is the system font stack —
-  no web font request is made to any provider.
+- The Application UI typography standard is the system font stack; no web
+  font request is made to any provider for it.
 - No external font provider or font CDN is used.
-- If a custom web font is introduced in the future, it must be hosted and
-  served locally within each project (e.g. under `public/` or
-  `src/assets/`), with no dependency on Google Fonts, Adobe Fonts, or any
-  other third-party domain.
+- A custom web font, wherever introduced — see "Comparison Presentation
+  Typography" below for the current such case — must be hosted and served
+  locally within each project (e.g. under `public/` or `src/assets/`), with
+  no dependency on Google Fonts, Adobe Fonts, or any other third-party
+  domain.
 - Only the font weights and formats actually required by the product may be
   included.
 - Font licensing must be verified to permit local web embedding before any
   font file is added.
 
+### Comparison Presentation Typography (sameview-web only)
+
+Scope: sameview-web's Comparison Presentation only
+(docs/COMPARISON_PRESENTATION.md Part 3 "Typography") — the rendered Title,
+Description, Time, Time Difference, Location, Slider Date Labels and their
+Overflow Tooltips. It never applies to sameview-web's own application UI
+(header, footer, Edit/Output Inspector, controls, loading/status text),
+which remains the Application UI Typeface above. `sameview.app` has no
+Comparison Presentation and is unaffected by this section.
+
+Unlike the Application UI, the Comparison Presentation offers a
+user-selectable Presentation Font, configured per comparison
+(docs/COMPARISON_PRESENTATION.md Part 3 "Typography").
+
+Version 1 offers exactly three Presentation Fonts:
+
+- Inter — default
+- Manrope
+- Space Grotesk
+
+All three are published under the SIL Open Font License 1.1, which permits
+local self-hosting and embedding. Each is hosted under the "Font Hosting"
+rules above: no Google Fonts, Adobe Fonts or other third-party/CDN request;
+only the weights and formats actually required by the Comparison
+Presentation are bundled; licensing is verified before any font file is
+added.
+
+Each Presentation Font's own officially published glyph coverage is used as
+published, with no artificial restriction (e.g. no Latin/Latin-Extended-only
+subsetting). A character not covered by the selected Presentation Font falls
+back to the Application UI's system font stack above, exactly like any other
+web font fallback.
+
+Whether a given Presentation Font is bundled as static per-weight files or
+as a variable font is an implementation decision, made once the actual
+official font files are evaluated for the weights, glyph coverage and file
+size the Comparison Presentation actually needs — not decided by this
+document.
+
 ### Cross-Product Usage
 
-This typography definition is the shared standard for:
+The Application UI Typeface above is the shared standard for:
 
 - `sameview.app`
 - `web.sameview.app`
 
-Each project implements the typography independently in its own styles and
-configuration. The projects do not share CSS automatically.
+Each project implements it independently in its own styles and
+configuration; the projects do not share CSS automatically. The Comparison
+Presentation Typography above is specific to sameview-web and has no
+counterpart on `sameview.app`.
 
 ## Brand Colors
 

@@ -175,7 +175,8 @@ Both outputs contain the same visual presentation, including:
 - branding,
 - colors,
 - frame,
-- corner radius, and
+- corner radius,
+- typography, and
 - visibility configuration.
 
 Both outputs are intended to be WYSIWYG. Any unavoidable technical
@@ -723,6 +724,35 @@ Selecting Custom opens the same Custom Color area as Background and Frame
 — see "Custom Color Editing" above. Background, Frame and Text share one
 identical Custom Color editing behavior.
 
+## Typography
+
+-   Font
+
+Options:
+
+-   Inter
+-   Manrope
+-   Space Grotesk
+
+Default: Inter.
+
+Font selects the typeface used by the Comparison Information Rendering text
+elements (Part 2): Title, Time (Reference Date, Capture Date and, when
+enabled, the Duration/Time Difference addition), Location, and Description,
+together with the Comparison Stage's own Slider Date Labels and the Overflow
+Tooltip of any of the above. It applies uniformly to all of these; no
+per-item Font option is defined.
+
+Font does not affect: the Handle, the compared images of the Comparison
+Stage, the Edit Inspector UI, Branding, Map Preview, or any other
+application UI outside the Comparison Presentation.
+
+The three fonts and their licensing and hosting requirements are defined in
+BRAND_GUIDE.md's "Comparison Presentation Typography". A character not
+covered by the selected font's own published glyph coverage falls back to
+BRAND_GUIDE.md's Application UI system font stack, exactly like any other
+web font fallback.
+
 ## Comparison Information
 
 -   Show Title
@@ -774,8 +804,8 @@ dimensions, offsets and any other rendered measurement — proportionally to
 the actual size of the Presentation Canvas being rendered at that moment.
 
 This principle applies to current Presentation Configuration properties
-(Corner Radius, Frame) and equally to any future property this model may
-gain (for example Spacing, Typography, Shadows).
+(Corner Radius, Frame, Font) and equally to any future property this model
+may gain (for example Spacing, Shadows).
 
 A configured Custom Color's normalized `#RRGGBB` value (see "Custom Color
 Editing" above) is itself such a semantic decision, not a pixel value —
@@ -790,6 +820,14 @@ Renderers derive the concrete rendered text color — including Automatic's
 light/dark determination — from this semantic state at render time. No
 pixel value and no renderer-specific state become part of the Current
 Working State for Text.
+
+Font follows this same semantic-state architecture: each of its three
+options (Inter, Manrope, Space Grotesk) is a semantic identifier, not a
+file path, byte content or CSS `font-family` string. Renderers resolve the
+concrete font resource — including whether a given family is instantiated
+from static per-weight files or a variable font — from this identifier at
+render time; no such rendering detail becomes part of the Current Working
+State.
 
 Its goal is a consistent WYSIWYG presentation across the Workspace
 Preview, Standalone HTML, Static Microsite and any further approved output

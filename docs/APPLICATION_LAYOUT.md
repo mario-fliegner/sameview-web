@@ -517,6 +517,7 @@ The export consists of:
 - inline CSS
 - inline JavaScript
 - embedded Base64 images
+- the selected Presentation Font embedded (docs/COMPARISON_PRESENTATION.md Part 3 "Typography")
 - no external resources
 - complete offline functionality
 
@@ -532,7 +533,7 @@ The export consists of:
 - an `index.html`
 - local CSS, JavaScript and image assets in a sensible subfolder structure
 - no external resources or CDNs
-- no unnecessary fonts; the existing system font stack is used
+- only the selected Presentation Font included locally, as a local asset (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"); no unnecessary fonts otherwise
 - complete offline functionality once unpacked onto ordinary static webspace
 
 ## Remove Embedded Location Data
@@ -929,13 +930,14 @@ Individual location components cannot be hidden separately.
 
 ## Presentation
 
-The Presentation section contains three top-level control groups, in this fixed order:
+The Presentation section contains four top-level control groups, in this fixed order:
 
 1. Colors
-2. Shape
-3. Slider
+2. Typography
+3. Shape
+4. Slider
 
-Each top-level group has its own group heading. Within the Presentation section, all three top-level group headings share the same typography, weight, and hierarchy — none is visually subordinate to another.
+Each top-level group has its own group heading. Within the Presentation section, all four top-level group headings share the same typography, weight, and hierarchy — none is visually subordinate to another.
 
 A uniform vertical spacing separates the top-level groups — greater than the spacing used between the subgroups nested within a top-level group.
 
@@ -998,6 +1000,24 @@ Default: Automatic.
 When Custom is selected, the same expandable "Custom color" area as Background and Frame appears — same structure, same operation.
 
 See docs/COMPARISON_PRESENTATION.md Part 3 "Text" for what each option controls.
+
+### Typography
+
+Typography contains a single subgroup:
+
+#### Font
+
+A dropdown control.
+
+Options:
+
+- Inter
+- Manrope
+- Space Grotesk
+
+Default: Inter.
+
+The comparison preview updates immediately. See docs/COMPARISON_PRESENTATION.md Part 3 "Typography" for what Font controls and BRAND_GUIDE.md "Comparison Presentation Typography" for the three fonts themselves.
 
 ### Shape
 
