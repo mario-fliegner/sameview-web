@@ -134,6 +134,13 @@ export interface Translations {
 				readonly dark: string;
 				readonly custom: string;
 			};
+			readonly typographyLegend: string;
+			readonly fontLegend: string;
+			readonly fontOptions: {
+				readonly inter: string;
+				readonly manrope: string;
+				readonly spaceGrotesk: string;
+			};
 			readonly shapeLegend: string;
 			readonly cornersLegend: string;
 			readonly cornerOptions: {
@@ -286,6 +293,13 @@ export const translations: Record<Locale, Translations> = {
 					dark: "Dark",
 					custom: "Custom",
 				},
+				typographyLegend: "Typography",
+				fontLegend: "Font",
+				fontOptions: {
+					inter: "Inter",
+					manrope: "Manrope",
+					spaceGrotesk: "Space Grotesk",
+				},
 				shapeLegend: "Shape",
 				cornersLegend: "Corners",
 				cornerOptions: {
@@ -437,6 +451,13 @@ export const translations: Record<Locale, Translations> = {
 					light: "Hell",
 					dark: "Dunkel",
 					custom: "Benutzerdefiniert",
+				},
+				typographyLegend: "Typografie",
+				fontLegend: "Schriftart",
+				fontOptions: {
+					inter: "Inter",
+					manrope: "Manrope",
+					spaceGrotesk: "Space Grotesk",
 				},
 				shapeLegend: "Form",
 				cornersLegend: "Ecken",

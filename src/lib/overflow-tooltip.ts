@@ -207,6 +207,25 @@ export function attachPresentationOverflowTooltips(
 		const tooltipElement = ensureTooltipElement();
 		tooltipElement.dataset.overflowTooltipFor =
 			triggerElement.getAttribute("data-testid") ?? "";
+		// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": a Presentation
+		// Overflow Tooltip ("overflow" trigger — Title/Description/Location)
+		// renders with the same resolved Presentation Font as the truncated
+		// text it belongs to; a "static" trigger (an application-UI icon
+		// button, e.g. Fullscreen/Close in WorkspaceActive.tsx) keeps this
+		// shared tooltip element's own default Application UI system font
+		// instead — both kinds share this one element/class (module comment
+		// above), so the font must be set per-open, not once in CSS, and
+		// cleared again for the next open if it differs. `getComputedStyle`
+		// reads whatever `font-family` is actually in effect on the trigger
+		// (system stack or a resolved Presentation Font, docs/BRAND_GUIDE.md
+		// "Comparison Presentation Typography"), so this never needs its own
+		// awareness of the three Presentation Font options.
+		if (state.kind === "overflow") {
+			tooltipElement.style.fontFamily =
+				getComputedStyle(triggerElement).fontFamily;
+		} else {
+			tooltipElement.style.removeProperty("font-family");
+		}
 		// Step order (docs/COMPARISON_PRESENTATION.md "Overflow Tooltip"
 		// positioning requirement): set the real content and make the node
 		// measurable first, still invisible; only then measure its real

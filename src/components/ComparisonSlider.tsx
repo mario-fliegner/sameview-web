@@ -73,6 +73,12 @@ interface ComparisonSliderProps {
 	// itself, only whether a label already eligible to show is actually
 	// rendered.
 	readonly showDateLabels: boolean;
+	// The resolved Presentation Font's CSS `font-family` stack
+	// (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"), already
+	// resolved by src/lib/presentation-fonts.ts — this component never reads
+	// `PresentationConfiguration` itself, exactly like every other
+	// already-resolved value here (see module comment above).
+	readonly presentationFontFamily: string;
 	// Additive and optional. Reports the natural pixel dimensions already
 	// held in this component's own `dimensions` state below (the same value
 	// `--comparison-ratio` is derived from) — fires exactly once both images
@@ -94,21 +100,25 @@ const KEYBOARD_STEP = 5;
 const LABEL_GAP_PX = 8;
 // Label font must match `.comparison-slider__label` in global.css exactly —
 // canvas measureText() only reports the width the browser will actually
-// render for this font, not an approximation.
-const LABEL_FONT =
-	'600 0.875rem ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
+// render for this font, not an approximation. The font-family portion is
+// `presentationFontFamily` (docs/COMPARISON_PRESENTATION.md Part 3
+// "Typography"), not a fixed constant — see this component's own `labelFont`
+// below.
+function buildLabelFont(presentationFontFamily: string): string {
+	return `600 0.875rem ${presentationFontFamily}`;
+}
 
 let measurementCanvas: HTMLCanvasElement | null = null;
 
 // Mirrors Android's TextMeasurer role for the edge-hiding rule below: a pure
 // text-shaping measurement, independent of DOM layout, so it never forces a
 // layout read the way measuring a rendered element's own box would.
-function measureLabelWidth(text: string): number {
+function measureLabelWidth(text: string, font: string): number {
 	if (typeof document === "undefined") return 0;
 	measurementCanvas ??= document.createElement("canvas");
 	const context = measurementCanvas.getContext("2d");
 	if (!context) return 0;
-	context.font = LABEL_FONT;
+	context.font = font;
 	return context.measureText(text).width;
 }
 
@@ -128,6 +138,7 @@ export default function ComparisonSlider({
 	showDateLabels,
 	branding,
 	brandingSrc,
+	presentationFontFamily,
 	onDimensionsChange,
 }: ComparisonSliderProps) {
 	const frameRef = useRef<HTMLDivElement>(null);
@@ -183,17 +194,46 @@ export default function ComparisonSlider({
 		return () => observer.disconnect();
 	}, []);
 
-	// Measured only when the label text changes, never on every pointer
-	// move — the priority-chain in src/lib/compare-slider-labels.ts only
-	// re-derives these strings when the underlying dates/locale change, so
-	// re-measuring on every render they're stable is itself already rare.
-	const leftLabelWidthPx = useMemo(
-		() => measureLabelWidth(leftLabel),
-		[leftLabel],
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": the font-family
+	// portion of the measured label font, not a fixed constant — see
+	// `buildLabelFont` above.
+	const labelFont = useMemo(
+		() => buildLabelFont(presentationFontFamily),
+		[presentationFontFamily],
 	);
+
+	// Forces the two label-width measurements below to re-run once the
+	// selected Presentation Font's actual webfont file has finished loading
+	// — the same reasoning and mechanism as
+	// src/components/ComparisonPresentationInfo.tsx's own `fontsReadyTick`
+	// (see that component's header comment for the full argument): without
+	// this, a measurement taken before the real file has finished loading
+	// would silently use the fallback font's metrics until some unrelated
+	// re-render happened to measure again.
+	const [fontsReadyTick, setFontsReadyTick] = useState(0);
+	useEffect(() => {
+		let cancelled = false;
+		void document.fonts.load(labelFont).then(() => {
+			if (!cancelled) setFontsReadyTick((tick) => tick + 1);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [labelFont]);
+
+	// Measured only when the label text or font changes, never on every
+	// pointer move — the priority-chain in src/lib/compare-slider-labels.ts
+	// only re-derives these strings when the underlying dates/locale change,
+	// so re-measuring on every render they're stable is itself already rare.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fontsReadyTick is a deliberate recompute trigger, intentionally unused inside — see the comment above.
+	const leftLabelWidthPx = useMemo(
+		() => measureLabelWidth(leftLabel, labelFont),
+		[leftLabel, labelFont, fontsReadyTick],
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fontsReadyTick is a deliberate recompute trigger, intentionally unused inside — see the comment above.
 	const rightLabelWidthPx = useMemo(
-		() => measureLabelWidth(rightLabel),
-		[rightLabel],
+		() => measureLabelWidth(rightLabel, labelFont),
+		[rightLabel, labelFont, fontsReadyTick],
 	);
 
 	function handleImageLoad(

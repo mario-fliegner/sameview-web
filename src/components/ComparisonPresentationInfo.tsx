@@ -40,7 +40,7 @@
 // unconditionally until then, so that existing convergence loop is never
 // touched or influenced by Adaptive Sizing.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	type AdaptiveTextSize,
 	computeWrappedLineCount,
@@ -62,6 +62,12 @@ interface ComparisonPresentationInfoProps {
 	// this value back and re-trigger a different decision — see
 	// WorkspaceActive.tsx's `stableWidthPx` for the full reasoning.
 	readonly stableWidthPx: number | null;
+	// The resolved Presentation Font's CSS `font-family` stack
+	// (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"), already
+	// resolved by src/lib/presentation-fonts.ts — this component never reads
+	// `PresentationConfiguration` or decides which of the three Presentation
+	// Fonts is active, exactly like every other already-resolved value here.
+	readonly presentationFontFamily: string;
 }
 
 // Must match this file's own CSS standard-size rules exactly
@@ -79,12 +85,26 @@ interface ComparisonPresentationInfoProps {
 // represent (letter-spacing, `font-variant-numeric`, …): including one in
 // the CSS rule without a corresponding change here would silently diverge
 // the measured width from the rendered width.
-const SYSTEM_FONT_STACK =
-	'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
-const TITLE_FONT = `500 1rem ${SYSTEM_FONT_STACK}`;
-const DESCRIPTION_FONT = `400 0.875rem ${SYSTEM_FONT_STACK}`;
-const TIME_FONT = `500 0.8125rem ${SYSTEM_FONT_STACK}`;
-const LOCATION_FONT = `400 0.75rem ${SYSTEM_FONT_STACK}`;
+//
+// The font-family portion is `presentationFontFamily`
+// (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"), not a fixed
+// constant: these four strings are built fresh whenever the selected
+// Presentation Font changes, from the same resolved value
+// src/components/WorkspaceActive.tsx also applies as `--presentation-font-family`
+// to this file's own CSS rules — one resolved value, never two independently
+// derived font strings that could drift apart.
+function buildTitleFont(presentationFontFamily: string): string {
+	return `500 1rem ${presentationFontFamily}`;
+}
+function buildDescriptionFont(presentationFontFamily: string): string {
+	return `400 0.875rem ${presentationFontFamily}`;
+}
+function buildTimeFont(presentationFontFamily: string): string {
+	return `500 0.8125rem ${presentationFontFamily}`;
+}
+function buildLocationFont(presentationFontFamily: string): string {
+	return `400 0.75rem ${presentationFontFamily}`;
+}
 
 // The Adaptive Sizing decision threshold, deliberately kept separate from
 // each item's visible clamp (src/styles/global.css
@@ -119,12 +139,21 @@ function formatLocation(location: {
 // Standard is used whenever `text` is empty/not yet measurable (including
 // the entire pre-`canvasReady` phase, where `availableWidthPx` is `null`)
 // — never a false "compact" from missing data.
+//
+// `fontsReadyTick` carries no value of its own — like
+// `forceRenderAfterMeasurement` in src/components/WorkspaceActive.tsx, it
+// exists purely so this memo recomputes once the Presentation Font's actual
+// webfont file has finished loading (see this component's own font-loading
+// effect below), since `measureWordWidths`/`measureSpaceWidth` otherwise
+// silently measure against the fallback font's metrics until then.
 function useAdaptiveTextSize(
 	text: string | undefined,
 	font: string,
 	maxLines: number,
 	availableWidthPx: number | null,
+	fontsReadyTick: number,
 ): AdaptiveTextSize {
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fontsReadyTick is a deliberate recompute trigger, intentionally unused inside — see the comment above.
 	return useMemo(() => {
 		if (!text || availableWidthPx === null) return "standard";
 		const wordWidths = measureWordWidths(text, font);
@@ -135,13 +164,14 @@ function useAdaptiveTextSize(
 			availableWidthPx,
 		);
 		return selectAdaptiveTextSize(lineCount, maxLines);
-	}, [text, font, maxLines, availableWidthPx]);
+	}, [text, font, maxLines, availableWidthPx, fontsReadyTick]);
 }
 
 export default function ComparisonPresentationInfo({
 	presentation,
 	visibility,
 	stableWidthPx,
+	presentationFontFamily,
 }: ComparisonPresentationInfoProps) {
 	const locationText = presentation.location
 		? formatLocation(presentation.location)
@@ -161,29 +191,78 @@ export default function ComparisonPresentationInfo({
 		? `${presentation.referenceLabel} → ${presentation.captureLabel} · ${presentation.durationLabel}`
 		: `${presentation.referenceLabel} → ${presentation.captureLabel}`;
 
+	const titleFont = useMemo(
+		() => buildTitleFont(presentationFontFamily),
+		[presentationFontFamily],
+	);
+	const descriptionFont = useMemo(
+		() => buildDescriptionFont(presentationFontFamily),
+		[presentationFontFamily],
+	);
+	const timeFont = useMemo(
+		() => buildTimeFont(presentationFontFamily),
+		[presentationFontFamily],
+	);
+	const locationFont = useMemo(
+		() => buildLocationFont(presentationFontFamily),
+		[presentationFontFamily],
+	);
+
+	// Forces the four `useAdaptiveTextSize` measurements below to re-run once
+	// the selected Presentation Font's actual webfont file has finished
+	// loading (docs/COMPARISON_PRESENTATION.md Part 3 "Typography") —
+	// `document.fonts.load()` both triggers the load and resolves once it
+	// completes, for the exact font description each item measures with.
+	// Without this, a measurement taken before the real file has finished
+	// loading would silently use the fallback font's metrics until some
+	// unrelated re-render happened to measure again. Re-runs whenever the
+	// selected Presentation Font changes, not only once on mount — the same
+	// "attach only while needed, re-derive on the relevant change" shape
+	// already used throughout this codebase (e.g. src/lib/overflow-tooltip.ts's
+	// own `document.fonts.ready` hook).
+	const [fontsReadyTick, setFontsReadyTick] = useState(0);
+	useEffect(() => {
+		let cancelled = false;
+		void Promise.all([
+			document.fonts.load(titleFont),
+			document.fonts.load(descriptionFont),
+			document.fonts.load(timeFont),
+			document.fonts.load(locationFont),
+		]).then(() => {
+			if (!cancelled) setFontsReadyTick((tick) => tick + 1);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [titleFont, descriptionFont, timeFont, locationFont]);
+
 	const titleSize = useAdaptiveTextSize(
 		presentation.title,
-		TITLE_FONT,
+		titleFont,
 		TITLE_STANDARD_MAX_LINES,
 		stableWidthPx,
+		fontsReadyTick,
 	);
 	const descriptionSize = useAdaptiveTextSize(
 		presentation.description,
-		DESCRIPTION_FONT,
+		descriptionFont,
 		DESCRIPTION_STANDARD_MAX_LINES,
 		stableWidthPx,
+		fontsReadyTick,
 	);
 	const timeSize = useAdaptiveTextSize(
 		timeText,
-		TIME_FONT,
+		timeFont,
 		SINGLE_LINE_MAX_LINES,
 		stableWidthPx,
+		fontsReadyTick,
 	);
 	const locationSize = useAdaptiveTextSize(
 		locationText,
-		LOCATION_FONT,
+		locationFont,
 		SINGLE_LINE_MAX_LINES,
 		stableWidthPx,
+		fontsReadyTick,
 	);
 
 	const showTitle = visibility.title && Boolean(presentation.title);

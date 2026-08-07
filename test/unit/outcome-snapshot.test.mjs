@@ -91,6 +91,22 @@ describe("createOutcomeSnapshot", () => {
 		assert.deepEqual(snapshot.branding, { kind: "none" });
 	});
 
+	test("carries a non-default Presentation Font through unchanged (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b)", () => {
+		const cws = fakeCurrentWorkingState(
+			{},
+			{},
+			{
+				presentationConfiguration: {
+					...DEFAULT_PRESENTATION_CONFIGURATION,
+					presentationFont: "space-grotesk",
+				},
+			},
+		);
+		const snapshot = createOutcomeSnapshot(cws, LOCALE, OPTIONS);
+
+		assert.equal(snapshot.configuration.presentationFont, "space-grotesk");
+	});
+
 	test("excludes unknown metadata.raw fields and unknown nested blocks", () => {
 		const cws = fakeCurrentWorkingState({
 			content: { title: "Visible Title" },

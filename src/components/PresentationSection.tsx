@@ -1,10 +1,10 @@
 // The Edit Inspector's "Presentation" section
 // (docs/APPLICATION_LAYOUT.md "Edit Inspector" > "Presentation";
-// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas", "Text", "Comparison
-// Stage"). Implements the options approved so far, grouped per
+// docs/COMPARISON_PRESENTATION.md Part 3 "Canvas", "Text", "Typography",
+// "Comparison Stage"). Implements the options approved so far, grouped per
 // APPLICATION_LAYOUT.md's information architecture: Colors (Background,
-// Frame, Text), Shape (Corners), Slider (Show Slider Date Labels). Map
-// Preview is explicitly a separate, later iteration
+// Frame, Text), Typography (Font), Shape (Corners), Slider (Show Slider
+// Date Labels). Map Preview is explicitly a separate, later iteration
 // (COMPARISON_PRESENTATION.md Part 3 "Map") and has no control here.
 //
 // Pure editing controls only, mirroring the same split already established
@@ -22,6 +22,15 @@
 // Color) needed the identical behavior — see src/components/
 // CustomColorFields.tsx for the now-shared component; nothing about its
 // behavior changed by moving it.
+//
+// Typography's Font control is PresentationFontSelect, not `OptionGroup`
+// above: docs/APPLICATION_LAYOUT.md "Presentation" > "Typography" specifies
+// a dropdown, unlike Background/Frame/Text/Corners' segmented button groups
+// — a deliberately different control, not an oversight. It is a small
+// custom listbox rather than a native `<select>`: Chrome/Windows renders a
+// native `<select>`'s open option list with an illegible white-on-white
+// popup that no CSS on the element itself can fix — see that component's
+// own header comment.
 
 import { useLocale } from "../i18n/LocaleContext";
 import { applyPresentationConfiguration } from "../lib/comparison-edit";
@@ -33,6 +42,7 @@ import type {
 	PresentationTextColor,
 } from "../lib/workspace-state";
 import CustomColorFields from "./CustomColorFields";
+import PresentationFontSelect from "./PresentationFontSelect";
 import Switch from "./Switch";
 
 interface PresentationSectionProps {
@@ -230,6 +240,43 @@ export default function PresentationSection({
 							hexLabel={t.editInspector.presentation.customColorHexLabel}
 						/>
 					)}
+				</div>
+			</div>
+
+			<div className="presentation-option-group">
+				<span className="presentation-option-group__legend">
+					{t.editInspector.presentation.typographyLegend}
+				</span>
+
+				<div className="presentation-subgroup">
+					<span
+						id="edit-presentation-font-legend"
+						className="presentation-subgroup__legend"
+					>
+						{t.editInspector.presentation.fontLegend}
+					</span>
+					<PresentationFontSelect
+						id="edit-presentation-font"
+						legendId="edit-presentation-font-legend"
+						value={configuration.presentationFont}
+						options={[
+							{
+								id: "inter",
+								label: t.editInspector.presentation.fontOptions.inter,
+							},
+							{
+								id: "manrope",
+								label: t.editInspector.presentation.fontOptions.manrope,
+							},
+							{
+								id: "space-grotesk",
+								label: t.editInspector.presentation.fontOptions.spaceGrotesk,
+							},
+						]}
+						onChange={(presentationFont) =>
+							updateConfiguration({ presentationFont })
+						}
+					/>
 				</div>
 			</div>
 

@@ -27,6 +27,7 @@ import {
 } from "./builtin-branding-symbols.ts";
 import { normalizeHexColor } from "./hex-color.ts";
 import type { ResolvedImportedMetadata } from "./import-metadata.ts";
+import type { PresentationFontId } from "./presentation-fonts.ts";
 
 export interface AcceptedComparisonFiles {
 	readonly referenceBytes: Uint8Array;
@@ -119,17 +120,23 @@ export interface PresentationConfiguration {
 	readonly cornerRadius: CornerRadius;
 	readonly textColor: PresentationTextColor;
 	readonly showSliderDateLabels: boolean;
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": a semantic
+	// identifier only (Part 4) — never a file path, byte content or CSS
+	// `font-family` string. src/lib/presentation-fonts.ts resolves this into
+	// the concrete font-family stack at render time.
+	readonly presentationFont: PresentationFontId;
 }
 
 // docs/COMPARISON_PRESENTATION.md Part 3: Background default "Brand", Frame
 // default "None", Corner Radius default "Rounded", Text default "Automatic",
-// Show Slider Date Labels default "On".
+// Show Slider Date Labels default "On", Font default "Inter".
 export const DEFAULT_PRESENTATION_CONFIGURATION: PresentationConfiguration = {
 	canvasBackground: { kind: "brand" },
 	frame: { kind: "none" },
 	cornerRadius: "rounded",
 	textColor: { kind: "automatic" },
 	showSliderDateLabels: true,
+	presentationFont: "inter",
 };
 
 // A Built-in Symbol's configured color (docs/FEATURE_SPECIFICATION.md F-004;

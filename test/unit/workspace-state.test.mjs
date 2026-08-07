@@ -82,13 +82,18 @@ describe("createWorkspace", () => {
 
 		// docs/COMPARISON_PRESENTATION.md Part 3: Background "Brand", Frame
 		// "None", Corner Radius "Rounded", Text "Automatic", Show Slider Date
-		// Labels "On" — same Current-Working-State-only reasoning as
-		// presentationVisibility above.
+		// Labels "On", Font "Inter" — same Current-Working-State-only reasoning
+		// as presentationVisibility above.
 		assert.deepEqual(
 			cws.presentationConfiguration,
 			DEFAULT_PRESENTATION_CONFIGURATION,
 		);
 		assert.equal(sourceData.presentationConfiguration, undefined);
+
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 8b: a fresh import defaults to
+		// Inter, called out explicitly rather than relying only on the
+		// DEFAULT_PRESENTATION_CONFIGURATION deep-equal above.
+		assert.equal(cws.presentationConfiguration.presentationFont, "inter");
 
 		// docs/FEATURE_SPECIFICATION.md F-004: no imported branding means no
 		// remembered symbol or custom image either — same Current-Working-

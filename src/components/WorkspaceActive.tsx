@@ -86,6 +86,7 @@ import {
 	deriveComparisonPresentation,
 } from "../lib/comparison-presentation";
 import { attachPresentationOverflowTooltips } from "../lib/overflow-tooltip";
+import { resolvePresentationFontFamily } from "../lib/presentation-fonts";
 import { useObjectUrl } from "../lib/use-object-url";
 import type {
 	CurrentWorkingState,
@@ -736,6 +737,17 @@ function PresentationCanvas({
 		() => resolveFrame(configuration.frame),
 		[configuration.frame],
 	);
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": resolved once here
+	// (mirroring `frame`/`resolvedBackground` above) and reused both for the
+	// CSS custom property below (DOM-rendered Comparison Information / Slider
+	// Date Labels) and, passed down as a plain string prop, for the Canvas
+	// `measureText()` calls in ComparisonPresentationInfo.tsx and
+	// ComparisonSlider.tsx — a single resolved value, never two independently
+	// derived font strings that could drift apart.
+	const presentationFontFamily = useMemo(
+		() => resolvePresentationFontFamily(configuration.presentationFont),
+		[configuration.presentationFont],
+	);
 	// Forces a render after every measurement (see the effect below for why
 	// this is otherwise not guaranteed): if a measurement reports the exact
 	// same height as before (common — most width changes during the
@@ -907,8 +919,9 @@ function PresentationCanvas({
 				configuration.textColor,
 				resolvedBackground,
 			),
+			"--presentation-font-family": presentationFontFamily,
 		} as CSSProperties;
-	}, [configuration, frame]);
+	}, [configuration, frame, presentationFontFamily]);
 
 	const canvasStyle = useMemo<CSSProperties | undefined>(() => {
 		if (geometry) {
@@ -973,6 +986,7 @@ function PresentationCanvas({
 					showDateLabels={configuration.showSliderDateLabels}
 					branding={branding}
 					brandingSrc={brandingSrc}
+					presentationFontFamily={presentationFontFamily}
 					onDimensionsChange={handleDimensionsChange}
 				/>
 				<div ref={infoRef} className="presentation-canvas__info-wrapper">
@@ -980,6 +994,7 @@ function PresentationCanvas({
 						presentation={presentation}
 						visibility={visibility}
 						stableWidthPx={stableWidthPx}
+						presentationFontFamily={presentationFontFamily}
 					/>
 				</div>
 			</div>

@@ -50,6 +50,61 @@ a {
 	}
 }
 
+/* Comparison Presentation Typography (docs/COMPARISON_PRESENTATION.md Part 3
+   "Typography"; docs/IMPLEMENTATION_PLAN_V1.md Phase 8b). Self-hosted, no
+   external request (docs/BRAND_GUIDE.md "Comparison Presentation
+   Typography"). Applies exclusively to the Comparison Presentation's own
+   text elements via `--presentation-font-family`
+   (src/components/WorkspaceActive.tsx) — the Application UI `body` rule
+   above keeps its own, unrelated system font stack unconditionally.
+
+   Inter and Space Grotesk each ship an official variable font covering the
+   full weight range this presentation needs (400/500/600) from a single
+   file. Manrope's official distribution has no prebuilt variable WOFF2, so
+   its three needed weights are declared as three separate static instances
+   of the same family name instead — the browser selects the matching one by
+   `font-weight` (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b analysis). */
+
+@font-face {
+	font-family: "Inter Variable";
+	src: url("/fonts/inter/InterVariable.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Manrope";
+	src: url("/fonts/manrope/Manrope-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Manrope";
+	src: url("/fonts/manrope/Manrope-Medium.woff2") format("woff2");
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Manrope";
+	src: url("/fonts/manrope/Manrope-SemiBold.woff2") format("woff2");
+	font-weight: 600;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Space Grotesk Variable";
+	src: url("/fonts/spacegrotesk/SpaceGrotesk-Variable.woff2") format("woff2");
+	font-weight: 300 700;
+	font-style: normal;
+	font-display: swap;
+}
+
 .skip-link {
 	position: fixed;
 	inset-block-start: 1rem;
@@ -905,6 +960,16 @@ main {
 	position: absolute;
 	inset-block-start: 50%;
 	color: #ffffff;
+	font-family: var(
+		--presentation-font-family,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
 	font-size: 0.875rem;
 	font-weight: 600;
 	white-space: nowrap;
@@ -992,6 +1057,16 @@ main {
 .presentation-info__title {
 	margin: 0;
 	color: var(--text-color, #ffffff);
+	font-family: var(
+		--presentation-font-family,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
 	font-size: 1rem;
 	font-weight: 500;
 	line-height: 1.25;
@@ -1015,6 +1090,16 @@ main {
 .presentation-info__description {
 	margin: 0;
 	color: var(--text-color, #c7ccd6);
+	font-family: var(
+		--presentation-font-family,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
 	font-size: 0.875rem;
 	line-height: 1.4;
 	opacity: 0.78;
@@ -1043,6 +1128,16 @@ main {
 .presentation-info__time {
 	margin: 0;
 	color: var(--text-color, #c7ccd6);
+	font-family: var(
+		--presentation-font-family,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
 	font-size: 0.8125rem;
 	font-weight: 500;
 	line-height: 1.3;
@@ -1059,6 +1154,16 @@ main {
 .presentation-info__location {
 	margin: 0;
 	color: var(--text-color, #c7ccd6);
+	font-family: var(
+		--presentation-font-family,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
 	font-size: 0.75rem;
 	line-height: 1.3;
 	/* Deliberately not reduced to ~0.52 in line with Time's/Description's
@@ -1412,6 +1517,152 @@ main {
 .presentation-options__button:focus-visible {
 	outline: 0.1875rem solid #4f8cff;
 	outline-offset: 0.125rem;
+}
+
+/* Typography's Font control (docs/APPLICATION_LAYOUT.md "Presentation" >
+   "Typography"; src/components/PresentationFontSelect.tsx): a small custom
+   listbox, not a native `<select>` — Chrome/Windows renders a native
+   `<select>`'s open option list with an illegible white-on-white popup that
+   no amount of CSS on the element itself can override in that browser, so
+   this control owns its own popup instead. Chrome/border language matches
+   `.presentation-options__button` above; the popup itself uses the same
+   dark surface already used by `.edit-inspector__section`/
+   `.presentation-tooltip` elsewhere in this file, not a new color. Mobile
+   default is full width; the 16rem compact width — "kompakt, zur kurzen
+   Auswahl passend" — only applies once there is a two-column desktop
+   layout to be compact within (the same `min-width: 48rem` breakpoint used
+   throughout this file). */
+.presentation-font-select {
+	position: relative;
+	width: 100%;
+}
+
+@media (min-width: 48rem) {
+	.presentation-font-select {
+		width: 16rem;
+		max-width: 100%;
+	}
+}
+
+.presentation-font-select__trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.8125rem;
+	text-align: start;
+	cursor: pointer;
+}
+
+.presentation-font-select__trigger:focus-visible {
+	border-color: #4f8cff;
+	outline: none;
+}
+
+/* The current-value text is the one part of this control's own chrome
+   rendered in the selected Presentation Font itself
+   (docs/COMPARISON_PRESENTATION.md Part 3 "Typography": "Auch der aktuell
+   ausgewählte Wert im geschlossenen Control soll in der aktuell
+   ausgewählten Font dargestellt werden") — `font-family` is set inline per
+   src/components/PresentationFontSelect.tsx, this rule only keeps it from
+   being squeezed or wrapped inside the trigger's flex row. */
+.presentation-font-select__value {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Same border-trick chevron already used by `.edit-inspector__chevron`,
+   kept as its own class rather than shared: that one also encodes the
+   accordion's brand-accent "expanded" color, which this control's own
+   open/closed state has no equivalent need for. */
+.presentation-font-select__chevron {
+	flex-shrink: 0;
+	width: 0.4375rem;
+	height: 0.4375rem;
+	border-inline-end: 0.125rem solid #c7ccd6;
+	border-block-end: 0.125rem solid #c7ccd6;
+	transform: rotate(45deg);
+	transition: transform 0.15s ease;
+}
+
+.presentation-font-select__chevron--open {
+	transform: rotate(-135deg);
+}
+
+/* Absolutely positioned against `.presentation-font-select` above so
+   opening it can never shift any other Edit Inspector content ("keine
+   Layoutverschiebung beim Öffnen") — the same dark surface, border and
+   corner radius language as `.edit-inspector__section`/
+   `.presentation-tooltip`, not a new color. */
+.presentation-font-select__listbox {
+	position: absolute;
+	z-index: 20;
+	inset-inline-start: 0;
+	inset-block-start: calc(100% + 0.25rem);
+	width: 100%;
+	margin: 0;
+	padding: 0.25rem;
+	list-style: none;
+	max-height: 12rem;
+	overflow-y: auto;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: #17202f;
+	box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4);
+}
+
+/* "Popup soll sinnvoll innerhalb des Viewports bleiben": flips to open
+   upward once src/components/PresentationFontSelect.tsx's own placement
+   check finds too little room below. */
+.presentation-font-select__listbox--up {
+	inset-block-start: auto;
+	inset-block-end: calc(100% + 0.25rem);
+}
+
+/* Real DOM focus lives on the listbox itself while it is open (the
+   WAI-ARIA APG "Collapsible Select-Only Listbox" pattern —
+   src/components/PresentationFontSelect.tsx's own header comment); a subtle
+   border-color change, matching the trigger's own focus-visible treatment
+   above, is enough of a container-level focus indicator since the
+   currently highlighted option's own `--active` background below is the
+   primary visible focus cue for keyboard users in this pattern. */
+.presentation-font-select__listbox:focus-visible {
+	border-color: #4f8cff;
+	outline: none;
+}
+
+.presentation-font-select__option {
+	padding: 0.5rem 0.625rem;
+	border-radius: 0.375rem;
+	color: #ffffff;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+/* The keyboard-highlighted ("active") option — visible independently of
+   `aria-selected` below, since the two only coincide once a highlighted
+   option is actually committed. */
+.presentation-font-select__option--active {
+	background: rgba(79, 140, 255, 0.16);
+}
+
+/* The currently selected option (docs/APPLICATION_LAYOUT.md "Presentation"
+   > "Typography") — the same brand accent already used for "selected"
+   states elsewhere in this section (`.presentation-options__button--selected`
+   below), never a new color. Composes with `--active` above rather than
+   replacing it: a selected option that is also the currently highlighted
+   one keeps both cues. */
+.presentation-font-select__option[aria-selected="true"] {
+	color: #4f8cff;
+	font-weight: 600;
 }
 
 /* docs/APPLICATION_LAYOUT.md "Branding" → "Color": the disabled state while

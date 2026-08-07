@@ -62,6 +62,19 @@ async function expandBrandingSection(page: import("@playwright/test").Page) {
 	await page.getByTestId("edit-inspector-branding-toggle").click();
 }
 
+// Drives src/components/PresentationFontSelect.tsx's custom listbox (Phase
+// 8b UX correction) the same way a mouse/touch user would: open the
+// trigger, click the target option. Playwright's `.selectOption()` only
+// works on a native `<select>`, which this control deliberately no longer
+// is (see that component's own header comment on why).
+async function selectPresentationFont(
+	page: import("@playwright/test").Page,
+	fontId: "inter" | "manrope" | "space-grotesk",
+) {
+	await page.getByTestId("edit-presentation-font").click();
+	await page.getByTestId(`edit-presentation-font-option-${fontId}`).click();
+}
+
 test("editing the title updates the Presentation Preview immediately, with no Apply action", async ({
 	page,
 }) => {
@@ -1185,8 +1198,308 @@ test("the Presentation section renders with the documented defaults: Brand backg
 	await expect(
 		page.getByTestId("edit-show-slider-date-labels"),
 	).toHaveAttribute("aria-checked", "true");
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 8b: Font defaults to Inter.
+	await expect(page.getByTestId("edit-presentation-font")).toHaveText("Inter");
 	// No control for Map Preview exists in this iteration.
 	await expect(page.getByText(/map preview/i)).toHaveCount(0);
+});
+
+test("selecting a Presentation Font updates the Comparison Presentation's text elements and Slider Date Labels immediately, without affecting the Application UI's own typography (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	// Application UI controls (docs/COMPARISON_PRESENTATION.md Part 3
+	// "Typography": never affected) — captured before any Font change so the
+	// assertion below compares against the real pre-change value rather than
+	// a hard-coded font-family string that could drift from BRAND_GUIDE.md.
+	const replaceExportFontBefore = await page
+		.getByTestId("replace-export-button")
+		.evaluate((element) => getComputedStyle(element).fontFamily);
+
+	await expandPresentationSection(page);
+
+	// Reveals both on-image Slider Date Labels (mirrors the identical
+	// sequence already used by the "Show Slider Date Labels" test above).
+	const slider = page.getByTestId("comparison-slider");
+	const sliderBox = await slider.boundingBox();
+	if (!sliderBox) throw new Error("comparison-slider has no bounding box");
+	await page.mouse.move(
+		sliderBox.x + sliderBox.width / 2,
+		sliderBox.y + sliderBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		sliderBox.x + sliderBox.width / 2,
+		sliderBox.y + sliderBox.height / 2,
+	);
+	await page.mouse.up();
+	await expect(page.getByTestId("comparison-slider-label-left")).toBeVisible();
+
+	await selectPresentationFont(page, "manrope");
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+	// Description is hidden by default (docs/APPLICATION_LAYOUT.md
+	// "Description": "visibility default: OFF") — Title/Time/Location above
+	// and below already exercise the same shared `--presentation-font-family`
+	// mechanism Description itself uses unconditionally.
+	await expect(page.getByTestId("comparison-time")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+	await expect(page.getByTestId("comparison-location")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+	await expect(page.getByTestId("comparison-slider-label-left")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+
+	await selectPresentationFont(page, "space-grotesk");
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-family",
+		/Space Grotesk Variable/,
+	);
+
+	// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": never applies to
+	// the application UI — the Replace Export header button's own font must
+	// stay exactly what it was before any Presentation Font was ever
+	// selected.
+	const replaceExportFontAfter = await page
+		.getByTestId("replace-export-button")
+		.evaluate((element) => getComputedStyle(element).fontFamily);
+	expect(replaceExportFontAfter).toBe(replaceExportFontBefore);
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).not.toHaveCSS("font-family", /Space Grotesk|Manrope|Inter Variable/);
+});
+
+test("Overflow Tooltip: a truncated Comparison Presentation item's tooltip uses the selected Presentation Font, while the Fullscreen button's own tooltip keeps the Application UI system font", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// Comparison Information starts expanded (docs/APPLICATION_LAYOUT.md
+	// "Structure") — the same reliable long-location/narrow-viewport
+	// truncation technique already used by the "narrowing the viewport"
+	// Overflow Tooltip test above, reused here rather than guessed anew.
+	await page.setViewportSize({ width: 2000, height: 1800 });
+	await fillLongLocation(page);
+
+	await expandPresentationSection(page);
+	await selectPresentationFont(page, "space-grotesk");
+
+	await page.setViewportSize({ width: 380, height: 700 });
+	const location = page.getByTestId("comparison-location");
+	await expect(location).toHaveAttribute("tabindex", "0");
+	await location.hover();
+	const tooltip = page.getByTestId("presentation-overflow-tooltip");
+	await expect(tooltip).toBeVisible();
+	await expect(tooltip).toHaveCSS("font-family", /Space Grotesk Variable/);
+
+	await page.getByTestId("fullscreen-open-button").focus();
+	const staticTooltip = page.getByTestId("fullscreen-toggle-tooltip");
+	await expect(staticTooltip).toBeVisible();
+	await expect(staticTooltip).not.toHaveCSS(
+		"font-family",
+		/Space Grotesk|Manrope|Inter Variable/,
+	);
+});
+
+test("the Font control's popup renders each option's name in its own font, and never widens the Edit Inspector column (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b UX correction)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const inspector = page.getByTestId("edit-inspector");
+	const widthBeforeOpen = (await inspector.boundingBox())?.width;
+
+	const trigger = page.getByTestId("edit-presentation-font");
+	await expect(trigger).toHaveAttribute("aria-expanded", "false");
+	await trigger.click();
+	await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+	const listbox = page.getByTestId("edit-presentation-font-listbox");
+	await expect(listbox).toBeVisible();
+	await expect(
+		page.getByTestId("edit-presentation-font-option-inter"),
+	).toHaveCSS("font-family", /Inter Variable/);
+	await expect(
+		page.getByTestId("edit-presentation-font-option-manrope"),
+	).toHaveCSS("font-family", /Manrope/);
+	await expect(
+		page.getByTestId("edit-presentation-font-option-space-grotesk"),
+	).toHaveCSS("font-family", /Space Grotesk Variable/);
+	// Inter is the default (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b).
+	await expect(
+		page.getByTestId("edit-presentation-font-option-inter"),
+	).toHaveAttribute("aria-selected", "true");
+
+	// "keine Layoutverschiebung beim Öffnen".
+	const widthWhileOpen = (await inspector.boundingBox())?.width;
+	expect(widthWhileOpen).toBe(widthBeforeOpen);
+
+	await page.getByTestId("edit-presentation-font-option-manrope").click();
+	await expect(trigger).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-presentation-font-value")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+	// TYPOGRAPHY / Font legend and the rest of the Inspector stay System Font
+	// — never affected by the value they configure.
+	await expect(page.getByText(/^(Typography|Typografie)$/)).not.toHaveCSS(
+		"font-family",
+		/Manrope|Inter Variable|Space Grotesk/,
+	);
+});
+
+test("the Font control is keyboard-operable: Enter opens it, arrow keys navigate, Enter commits the highlighted option and returns focus to the trigger", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const trigger = page.getByTestId("edit-presentation-font");
+	await trigger.focus();
+	await page.keyboard.press("Enter");
+
+	const listbox = page.getByTestId("edit-presentation-font-listbox");
+	await expect(listbox).toBeVisible();
+	await expect(listbox).toBeFocused();
+	await expect(listbox).toHaveAttribute(
+		"aria-activedescendant",
+		"edit-presentation-font-option-inter",
+	);
+
+	await page.keyboard.press("ArrowDown");
+	await expect(listbox).toHaveAttribute(
+		"aria-activedescendant",
+		"edit-presentation-font-option-manrope",
+	);
+	await page.keyboard.press("ArrowDown");
+	await expect(listbox).toHaveAttribute(
+		"aria-activedescendant",
+		"edit-presentation-font-option-space-grotesk",
+	);
+	await page.keyboard.press("ArrowUp");
+	await expect(listbox).toHaveAttribute(
+		"aria-activedescendant",
+		"edit-presentation-font-option-manrope",
+	);
+
+	await page.keyboard.press("Enter");
+	await expect(listbox).toHaveCount(0);
+	await expect(trigger).toBeFocused();
+	await expect(trigger).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-presentation-font-value")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-family",
+		/Manrope/,
+	);
+});
+
+test("the Font control's Space key also opens and selects, exactly like Enter", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const trigger = page.getByTestId("edit-presentation-font");
+	await trigger.focus();
+	await page.keyboard.press(" ");
+	await expect(
+		page.getByTestId("edit-presentation-font-listbox"),
+	).toBeVisible();
+
+	await page.keyboard.press("End");
+	await expect(
+		page.getByTestId("edit-presentation-font-listbox"),
+	).toHaveAttribute(
+		"aria-activedescendant",
+		"edit-presentation-font-option-space-grotesk",
+	);
+	await page.keyboard.press(" ");
+	await expect(page.getByTestId("edit-presentation-font-value")).toHaveCSS(
+		"font-family",
+		/Space Grotesk Variable/,
+	);
+});
+
+test("Escape closes the Font control without changing the selected value, and returns focus to the trigger", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const trigger = page.getByTestId("edit-presentation-font");
+	await trigger.click();
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.press("ArrowDown"); // highlights Space Grotesk, never committed
+
+	await page.keyboard.press("Escape");
+	await expect(page.getByTestId("edit-presentation-font-listbox")).toHaveCount(
+		0,
+	);
+	await expect(trigger).toBeFocused();
+	await expect(trigger).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-presentation-font-value")).toHaveText(
+		"Inter",
+	);
+	await expect(page.getByTestId("comparison-title")).toHaveCSS(
+		"font-family",
+		/Inter Variable/,
+	);
+});
+
+test("clicking outside the open Font control closes it without changing the selected value", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	await page.getByTestId("edit-presentation-font").click();
+	await expect(
+		page.getByTestId("edit-presentation-font-listbox"),
+	).toBeVisible();
+
+	// Clicks a plain, non-interactive element elsewhere inside the still-open
+	// Presentation section (not a control that would itself change some
+	// other Presentation Configuration value, and not the accordion toggle,
+	// which would unmount this section entirely and trivially "close"
+	// everything in it).
+	await page.locator(".presentation-option-group__legend").first().click();
+	await expect(page.getByTestId("edit-presentation-font-listbox")).toHaveCount(
+		0,
+	);
+	await expect(page.getByTestId("edit-presentation-font-value")).toHaveText(
+		"Inter",
+	);
+});
+
+test("the Font control on a narrow viewport takes the Edit Inspector's full width", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 400, height: 900 });
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const trigger = page.getByTestId("edit-presentation-font");
+	const triggerBox = await trigger.boundingBox();
+	const inspectorBody = page.locator(".edit-inspector__section-body").first();
+	const inspectorBox = await inspectorBody.boundingBox();
+	if (!triggerBox || !inspectorBox) {
+		throw new Error("missing bounding box for width comparison");
+	}
+	// "auf schmalen/mobile Viewports darf/soll es auf width: 100% wechseln" —
+	// allows for the section body's own small horizontal padding rather than
+	// requiring pixel-exact equality.
+	expect(triggerBox.width).toBeGreaterThan(inspectorBox.width - 40);
 });
 
 test("selecting Background updates the Presentation Canvas immediately", async ({
