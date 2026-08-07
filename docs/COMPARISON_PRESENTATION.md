@@ -295,6 +295,30 @@ Slider Labels in IMPORTED_COMPARISON_V1.md.
 
 Independent from the Comparison Information Rendering time block below.
 
+### Initial Slider Position
+
+The Comparison Stage's divider starts at a defined position for each
+generated output — a property of that output's Outcome Snapshot
+(`initialSliderPosition`), not of the live, interactive Workspace Preview.
+
+In the current Version 1 implementation, `initialSliderPosition` is always
+set to the exact midpoint (50/50). The Workspace Preview's own current
+interactive slider position is not carried over in this implementation.
+
+A later, explicitly specified output option may instead initialize the same
+`initialSliderPosition` value from the Workspace Preview's current slider
+position at the moment the outcome is generated. Such an option is not
+implemented now.
+
+Standalone HTML and Static Microsite always use the same
+`initialSliderPosition` value from the Outcome Snapshot; no
+output-type-specific starting position exists.
+
+This is the one deliberate exception, for the current V1 implementation, to
+"Generated outputs reproduce the Workspace Preview as closely as
+technically possible" (Part 1 "WYSIWYG"): the divider remains fully
+interactive once the output is opened.
+
 ## Comparison Information Rendering
 
 This section defines how the comparison information items owned by F-003
