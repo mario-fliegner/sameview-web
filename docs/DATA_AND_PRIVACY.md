@@ -38,6 +38,8 @@ Session metadata in `metadata.json` is distinct from metadata embedded in image 
 
 Source Data and the Current Working State preserve supported and unknown session metadata locally for compatibility. For Hosted Publication in Version 2, image processing removes embedded EXIF, XMP, IPTC and GPS metadata from published images.
 
+For Version 1, embedded location metadata (e.g. EXIF GPS, or location fields within XMP or IPTC) in the reference and capture images may optionally be removed before a comparison image is included in a generated Standalone HTML or Static Microsite output — see FEATURE_SPECIFICATION.md F-005 "Remove Embedded Location Data". Only embedded location information is removed; other embedded metadata is preserved. This is independent of, and never exposes, `captureLocation` or `referenceLocation`.
+
 ## Image Processing (Version 2 Hosted Publication)
 
 Before storage:

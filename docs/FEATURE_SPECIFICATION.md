@@ -290,7 +290,7 @@ Additional comparison output types may be introduced in future versions.
 
 For Version 1, Standalone HTML is generated and immediately handed to the browser as a download.
 
-No additional output-specific configuration is required beyond the Current Working State.
+Remove Embedded Location Data (below) is the only additional output-specific configuration this output type supports.
 
 The generated HTML reproduces the current Workspace Preview as closely as technically possible.
 
@@ -300,12 +300,25 @@ Generation and browser download form one continuous user action.
 
 For Version 1, Static Microsite is generated and immediately handed to the browser as a ZIP download.
 
-No additional output-specific configuration is required beyond the Current Working State.
+Remove Embedded Location Data (below) is the only additional output-specific configuration this output type supports.
 
 The generated microsite reproduces the current Workspace Preview as closely as technically possible, using the same presentation and interaction source as Standalone HTML. No independent presentation or interaction implementation is defined for this output type.
 
 Generation and browser download form one continuous user action.
 
+### Remove Embedded Location Data
+
+Remove Embedded Location Data is a shared output-specific setting, available identically for Standalone HTML and Static Microsite once an output type has been selected. It is not part of the Current Working State and has no effect on the Workspace Preview.
+
+Default: On.
+
+When On, the two comparison images have their embedded location information removed before being included in the generated output. Embedded metadata unrelated to location — in EXIF, XMP, IPTC or any other embedded metadata structure present in the image — remains unchanged. Removal never re-encodes the compressed image data, never changes pixel dimensions, never crops or stretches the image, and preserves the image's visual orientation, including its EXIF Orientation value. When Off, the two comparison images' embedded metadata is included in the generated output unchanged.
+
+This setting affects only metadata embedded within the two comparison image files. It never exposes `captureLocation`, `referenceLocation`, or any other Source Data field beyond the existing outcome allowlist.
+
+This setting is fully independent of the visible, user-editable Location value and its `Show Location` visibility (F-003; COMPARISON_PRESENTATION.md Part 3). Changing one never changes the other. When this setting is On and Show Location is also currently On, the Output Inspector displays a neutral informational hint that the visible location remains part of the comparison and that this setting removes only embedded image metadata. The hint never blocks generation and never changes either setting.
+
+Standalone HTML and Static Microsite always use the same value for this setting for a given outcome; no output-type-specific value exists.
 
 ### Result
 

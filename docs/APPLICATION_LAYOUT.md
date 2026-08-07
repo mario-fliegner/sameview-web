@@ -507,7 +507,7 @@ Standalone HTML and Static Microsite can be selected. CMS Package cannot be sele
 
 ## Standalone HTML
 
-Standalone HTML requires no additional output settings.
+Standalone HTML supports one additional output setting: Remove Embedded Location Data (see below).
 
 The generated file represents the current Presentation Preview exactly at the moment of download.
 
@@ -522,7 +522,7 @@ The export consists of:
 
 ## Static Microsite
 
-Static Microsite requires no additional output settings.
+Static Microsite supports the same additional output setting as Standalone HTML: Remove Embedded Location Data (see below).
 
 The generated microsite represents the current Presentation Preview exactly at the moment of download, using the same presentation and interaction source as Standalone HTML — no separate presentation renderer exists for this output type.
 
@@ -534,6 +534,20 @@ The export consists of:
 - no external resources or CDNs
 - no unnecessary fonts; the existing system font stack is used
 - complete offline functionality once unpacked onto ordinary static webspace
+
+## Remove Embedded Location Data
+
+Both Standalone HTML and Static Microsite share one additional output setting:
+
+`Remove embedded location data`
+
+Default: On.
+
+The setting is a plain switch inside the Output Inspector, available once an output type is selected. It affects only embedded metadata within the two comparison image files and has no effect on the Workspace Preview or on any other setting.
+
+When On, the Output Inspector displays a neutral hint if the Presentation section's `Show Location` is also currently On: the visible location remains part of the comparison, and this setting only removes embedded location data from the comparison image files. The hint never blocks generation.
+
+Turning this setting off never changes `Show Location`, and turning `Show Location` on or off never changes this setting.
 
 ## Download Flow
 

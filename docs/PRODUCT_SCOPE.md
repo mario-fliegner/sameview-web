@@ -36,7 +36,7 @@ SameView Web presents, exports and optionally publishes it.
 2. Display an interactive comparison slider.
 3. Edit supported comparison metadata: title, description, reference date, user-authored location and session branding.
 4. Derive slider labels from the reference date and immutable capture timestamp; slider labels are not independently editable.
-5. Remove image metadata and optimize images as required for the client-side standalone HTML and static microsite outputs.
+5. Optionally remove embedded location metadata from the two comparison images for the client-side standalone HTML and static microsite outputs, without otherwise re-encoding, resizing or reducing their quality.
 6. Download as standalone HTML or as a static microsite ZIP, both generated entirely in the browser from the same shared presentation and interaction source, without uploading to the server.
 
 The import and metadata contract is defined in [docs/IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md).
