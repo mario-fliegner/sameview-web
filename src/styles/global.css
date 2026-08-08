@@ -580,12 +580,13 @@ main {
 		   never the column split itself. */
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		/* A single explicit row that fills this container's own (now
-		   stretched, see `.workspace-active` above) height — an implicit
-		   `auto` row would stay content-sized regardless of the container's
-		   height. `align-items` stays `start`: the Context Inspector column
-		   must keep its own existing height/position (deliberately
-		   unaffected by this chain — see `.workspace-active__preview`
-		   below, which opts only itself into stretching via `align-self`). */
+		   stretched, see `.workspace-active` above) height while the page's
+		   content still fits one viewport — an implicit `auto` row would stay
+		   content-sized regardless of the container's height. `align-items`
+		   stays `start`: the Context Inspector column must keep its own
+		   existing height/position, free to grow past the Preview and scroll
+		   the page — see `.workspace-active__preview` below, which no longer
+		   opts into stretching to this row at all, for exactly that reason. */
 		grid-template-rows: minmax(0, 1fr);
 		align-items: start;
 		gap: 2rem;
@@ -593,8 +594,30 @@ main {
 		min-height: 0;
 	}
 
-	.workspace-active__preview {
-		align-self: stretch;
+	/* Confirmed regression fix (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b
+	   follow-up): this used to be `align-self: stretch`, reaching its height
+	   by stretching into the grid row above. That row's `1fr` track only has
+	   a genuinely definite size while the *entire page* still fits within
+	   one viewport (the sole source of definiteness the whole chain up to
+	   `body`'s own `min-height: 100vh` ultimately depends on) — the moment
+	   the Context Inspector's own content (e.g. a taller Presentation
+	   section) makes the page taller than one viewport, that row's height
+	   degrades to the *tallest column's own content size* instead of a real
+	   available-space fraction, so a stretched Preview silently inherited
+	   the Inspector's own (unrelated) content height and visibly grew.
+	   `--workspace-available-height` (src/components/App.tsx, set on
+	   `.workspace-active` by src/components/WorkspaceActive.tsx) is measured
+	   directly from the actually rendered header, footer and `main` chrome
+	   plus the live viewport height — never from the grid row, and never
+	   from the Inspector — so this explicit `height` can no longer inherit
+	   Inspector growth regardless of how tall the Inspector becomes or
+	   whether the page scrolls. `:not(...--fullscreen)` is required, not
+	   defensive styling: Fullscreen's own `inset: 0` (below) already
+	   provides the correct full-viewport size, and a plain `height` here
+	   would otherwise over-constrain that box (both `height` and `top`+`bottom`
+	   specified at once), breaking Fullscreen's own sizing. */
+	.workspace-active__preview:not(.workspace-active__preview--fullscreen) {
+		height: var(--workspace-available-height, auto);
 	}
 }
 

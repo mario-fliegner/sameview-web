@@ -592,10 +592,15 @@ test("Adaptive Sizing: short content renders every item at its standard size", a
 }) => {
 	await importFullFixture(page);
 	await page.getByTestId("edit-show-description").click();
-	// The fixture's own default location value is long enough to already
-	// need Adaptive Sizing's compact size at this test's viewport width —
-	// replaced here with something unambiguously short so this test
-	// isolates "short content" specifically.
+	// The fixture's own default title and location values are long enough to
+	// already need Adaptive Sizing's compact size at this test's viewport
+	// width once the Presentation Preview correctly no longer inherits the
+	// Context Inspector's own (unrelated, taller) content height
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 8b follow-up regression fix,
+	// src/components/App.tsx/WorkspaceActive.tsx) — both replaced here with
+	// something unambiguously short so this test isolates "short content"
+	// specifically.
+	await page.getByTestId("edit-title-input").fill("Short Title");
 	await page.getByTestId("edit-location-display-name-input").fill("Munich");
 	await page.getByTestId("edit-location-city-input").fill("");
 	await page.getByTestId("edit-location-country-input").fill("");
@@ -652,6 +657,15 @@ test("Adaptive Sizing: a long Location steps down to its defined compact size wi
 }) => {
 	await importFullFixture(page);
 
+	// The fixture's own default title is long enough to already need
+	// Adaptive Sizing's compact size on its own at this test's viewport width
+	// once the Presentation Preview correctly no longer inherits the Context
+	// Inspector's own content height (see the "short content" test above) —
+	// replaced here with something unambiguously short so this test isolates
+	// "a long Location never affects Title" specifically, exactly as its own
+	// name states, rather than both happening to be compact for two
+	// unrelated reasons.
+	await page.getByTestId("edit-title-input").fill("Short Title");
 	await page
 		.getByTestId("edit-location-display-name-input")
 		.fill(

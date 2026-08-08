@@ -1204,3 +1204,231 @@ test("Overflow Tooltip and the Fullscreen button tooltip stay independently addr
 	await expect(buttonTooltip).toBeVisible();
 	await expect(buttonTooltip).toHaveText("Fullscreen");
 });
+
+// Regression coverage for a confirmed bug: on desktop,
+// `.workspace-active__preview` used to reach its height purely via CSS
+// (`align-self: stretch` into `.workspace-active__layout`'s single
+// `minmax(0, 1fr)` grid row). That row only has a genuinely definite height
+// while the whole page still fits within one viewport — `body`'s own
+// `min-height: 100vh` (src/styles/global.css) is the sole source of
+// definiteness the entire chain depends on. The moment the Context
+// Inspector's own content (e.g. the Presentation section, now taller with
+// its Typography group) makes the page taller than one viewport and the
+// page starts scrolling, a `fr` row inside an indefinite-height grid
+// container resolves to the *tallest item's own content size* instead of a
+// real fraction of available space — so the stretched Preview column
+// silently inherited the taller Inspector column's own content height,
+// visibly enlarging the Comparison Stage. Fixed in
+// src/components/App.tsx/WorkspaceActive.tsx by measuring the desktop
+// Preview's available height from the actually rendered header/footer/main
+// chrome and feeding it in as an explicit `height`
+// (`--workspace-available-height`), independent of the Inspector.
+//
+// `expandPresentationSection` mirrors test/e2e/comparison-editing.spec.ts's
+// own identically named helper (Presentation starts collapsed,
+// docs/APPLICATION_LAYOUT.md "Structure").
+async function expandPresentationSection(
+	page: import("@playwright/test").Page,
+) {
+	await page.getByTestId("edit-inspector-presentation-toggle").click();
+}
+
+async function expandBrandingSection(page: import("@playwright/test").Page) {
+	await page.getByTestId("edit-inspector-branding-toggle").click();
+}
+
+async function expandComparisonInformationSection(
+	page: import("@playwright/test").Page,
+) {
+	await page
+		.getByTestId("edit-inspector-comparison-information-toggle")
+		.click();
+}
+
+test("Portrait, desktop, page already scrolling: opening Presentation does not change the Preview's size, even though the Inspector column grows taller", async ({
+	page,
+}) => {
+	// Short enough that the Presentation section's own (Typography-inclusive)
+	// content height reliably exceeds one viewport once opened — verified
+	// below via an explicit scroll-height assertion, not assumed.
+	await page.setViewportSize({ width: 1280, height: 620 });
+	await importFullFixture(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const before = await preview.boundingBox();
+	if (!before) throw new Error("preview has no bounding box");
+
+	await expandPresentationSection(page);
+
+	// Confirms this test actually exercises the regression's precondition —
+	// the page must genuinely be scrolling because of the Inspector's own
+	// content, not merely be a plausible-looking viewport size.
+	const overflow = await page.evaluate(() => ({
+		scrollHeight: document.documentElement.scrollHeight,
+		clientHeight: document.documentElement.clientHeight,
+	}));
+	expect(overflow.scrollHeight).toBeGreaterThan(overflow.clientHeight);
+
+	const after = await preview.boundingBox();
+	if (!after) throw new Error("preview has no bounding box");
+	expect(after.width).toBeCloseTo(before.width, 0);
+	expect(after.height).toBeCloseTo(before.height, 0);
+});
+
+test("Portrait, desktop, no scroll: opening Presentation does not change the Preview's size", async ({
+	page,
+}) => {
+	// Tall enough that the fully expanded Presentation section still fits
+	// within one viewport — the "already worked before Typography" case,
+	// kept as a baseline so the fix is proven not to only help the scrolling
+	// case while quietly regressing this one.
+	await page.setViewportSize({ width: 1280, height: 1400 });
+	await importFullFixture(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const before = await preview.boundingBox();
+	if (!before) throw new Error("preview has no bounding box");
+
+	await expandPresentationSection(page);
+
+	const overflow = await page.evaluate(() => ({
+		scrollHeight: document.documentElement.scrollHeight,
+		clientHeight: document.documentElement.clientHeight,
+	}));
+	expect(overflow.scrollHeight).toBeLessThanOrEqual(overflow.clientHeight + 1);
+
+	const after = await preview.boundingBox();
+	if (!after) throw new Error("preview has no bounding box");
+	expect(after.width).toBeCloseTo(before.width, 0);
+	expect(after.height).toBeCloseTo(before.height, 0);
+});
+
+test("switching between Comparison information, Presentation and Branding never changes the Preview's size, with the page scrolling throughout", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 620 });
+	await importFullFixture(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const initial = await preview.boundingBox();
+	if (!initial) throw new Error("preview has no bounding box");
+
+	await expandPresentationSection(page);
+	const afterPresentation = await preview.boundingBox();
+	if (!afterPresentation) throw new Error("preview has no bounding box");
+	expect(afterPresentation.height).toBeCloseTo(initial.height, 0);
+
+	await expandBrandingSection(page);
+	const afterBranding = await preview.boundingBox();
+	if (!afterBranding) throw new Error("preview has no bounding box");
+	expect(afterBranding.height).toBeCloseTo(initial.height, 0);
+
+	await expandComparisonInformationSection(page);
+	const afterComparisonInformation = await preview.boundingBox();
+	if (!afterComparisonInformation) {
+		throw new Error("preview has no bounding box");
+	}
+	expect(afterComparisonInformation.height).toBeCloseTo(initial.height, 0);
+});
+
+// No landscape real-image fixture exists in this project (see the module
+// comment above the Fullscreen section: "Only a portrait real-image fixture
+// exists"; landscape geometry math itself is covered by
+// test/unit/canvas-geometry.test.mjs). This test instead forces the
+// existing *portrait* fixture through the *width-bound* branch of
+// `computeCanvasGeometry` — the same branch a real landscape image would
+// take in an ordinarily-proportioned column — by using a narrow-ish, tall
+// viewport (a portrait image only becomes width-bound once the available
+// height is generous relative to the column's own width), so the Stage's
+// rendered width (not the previously-buggy height input) is what actually
+// constrains it. This proves the fix, which only changes the source of the
+// *height* input, leaves the width-bound computation path unaffected.
+// Confirmed width-bound empirically for this fixture/viewport: the rendered
+// stage width sits at the column's own available width, not proportional to
+// viewport height.
+test("width-bound geometry (the real Landscape code path): opening Presentation does not change the Preview's rendered width", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 900, height: 2200 });
+	await importFullFixture(page);
+
+	const stage = page.locator(".comparison-slider__frame");
+	const before = await stage.boundingBox();
+	if (!before) throw new Error("stage has no bounding box");
+
+	await expandPresentationSection(page);
+
+	const after = await stage.boundingBox();
+	if (!after) throw new Error("stage has no bounding box");
+	expect(after.width).toBeCloseTo(before.width, 0);
+});
+
+test("Mobile: opening Presentation does not change the Preview's size (no desktop stretch chain applies below the 48rem breakpoint)", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 400, height: 900 });
+	await importFullFixture(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const before = await preview.boundingBox();
+	if (!before) throw new Error("preview has no bounding box");
+
+	await expandPresentationSection(page);
+
+	const after = await preview.boundingBox();
+	if (!after) throw new Error("preview has no bounding box");
+	expect(after.width).toBeCloseTo(before.width, 0);
+	expect(after.height).toBeCloseTo(before.height, 0);
+});
+
+test("Fullscreen still fills the full viewport, and restores the correct (scroll-affected) size on close, even with a tall Presentation section open in the background", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 620 });
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const beforeFullscreen = await preview.boundingBox();
+	if (!beforeFullscreen) throw new Error("preview has no bounding box");
+
+	await page.getByTestId("fullscreen-open-button").click();
+	const duringFullscreen = await preview.boundingBox();
+	if (!duringFullscreen) throw new Error("preview has no bounding box");
+	// Fullscreen's own `inset: 0` fills the real viewport regardless of the
+	// new `--workspace-available-height` mechanism (excluded via
+	// `:not(.workspace-active__preview--fullscreen)`, src/styles/global.css).
+	const viewport = page.viewportSize();
+	if (!viewport) throw new Error("no viewport size");
+	expect(duringFullscreen.width).toBeCloseTo(viewport.width, 0);
+	expect(duringFullscreen.height).toBeCloseTo(viewport.height, 0);
+
+	await page.keyboard.press("Escape");
+	await expect
+		.poll(async () => {
+			const box = await preview.boundingBox();
+			return box ? Math.abs(box.height - beforeFullscreen.height) : Infinity;
+		})
+		.toBeLessThanOrEqual(1);
+});
+
+test("resizing the viewport while Presentation is open updates the Preview to the new available height", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 1400 });
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const tall = await preview.boundingBox();
+	if (!tall) throw new Error("preview has no bounding box");
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+
+	await expect
+		.poll(async () => {
+			const box = await preview.boundingBox();
+			return box?.height ?? null;
+		})
+		.toBeLessThan(tall.height);
+});

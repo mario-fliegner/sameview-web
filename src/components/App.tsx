@@ -28,6 +28,7 @@ import AppFooter from "./AppFooter";
 import AppHeader from "./AppHeader";
 import ImportSection from "./ImportSection";
 import ReplacementModeOverlay from "./ReplacementModeOverlay";
+import { WorkspaceAvailableHeightContext } from "./WorkspaceActive";
 
 // How long the transient green "Import Succeeded" confirmation stays visible
 // before the workspace is committed (docs/APPLICATION_LAYOUT.md "Import
@@ -70,6 +71,22 @@ function AppShell() {
 	// Confirm" for the focus-restoration effect below, since both change the
 	// same piece of state but must move focus to different places.
 	const wasCancelledRef = useRef(false);
+	// The desktop Presentation Preview's available height (docs/COMPARISON_PRESENTATION.md
+	// "Preview Scaling"), measured here — not guessed, and never derived from
+	// the Context Inspector's own content — and handed to WorkspaceActive via
+	// WorkspaceAvailableHeightContext (see that component's own header
+	// comment for why this fixes a confirmed Preview-size regression).
+	// `headerWrapperRef`/`footerWrapperRef` target the existing `.inert-region`
+	// wrappers below (`display: contents`, so they contribute no box of their
+	// own — see that class's own comment); `.firstElementChild` reaches the
+	// actual rendered `<header>`/`<footer>` element without AppHeader/AppFooter
+	// needing to forward a ref of their own.
+	const headerWrapperRef = useRef<HTMLDivElement>(null);
+	const footerWrapperRef = useRef<HTMLDivElement>(null);
+	const mainRef = useRef<HTMLElement>(null);
+	const [availableWorkspaceHeightPx, setAvailableWorkspaceHeightPx] = useState<
+		number | null
+	>(null);
 
 	// The <title> is corrected here (rather than left at Astro's
 	// server-rendered default) so it also updates when the language changes
@@ -80,6 +97,57 @@ function AppShell() {
 	useEffect(() => {
 		document.title = t.meta.title;
 	}, [t]);
+
+	// Measures the desktop Presentation Preview's real available height from
+	// the actually rendered shell chrome (docs/COMPARISON_PRESENTATION.md
+	// "Preview Scaling"): the live viewport height minus the header's and
+	// footer's own real rendered heights minus `main`'s own real computed
+	// vertical padding — never a guessed/hard-coded pixel constant, and never
+	// anything from the Context Inspector, which this effect never reads.
+	// Recomputes on every real, relevant change: a `ResizeObserver` on the
+	// header and footer elements themselves catches an actual size change to
+	// either of them, for any reason — including a locale switch that makes
+	// their own rendered text (and therefore their own box) a different size
+	// — and the `window` `resize` listener catches viewport resize and
+	// orientation change. It deliberately never re-runs when the Context
+	// Inspector's own content changes size, since nothing here observes it.
+	useEffect(() => {
+		const headerEl = headerWrapperRef.current
+			?.firstElementChild as HTMLElement | null;
+		const footerEl = footerWrapperRef.current
+			?.firstElementChild as HTMLElement | null;
+		const mainEl = mainRef.current;
+		if (!headerEl || !footerEl || !mainEl) return;
+		// Re-bound as fresh, non-nullable consts: TypeScript's control-flow
+		// narrowing from the guard above does not carry into the nested
+		// `recompute` closure below, since it crosses a function boundary.
+		const header: HTMLElement = headerEl;
+		const footer: HTMLElement = footerEl;
+		const main: HTMLElement = mainEl;
+
+		function recompute() {
+			const headerHeight = header.getBoundingClientRect().height;
+			const footerHeight = footer.getBoundingClientRect().height;
+			const mainStyle = getComputedStyle(main);
+			const mainVerticalPadding =
+				Number.parseFloat(mainStyle.paddingTop) +
+				Number.parseFloat(mainStyle.paddingBottom);
+			const available =
+				window.innerHeight - headerHeight - footerHeight - mainVerticalPadding;
+			setAvailableWorkspaceHeightPx(Math.max(0, available));
+		}
+
+		recompute();
+
+		const resizeObserver = new ResizeObserver(recompute);
+		resizeObserver.observe(header);
+		resizeObserver.observe(footer);
+		window.addEventListener("resize", recompute);
+		return () => {
+			resizeObserver.disconnect();
+			window.removeEventListener("resize", recompute);
+		};
+	}, []);
 
 	// Commits the workspace only after the transient success confirmation has
 	// had a moment to be seen, per docs/APPLICATION_LAYOUT.md "Import
@@ -208,7 +276,11 @@ function AppShell() {
 				    change once `.app-shell-content` (a distinct, pre-existing class an
 				    existing E2E test already locates as exactly one element) also
 				    wraps it. */}
-				<div className="inert-region" inert={isFullscreen ? true : undefined}>
+				<div
+					className="inert-region"
+					inert={isFullscreen ? true : undefined}
+					ref={headerWrapperRef}
+				>
 					<AppHeader
 						showReplaceExport={workspaceState.status === "active"}
 						replaceExportDisabled={isImporting || pendingReplacement !== null}
@@ -216,20 +288,28 @@ function AppShell() {
 						replaceExportButtonRef={replaceExportButtonRef}
 					/>
 				</div>
-				<main id="main-content" tabIndex={-1}>
-					<ImportSection
-						workspaceState={workspaceState}
-						isImporting={isImporting}
-						importSucceeded={justSucceeded !== null}
-						errorMessage={errorMessage}
-						onOpenFilePicker={openFilePicker}
-						onFileDropped={(file) => void processFile(file)}
-						onCurrentWorkingStateChange={handleCurrentWorkingStateChange}
-						isFullscreen={isFullscreen}
-						onFullscreenChange={setIsFullscreen}
-					/>
+				<main id="main-content" tabIndex={-1} ref={mainRef}>
+					<WorkspaceAvailableHeightContext.Provider
+						value={availableWorkspaceHeightPx}
+					>
+						<ImportSection
+							workspaceState={workspaceState}
+							isImporting={isImporting}
+							importSucceeded={justSucceeded !== null}
+							errorMessage={errorMessage}
+							onOpenFilePicker={openFilePicker}
+							onFileDropped={(file) => void processFile(file)}
+							onCurrentWorkingStateChange={handleCurrentWorkingStateChange}
+							isFullscreen={isFullscreen}
+							onFullscreenChange={setIsFullscreen}
+						/>
+					</WorkspaceAvailableHeightContext.Provider>
 				</main>
-				<div className="inert-region" inert={isFullscreen ? true : undefined}>
+				<div
+					className="inert-region"
+					inert={isFullscreen ? true : undefined}
+					ref={footerWrapperRef}
+				>
 					<AppFooter
 						showLanguageSelector={workspaceState.status === "active"}
 					/>

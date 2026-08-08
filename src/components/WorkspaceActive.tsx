@@ -62,7 +62,9 @@
 
 import {
 	type CSSProperties,
+	createContext,
 	useCallback,
+	useContext,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
@@ -96,6 +98,39 @@ import type {
 import ComparisonPresentationInfo from "./ComparisonPresentationInfo";
 import ComparisonSlider from "./ComparisonSlider";
 import EditInspector from "./EditInspector";
+
+// The desktop Presentation Preview's own height, in pixels, derived by
+// src/components/App.tsx from the actually rendered header, footer and
+// `main` chrome plus the live viewport height — never from a guessed
+// constant and never from the Context Inspector's own content height (see
+// that component's own header comment for the full measurement). Provided
+// via context, not a prop threaded through src/components/ImportSection.tsx,
+// specifically so that intermediate component never needs to know about a
+// concern that is entirely about Preview/Fullscreen geometry.
+//
+// Fixes a confirmed regression: `.workspace-active__preview` used to reach
+// its own height purely via CSS (`align-self: stretch` into
+// `.workspace-active__layout`'s single `minmax(0, 1fr)` grid row). That
+// grid row only has a genuinely definite height while the whole page still
+// fits within one viewport — `body`'s own `min-height: 100vh`
+// (src/styles/global.css) is the sole source of definiteness in that
+// chain. The moment the Context Inspector's own content (e.g. the
+// Presentation section, now taller with its Typography group) makes the
+// page taller than one viewport and the page starts scrolling, `body`'s
+// height becomes content-derived instead, and a `fr` row inside an
+// indefinite-height grid container resolves to the *tallest item's own
+// content size* rather than a real fraction of available space — so the
+// Preview column's stretched height silently inherited the Inspector
+// column's own (now taller) content height, visibly enlarging the
+// Comparison Stage. Feeding this externally measured, Inspector-independent
+// height in as an explicit `height` (see `.workspace-active__preview` in
+// src/styles/global.css) instead of `align-self: stretch` removes that
+// coupling entirely — the Inspector remains free to grow past the Preview
+// and scroll the page exactly as before, but the Preview itself can no
+// longer inherit that growth.
+export const WorkspaceAvailableHeightContext = createContext<number | null>(
+	null,
+);
 
 // Fullscreen Mode's own icon-only buttons (docs/APPLICATION_LAYOUT.md
 // "Fullscreen Mode"). Plain inline SVG, no icon library — the same technique
@@ -154,6 +189,7 @@ export default function WorkspaceActive({
 	onFullscreenChange,
 }: WorkspaceActiveProps) {
 	const { locale, t } = useLocale();
+	const availableHeightPx = useContext(WorkspaceAvailableHeightContext);
 	const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
 	const previousSessionDirectoryRef = useRef(
 		currentWorkingState.sessionDirectory,
@@ -424,6 +460,13 @@ export default function WorkspaceActive({
 			className="workspace-active"
 			aria-labelledby="workspace-active-title"
 			data-testid="workspace-active"
+			style={
+				availableHeightPx !== null
+					? ({
+							"--workspace-available-height": `${availableHeightPx}px`,
+						} as CSSProperties)
+					: undefined
+			}
 		>
 			{/* Not part of the visible Workspace Active layout
 			(docs/APPLICATION_LAYOUT.md "State B — Workspace Active" shows only
