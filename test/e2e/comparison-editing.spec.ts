@@ -1516,6 +1516,146 @@ test("the Font control on a narrow viewport takes the Edit Inspector's full widt
 	expect(triggerBox.width).toBeGreaterThan(inspectorBox.width - 40);
 });
 
+// Desktop-width Presentation layout (Typography/Shape side by side once the
+// section's own width allows it — src/styles/global.css's `@container
+// presentation` rule on `.presentation-section`). Bounding-box comparisons,
+// not CSS assertions: what matters here is the actually rendered
+// arrangement, which is exactly what a container query can get wrong in
+// ways a `getComputedStyle` check would miss (e.g. a stale container
+// context).
+test("Presentation section: on a wide Inspector, Typography and Shape sit side by side, with Colors and Slider staying full width above/below, and the Preview's size is unaffected", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await importFullFixture(page);
+
+	const preview = page.locator(".workspace-active__preview");
+	const previewBefore = await preview.boundingBox();
+	if (!previewBefore) throw new Error("preview has no bounding box");
+
+	await expandPresentationSection(page);
+
+	const colors = await page
+		.getByTestId("presentation-group-colors")
+		.boundingBox();
+	const typography = await page
+		.getByTestId("presentation-group-typography")
+		.boundingBox();
+	const shape = await page
+		.getByTestId("presentation-group-shape")
+		.boundingBox();
+	const slider = await page
+		.getByTestId("presentation-group-slider")
+		.boundingBox();
+	if (!colors || !typography || !shape || !slider) {
+		throw new Error("missing bounding box for layout comparison");
+	}
+
+	// Typography and Shape sit in the same row: (near-)equal top edge, Shape
+	// starting where Typography's column ends rather than stacked below it.
+	expect(shape.y).toBeCloseTo(typography.y, 0);
+	expect(shape.x).toBeGreaterThanOrEqual(typography.x + typography.width - 1);
+
+	// Colors sits above the row, Slider below it.
+	expect(typography.y).toBeGreaterThanOrEqual(colors.y + colors.height - 1);
+	expect(slider.y).toBeGreaterThanOrEqual(typography.y + typography.height - 1);
+	expect(slider.y).toBeGreaterThanOrEqual(shape.y + shape.height - 1);
+
+	// Colors and Slider each still span the section's full width — well
+	// beyond either single Typography/Shape column, and matching each other.
+	expect(colors.width).toBeGreaterThan(typography.width + shape.width);
+	expect(slider.width).toBeCloseTo(colors.width, 0);
+
+	// The compact Font control is not stretched to fill its new column.
+	const fontTrigger = await page
+		.getByTestId("edit-presentation-font")
+		.boundingBox();
+	if (!fontTrigger) throw new Error("font control has no bounding box");
+	expect(fontTrigger.width).toBeLessThan(colors.width / 2);
+
+	const previewAfter = await preview.boundingBox();
+	if (!previewAfter) throw new Error("preview has no bounding box");
+	expect(previewAfter.width).toBeCloseTo(previewBefore.width, 0);
+	expect(previewAfter.height).toBeCloseTo(previewBefore.height, 0);
+});
+
+// The scenario the container query exists for: a genuinely two-column
+// desktop workspace whose Inspector column is nonetheless too narrow for
+// Typography and Shape to sit side by side — proving the switch follows the
+// Presentation section's own rendered width, not "is this a desktop
+// viewport" (a `min-width` media query on the viewport could not tell these
+// two cases apart).
+test("Presentation section: a two-column desktop viewport with a narrow Inspector column still stacks Typography and Shape", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 820, height: 900 });
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	// Confirms the precondition that makes this test meaningful: the Preview
+	// and the Inspector are genuinely side by side (the two-column desktop
+	// workspace layout), not stacked as they would be on mobile.
+	const previewBox = await page
+		.locator(".workspace-active__preview")
+		.boundingBox();
+	const inspectorBox = await page
+		.locator(".edit-inspector")
+		.first()
+		.boundingBox();
+	if (!previewBox || !inspectorBox) {
+		throw new Error("missing bounding box for layout precondition check");
+	}
+	expect(inspectorBox.x).toBeGreaterThanOrEqual(
+		previewBox.x + previewBox.width - 1,
+	);
+
+	const typography = await page
+		.getByTestId("presentation-group-typography")
+		.boundingBox();
+	const shape = await page
+		.getByTestId("presentation-group-shape")
+		.boundingBox();
+	if (!typography || !shape) {
+		throw new Error("missing bounding box for layout comparison");
+	}
+	// Stacked: Shape starts below Typography, at the same left edge.
+	expect(shape.y).toBeGreaterThanOrEqual(typography.y + typography.height - 1);
+	expect(shape.x).toBeCloseTo(typography.x, 0);
+});
+
+test("Presentation section: on a narrow/mobile viewport, all four groups stay in their original stacked order", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 400, height: 1400 });
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+
+	const colors = await page
+		.getByTestId("presentation-group-colors")
+		.boundingBox();
+	const typography = await page
+		.getByTestId("presentation-group-typography")
+		.boundingBox();
+	const shape = await page
+		.getByTestId("presentation-group-shape")
+		.boundingBox();
+	const slider = await page
+		.getByTestId("presentation-group-slider")
+		.boundingBox();
+	if (!colors || !typography || !shape || !slider) {
+		throw new Error("missing bounding box for layout comparison");
+	}
+
+	expect(typography.y).toBeGreaterThanOrEqual(colors.y + colors.height - 1);
+	expect(shape.y).toBeGreaterThanOrEqual(typography.y + typography.height - 1);
+	expect(slider.y).toBeGreaterThanOrEqual(shape.y + shape.height - 1);
+
+	// One single column throughout: every group shares the same left edge.
+	expect(typography.x).toBeCloseTo(colors.x, 0);
+	expect(shape.x).toBeCloseTo(colors.x, 0);
+	expect(slider.x).toBeCloseTo(colors.x, 0);
+});
+
 test("selecting Background updates the Presentation Canvas immediately", async ({
 	page,
 }) => {

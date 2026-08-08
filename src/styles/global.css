@@ -1465,6 +1465,48 @@ main {
 	display: flex;
 	flex-direction: column;
 	gap: 1rem;
+	/* Lets `.presentation-row` below react to the Presentation section's own
+	   actually rendered width — never the browser viewport. Necessary
+	   because the Context Inspector this section lives in occupies only a
+	   fraction of the viewport (`.workspace-active__layout`'s 50/50 split
+	   above `min-width: 48rem`, full width below it), so "is the viewport
+	   desktop-sized" and "is there enough room here for two columns" are two
+	   different questions — a viewport `@media` query would answer the wrong
+	   one. */
+	container-type: inline-size;
+	container-name: presentation;
+}
+
+/* Typography and Shape (docs/APPLICATION_LAYOUT.md "Presentation"): stacked
+   by default, same as every other top-level group in this section — this
+   is also the permanent Mobile/narrow layout the container query below
+   never overrides. */
+.presentation-row {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+/* Side by side, Typography first, once the section's own available width
+   comfortably fits both columns without squeezing either one's existing
+   controls (the compact Font control, docs/APPLICATION_LAYOUT.md
+   "Typography"'s `16rem` width; the Sharp/Rounded row, "Corners"'s
+   existing single-row option group) — chosen with headroom above both
+   columns' natural content width, not tied to any of this file's other
+   breakpoints. Only `flex-direction`/`gap` change here: each column is
+   still the exact same `.presentation-option-group` used everywhere else
+   in this section, so neither group's own internal layout is touched. */
+@container presentation (min-width: 30rem) {
+	.presentation-row {
+		flex-direction: row;
+		align-items: start;
+		gap: 1.5rem;
+	}
+
+	.presentation-row > .presentation-option-group {
+		flex: 1;
+		min-width: 0;
+	}
 }
 
 .presentation-option-group {

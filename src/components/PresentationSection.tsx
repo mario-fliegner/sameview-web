@@ -73,7 +73,10 @@ export default function PresentationSection({
 
 	return (
 		<div className="presentation-section">
-			<div className="presentation-option-group">
+			<div
+				className="presentation-option-group"
+				data-testid="presentation-group-colors"
+			>
 				<span className="presentation-option-group__legend">
 					{t.editInspector.presentation.colorsLegend}
 				</span>
@@ -243,74 +246,90 @@ export default function PresentationSection({
 				</div>
 			</div>
 
-			<div className="presentation-option-group">
-				<span className="presentation-option-group__legend">
-					{t.editInspector.presentation.typographyLegend}
-				</span>
-
-				<div className="presentation-subgroup">
-					<span
-						id="edit-presentation-font-legend"
-						className="presentation-subgroup__legend"
-					>
-						{t.editInspector.presentation.fontLegend}
+			{/* Typography and Shape share one row once the section's own
+			    available width comfortably fits both (see `.presentation-row`'s
+			    container query in global.css) — this wrapper carries no meaning
+			    of its own beyond that placement; both groups keep their
+			    existing `presentation-option-group` markup/behavior unchanged. */}
+			<div className="presentation-row" data-testid="presentation-row">
+				<div
+					className="presentation-option-group"
+					data-testid="presentation-group-typography"
+				>
+					<span className="presentation-option-group__legend">
+						{t.editInspector.presentation.typographyLegend}
 					</span>
-					<PresentationFontSelect
-						id="edit-presentation-font"
-						legendId="edit-presentation-font-legend"
-						value={configuration.presentationFont}
-						options={[
-							{
-								id: "inter",
-								label: t.editInspector.presentation.fontOptions.inter,
-							},
-							{
-								id: "manrope",
-								label: t.editInspector.presentation.fontOptions.manrope,
-							},
-							{
-								id: "space-grotesk",
-								label: t.editInspector.presentation.fontOptions.spaceGrotesk,
-							},
-						]}
-						onChange={(presentationFont) =>
-							updateConfiguration({ presentationFont })
-						}
-					/>
+
+					<div className="presentation-subgroup">
+						<span
+							id="edit-presentation-font-legend"
+							className="presentation-subgroup__legend"
+						>
+							{t.editInspector.presentation.fontLegend}
+						</span>
+						<PresentationFontSelect
+							id="edit-presentation-font"
+							legendId="edit-presentation-font-legend"
+							value={configuration.presentationFont}
+							options={[
+								{
+									id: "inter",
+									label: t.editInspector.presentation.fontOptions.inter,
+								},
+								{
+									id: "manrope",
+									label: t.editInspector.presentation.fontOptions.manrope,
+								},
+								{
+									id: "space-grotesk",
+									label: t.editInspector.presentation.fontOptions.spaceGrotesk,
+								},
+							]}
+							onChange={(presentationFont) =>
+								updateConfiguration({ presentationFont })
+							}
+						/>
+					</div>
+				</div>
+
+				<div
+					className="presentation-option-group"
+					data-testid="presentation-group-shape"
+				>
+					<span className="presentation-option-group__legend">
+						{t.editInspector.presentation.shapeLegend}
+					</span>
+
+					<div className="presentation-subgroup">
+						<span className="presentation-subgroup__legend">
+							{t.editInspector.presentation.cornersLegend}
+						</span>
+						<OptionGroup
+							legend={t.editInspector.presentation.cornersLegend}
+							testIdPrefix="edit-presentation-corners"
+							selected={configuration.cornerRadius}
+							options={[
+								{
+									value: "sharp",
+									label: t.editInspector.presentation.cornerOptions.sharp,
+								},
+								{
+									value: "rounded",
+									label: t.editInspector.presentation.cornerOptions.rounded,
+								},
+							]}
+							onSelect={(value) =>
+								updateConfiguration({ cornerRadius: value as CornerRadius })
+							}
+						/>
+					</div>
 				</div>
 			</div>
 
-			<div className="presentation-option-group">
-				<span className="presentation-option-group__legend">
-					{t.editInspector.presentation.shapeLegend}
-				</span>
-
-				<div className="presentation-subgroup">
-					<span className="presentation-subgroup__legend">
-						{t.editInspector.presentation.cornersLegend}
-					</span>
-					<OptionGroup
-						legend={t.editInspector.presentation.cornersLegend}
-						testIdPrefix="edit-presentation-corners"
-						selected={configuration.cornerRadius}
-						options={[
-							{
-								value: "sharp",
-								label: t.editInspector.presentation.cornerOptions.sharp,
-							},
-							{
-								value: "rounded",
-								label: t.editInspector.presentation.cornerOptions.rounded,
-							},
-						]}
-						onSelect={(value) =>
-							updateConfiguration({ cornerRadius: value as CornerRadius })
-						}
-					/>
-				</div>
-			</div>
-
-			<div className="presentation-option-group">
+			<div
+				className="presentation-option-group"
+				data-testid="presentation-group-slider"
+			>
 				<span className="presentation-option-group__legend">
 					{t.editInspector.presentation.sliderLegend}
 				</span>
