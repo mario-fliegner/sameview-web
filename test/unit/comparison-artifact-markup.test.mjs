@@ -10,6 +10,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { buildComparisonArtifactMarkup } from "../../src/lib/comparison-artifact-markup.ts";
+import {
+	BRANDED_HANDLE_VISUAL_REM,
+	STANDARD_HANDLE_VISUAL_REM,
+} from "../../src/lib/comparison-handle-geometry.ts";
 import { DEFAULT_PRESENTATION_CONFIGURATION } from "../../src/lib/workspace-state.ts";
 
 const BASE_PRESENTATION = {
@@ -123,5 +127,39 @@ describe("buildComparisonArtifactMarkup", () => {
 		const markup = build({ initialSliderPosition: 0.25 });
 		assert.match(markup, /clip-path: inset\(0 75% 0 0\)/);
 		assert.match(markup, /inset-inline-start: 25%/);
+	});
+
+	// Confirmed regression fix: this markup builder used to omit the Handle
+	// visual's `width`/`height` entirely — src/styles/comparison-presentation.css's
+	// `.comparison-slider__handle-visual` rule intentionally sets no size of
+	// its own (relying on the inline style src/components/ComparisonSliderHandle.tsx
+	// sets), so the generated `<svg>` fell back to the browser's own default
+	// replaced-element size (confirmed empirically at 28px) instead of the
+	// documented 54px/81px. These two tests are a safeguard on the exact
+	// current values only, sourced from the same shared constants
+	// src/components/ComparisonSliderHandle.tsx itself uses — never a second,
+	// independently declared number — and are not a substitute for the real
+	// Preview/Output parity assertion, which only a real browser layout
+	// (test/e2e/output-generation.spec.ts) can perform.
+	test("the Handle visual's inline size is exactly STANDARD_HANDLE_VISUAL_REM when no branding is configured", () => {
+		const markup = build({ branding: { kind: "none" } });
+		assert.ok(
+			markup.includes(
+				`style="width: ${STANDARD_HANDLE_VISUAL_REM}rem; height: ${STANDARD_HANDLE_VISUAL_REM}rem"`,
+			),
+		);
+	});
+
+	test("the Handle visual's inline size is exactly BRANDED_HANDLE_VISUAL_REM for a Built-in Symbol and for a Custom Image", () => {
+		const symbolMarkup = build({
+			branding: { kind: "symbol", builtinId: "star", color: "#17202F" },
+		});
+		const assetMarkup = build({
+			branding: { kind: "asset" },
+			assets: { ...ASSETS, brandingSrc: "images/branding.png" },
+		});
+		const expectedStyle = `style="width: ${BRANDED_HANDLE_VISUAL_REM}rem; height: ${BRANDED_HANDLE_VISUAL_REM}rem"`;
+		assert.ok(symbolMarkup.includes(expectedStyle));
+		assert.ok(assetMarkup.includes(expectedStyle));
 	});
 });

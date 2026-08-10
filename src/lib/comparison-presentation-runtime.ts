@@ -50,7 +50,10 @@ import {
 	buildTimeFont,
 	buildTitleFont,
 } from "./comparison-canvas-fonts.ts";
-import { getEffectiveRingRadiusPx } from "./comparison-handle-geometry.ts";
+import {
+	getEffectiveRingRadiusPx,
+	getHandleVisualSizePx,
+} from "./comparison-handle-geometry.ts";
 import {
 	clampPercent,
 	computeLabelVisibility,
@@ -153,6 +156,17 @@ export function initComparisonPresentation(): void {
 	let activePointerId: number | null = null;
 	let dragOriginLeftPx = 0;
 	let frameWidthPx = 0;
+	// The Handle's own currently rendered size (docs/COMPARISON_PRESENTATION.md
+	// Part 2 "Handle", "Responsive Handle Size on a Small Presentation
+	// Stage") — kept up to date by `recomputeGeometry()` below, from the
+	// exact same src/lib/comparison-handle-geometry.ts `getHandleVisualSizePx`
+	// the live Workspace Preview also calls. Initialized to the documented
+	// base size (this call's `(0, 0, …)` is exactly `getHandleVisualSizePx`'s
+	// own "not yet measured" fallback), matching the static bootstrap value
+	// src/lib/comparison-artifact-markup.ts already renders into the markup
+	// before this script ever runs — authoritative from the first real
+	// geometry measurement onward.
+	let handleVisualSizePx = getHandleVisualSizePx(0, 0, isBranded);
 
 	function renderPosition(): void {
 		referenceImage.style.clipPath = `inset(0 ${100 - position}% 0 0)`;
@@ -167,7 +181,7 @@ export function initComparisonPresentation(): void {
 	function updateLabels(): void {
 		if (!labelLeft || !labelRight) return;
 		const dividerXPx = dividerPositionPx(position, frameWidthPx);
-		const effectiveRingRadiusPx = getEffectiveRingRadiusPx(isBranded);
+		const effectiveRingRadiusPx = getEffectiveRingRadiusPx(handleVisualSizePx);
 		const labelFont = buildSliderLabelFont(presentationFontFamily);
 		const leftWidthPx = measureTextWidth(
 			labelLeft.textContent ?? "",
@@ -351,6 +365,26 @@ export function initComparisonPresentation(): void {
 			"--content-gap",
 			metadataHeightPx > 0 ? `${CANVAS_CONTENT_GAP_PX}px` : "0px",
 		);
+
+		// docs/COMPARISON_PRESENTATION.md Part 2 "Handle", "Responsive Handle
+		// Size on a Small Presentation Stage": recomputed on every geometry
+		// pass (this function already runs on every relevant resize, via the
+		// two ResizeObservers below) from the Stage's own just-computed size —
+		// dynamic, resize-reactive, and never dependent on regenerating this
+		// document. `handleVisualSizePx` (module-scoped) is updated before
+		// this function returns, so `updateLabels()` — triggered next by the
+		// `sliderFrame` ResizeObserver below reacting to this same
+		// `--stage-width`/`--stage-height` change — always reads the current
+		// value, never a stale one.
+		handleVisualSizePx = getHandleVisualSizePx(
+			geometry.stageWidth,
+			geometry.stageHeight,
+			isBranded,
+		);
+		if (handleVisual) {
+			handleVisual.style.width = `${handleVisualSizePx}px`;
+			handleVisual.style.height = `${handleVisualSizePx}px`;
+		}
 
 		const isStable =
 			measurementCount >= MAX_GEOMETRY_MEASUREMENTS ||

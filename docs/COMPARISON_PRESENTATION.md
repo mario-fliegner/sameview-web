@@ -277,6 +277,42 @@ and vertically.
 Base handle shape and geometry use the existing SameView reference
 specification. No presentation-specific variants are defined.
 
+#### Responsive Handle Size on a Small Presentation Stage
+
+The Handle's diameter (Standard 54px, Branded 81px, per the 1.5× relationship
+above) is a maximum, not a fixed constant: it applies whenever the Comparison
+Stage's own shorter side is at or above a 200px reference size — an ordinary
+desktop or tablet Presentation Preview is unaffected by this section.
+
+Below that 200px reference, the Handle's diameter scales down proportionally
+with the Comparison Stage's own actually rendered shorter side — at 80% of
+the reference size the Handle renders at 80% of its maximum diameter, at 60%
+of the reference size at 60%, and so on — so it never grows disproportionately
+large relative to a heavily reduced comparison, and never merely stays at its
+maximum size until some late point before finally shrinking. It scales down
+only as far as a minimum diameter of 28px Standard / 42px Branded — the same
+1.5× relationship between Standard and Branded holds at every size the Handle
+can render at, including this minimum. The Handle's diameter never exceeds
+its documented maximum, however large the Comparison Stage becomes.
+
+The ring, chevrons, and the configured Built-in Symbol or Custom Image
+content scale together with the Handle's own diameter at every size,
+preserving their existing proportions (72% / 57.6% of the diameter, centered
+on the Handle's own center) — this is a single, continuously proportional
+Handle visual, never a separate smaller variant. The Slider Date Labels'
+placement around the Handle likewise always reflects the Handle's own
+currently rendered size, never the fixed base diameter alone.
+
+This scaling reacts live to the Presentation Preview, the generated
+Standalone HTML and the generated Static Microsite being resized — including
+after a Standalone HTML or Static Microsite output has already been
+generated and opened. It never requires regenerating that output.
+
+The Handle's own pointer, touch and keyboard interaction target is a
+separate, fixed-size element around the Handle visual. It does not scale
+down with the Handle's own diameter and remains fully operable at every
+Comparison Stage size this section describes.
+
 A Built-in Symbol's fill color is derived from its configured color (Dark,
 Brand or Custom — F-004). Selecting, configuring or changing this color is
 defined exclusively by F-004; this document defines only how the currently

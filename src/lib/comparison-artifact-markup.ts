@@ -29,11 +29,13 @@ import {
 	getSymbolViewBox,
 } from "./builtin-branding-symbols.ts";
 import {
+	BRANDED_HANDLE_VISUAL_REM,
 	getContentBox,
 	HANDLE_RADIUS_PX,
 	IMAGE_CONTENT_RATIO,
 	RING_STROKE_WIDTH_PX,
 	STANDARD_ARROW_COLOR,
+	STANDARD_HANDLE_VISUAL_REM,
 	SYMBOL_CONTENT_RATIO,
 } from "./comparison-handle-geometry.ts";
 import type { ComparisonPresentation } from "./comparison-presentation.ts";
@@ -66,6 +68,19 @@ function buildHandleMarkup(
 			: undefined;
 	const imageBox = getContentBox(IMAGE_CONTENT_RATIO);
 	const symbolBox = getContentBox(SYMBOL_CONTENT_RATIO);
+	// The rendered CSS box size — src/components/ComparisonSliderHandle.tsx's
+	// own inline `style={{ width, height }}`, transcribed here from the same
+	// shared constants (never redeclared): src/styles/comparison-presentation.css's
+	// `.comparison-slider__handle-visual` rule intentionally sets no size of
+	// its own (see that rule's own comment), so without this the SVG's
+	// `viewBox`-only intrinsic sizing left it at the browser's own default
+	// replaced-element size — confirmed empirically at 28px, neither the
+	// standard 54px (3.375rem) nor the branding-enlarged 81px (5.0625rem)
+	// docs/COMPARISON_PRESENTATION.md Part 2 "Handle" documents.
+	const isBranded = branding.kind !== "none";
+	const visualSizeRem = isBranded
+		? BRANDED_HANDLE_VISUAL_REM
+		: STANDARD_HANDLE_VISUAL_REM;
 
 	const chevrons =
 		branding.kind === "none"
@@ -80,7 +95,7 @@ function buildHandleMarkup(
 			? `<svg x="${symbolBox.offset}" y="${symbolBox.offset}" width="${symbolBox.side}" height="${symbolBox.side}" viewBox="${getSymbolViewBox(symbol)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="${symbol.pathData}" fill="${branding.color}" /></svg>`
 			: "";
 
-	return `<svg class="comparison-slider__handle-visual" id="sameview-handle-visual" viewBox="0 0 54 54" aria-hidden="true" focusable="false" data-testid="comparison-slider-handle" data-branding-kind="${branding.kind}"><path d="${RING_ARC_LEFT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><path d="${RING_ARC_RIGHT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><circle cx="27" cy="27" r="${HANDLE_RADIUS_PX}" fill="#ffffff" />${chevrons}${assetImage}${symbolSvg}</svg>`;
+	return `<svg class="comparison-slider__handle-visual" id="sameview-handle-visual" style="width: ${visualSizeRem}rem; height: ${visualSizeRem}rem" viewBox="0 0 54 54" aria-hidden="true" focusable="false" data-testid="comparison-slider-handle" data-branding-kind="${branding.kind}"><path d="${RING_ARC_LEFT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><path d="${RING_ARC_RIGHT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><circle cx="27" cy="27" r="${HANDLE_RADIUS_PX}" fill="#ffffff" />${chevrons}${assetImage}${symbolSvg}</svg>`;
 }
 
 export interface ComparisonInfoLabels {

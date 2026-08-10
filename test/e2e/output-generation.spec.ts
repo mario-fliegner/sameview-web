@@ -59,6 +59,35 @@ async function openOutputInspector(page: import("@playwright/test").Page) {
 	await expect(page.getByTestId("output-inspector")).toBeVisible();
 }
 
+// Confirmed regression fix (src/lib/comparison-artifact-markup.ts
+// `buildHandleMarkup`): the generated artifact's Handle visual used to carry
+// no `width`/`height` at all (neither src/styles/comparison-presentation.css's
+// `.comparison-slider__handle-visual` rule nor the markup itself set one —
+// only src/components/ComparisonSliderHandle.tsx's own inline style did,
+// which the generated markup never reproduced), so the `<svg>` fell back to
+// the browser's own default replaced-element size instead of the Live
+// Preview's actual, branding-dependent size. `.comparison-slider__handle-visual`
+// is both the Live Preview's own class and the generated artifact's `id`
+// (`#sameview-handle-visual` also carries this class) — this helper works
+// for either page unchanged.
+async function measureHandleVisualBox(
+	locator: import("@playwright/test").Locator,
+) {
+	const box = await locator.boundingBox();
+	if (!box) throw new Error("handle visual has no bounding box");
+	return box;
+}
+
+// Comparison Information stays open by default (docs/APPLICATION_LAYOUT.md
+// "Structure"); this switches to Branding and selects "None", the one
+// scenario `sample-v6-session_full.zip`'s own imported asset branding
+// doesn't already exercise (docs/COMPARISON_PRESENTATION.md Part 2 "Handle":
+// standard vs. 1.5×-enlarged).
+async function switchToNoneBranding(page: import("@playwright/test").Page) {
+	await page.getByTestId("edit-inspector-branding-toggle").click();
+	await page.getByTestId("edit-branding-option-none").click();
+}
+
 test("Create Output opens the Output Inspector with Standalone HTML selected, Remove Embedded Location Data on, and CMS Package shown but not selectable", async ({
 	page,
 }) => {
@@ -411,6 +440,261 @@ test("the downloaded Standalone HTML opens fully offline (file://) and renders t
 	await offlinePage.close();
 });
 
+test("the Standalone HTML's generated Handle visual matches the Live Preview's actually rendered size, for Branded and Standard branding alike", async ({
+	page,
+	context,
+}) => {
+	// Confirmed regression fix (docs/COMPARISON_PRESENTATION.md Part 2
+	// "Handle", "Responsive Handle Size on a Small Presentation Stage"): the
+	// Handle now scales proportionally below a 200px Stage-shorter-side
+	// reference, which is *tighter* than the old ~135/203px implied
+	// threshold — Playwright's own default "Desktop Chrome" viewport
+	// (1280x720, no explicit size set) produces a Stage whose shorter side
+	// is only ~173px for this fixture, already below the new 200px
+	// reference, which would make this test's own `toBeCloseTo(81, 0)`
+	// assertion fail on a partially-scaled value instead of the true base
+	// size. An explicit viewport is required for a "the Handle is at its
+	// unscaled base size" assertion to mean anything.
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	await expect(page.locator(".presentation-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+
+	// `sample-v6-session_full.zip` imports with Branded (asset) branding
+	// already active (test/fixtures/android-export/README.md;
+	// src/lib/branding.ts `resolveHandleBranding` resolves its
+	// `branding-handle.png` to `{ kind: "asset" }`) — the Live Preview's own
+	// actually rendered size for that state, not an assumed constant.
+	const brandedPreviewBox = await measureHandleVisualBox(
+		page.locator(".comparison-slider__handle-visual"),
+	);
+	// A safeguard on the currently documented value only
+	// (docs/COMPARISON_PRESENTATION.md Part 2 "Handle": 1.5× enlargement) —
+	// never a substitute for the parity assertion below, which is what
+	// actually proves the regression is fixed.
+	expect(brandedPreviewBox.width).toBeCloseTo(81, 0);
+
+	await openOutputInspector(page);
+	const [brandedDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const brandedPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-standalone-branded-")),
+		"sameview-comparison.html",
+	);
+	await brandedDownload.saveAs(brandedPath);
+
+	const brandedOfflinePage = await context.newPage();
+	await brandedOfflinePage.goto(pathToFileURL(brandedPath).href);
+	await expect(brandedOfflinePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const brandedArtifactBox = await measureHandleVisualBox(
+		brandedOfflinePage.locator("#sameview-handle-visual"),
+	);
+	expect(brandedArtifactBox.width).toBeCloseTo(brandedPreviewBox.width, 0);
+	expect(brandedArtifactBox.height).toBeCloseTo(brandedPreviewBox.height, 0);
+	await brandedOfflinePage.close();
+
+	// Standard (no branding) — the one Handle state the fixture's own default
+	// doesn't already exercise.
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+	await switchToNoneBranding(page);
+
+	const standardPreviewBox = await measureHandleVisualBox(
+		page.locator(".comparison-slider__handle-visual"),
+	);
+	expect(standardPreviewBox.width).toBeCloseTo(54, 0);
+
+	await openOutputInspector(page);
+	const [standardDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const standardPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-standalone-standard-")),
+		"sameview-comparison.html",
+	);
+	await standardDownload.saveAs(standardPath);
+
+	const standardOfflinePage = await context.newPage();
+	await standardOfflinePage.goto(pathToFileURL(standardPath).href);
+	await expect(standardOfflinePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const standardArtifactBox = await measureHandleVisualBox(
+		standardOfflinePage.locator("#sameview-handle-visual"),
+	);
+	expect(standardArtifactBox.width).toBeCloseTo(standardPreviewBox.width, 0);
+	expect(standardArtifactBox.height).toBeCloseTo(standardPreviewBox.height, 0);
+	await standardOfflinePage.close();
+});
+
+// Confirmed regression fix (docs/COMPARISON_PRESENTATION.md Part 2 "Handle",
+// "Responsive Handle Size on a Small Presentation Stage"): responsive Handle
+// scaling must react live to the *already-generated, already-opened*
+// document being resized — a Standalone HTML/Static Microsite output is
+// never regenerated once downloaded (docs/APPLICATION_LAYOUT.md "Standalone
+// HTML": "represents the current Presentation Preview exactly at the moment
+// of download" describes generation, not an ongoing dependency), so a
+// static, generation-time-only size would go stale the moment the viewer
+// resizes their own window or opens the file on a different screen.
+// src/lib/comparison-presentation-runtime.ts's own `recomputeGeometry()`
+// (already resize-reactive for Stage geometry) is what this relies on.
+test("the Standalone HTML's Handle visual resizes live when the already-opened artifact's own window is resized, without regenerating or reloading", async ({
+	page,
+	context,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const savedPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-standalone-live-resize-")),
+		"sameview-comparison.html",
+	);
+	await download.saveAs(savedPath);
+
+	const offlinePage = await context.newPage();
+	await offlinePage.setViewportSize({ width: 1280, height: 800 });
+	await offlinePage.goto(pathToFileURL(savedPath).href);
+	await expect(offlinePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const normalBox = await measureHandleVisualBox(
+		offlinePage.locator("#sameview-handle-visual"),
+	);
+	expect(normalBox.width).toBeCloseTo(81, 0);
+
+	// The exact same already-open document — no navigation, no re-download.
+	// Deliberately much smaller than the Preview's own equivalent "shrunk"
+	// viewport (e.g. 800x500): the Standalone artifact's own outer chrome
+	// (`#sameview-output-frame`, a centered `position: fixed` frame with a
+	// small responsive margin) preserves noticeably more Stage space at the
+	// same raw viewport size than the Live Preview's two-column app grid
+	// does — confirmed empirically (at 800x500 the artifact's own Stage
+	// measures ~210x374px, still above the Branded scaling threshold, so the
+	// Handle would not visibly shrink there at all) — so this test uses a
+	// viewport small enough for the *artifact's own* Stage to genuinely
+	// cross the threshold, not one merely small enough for the Preview.
+	await offlinePage.setViewportSize({ width: 300, height: 300 });
+	await expect
+		.poll(async () => {
+			const box = await offlinePage
+				.locator("#sameview-handle-visual")
+				.boundingBox();
+			return box?.width;
+		})
+		.toBeLessThan(80);
+
+	await offlinePage.setViewportSize({ width: 1280, height: 800 });
+	await expect
+		.poll(async () => {
+			const box = await offlinePage
+				.locator("#sameview-handle-visual")
+				.boundingBox();
+			return box?.width;
+		})
+		.toBeCloseTo(81, 0);
+
+	await offlinePage.close();
+});
+
+// The one test explicitly required to guard against a repeat of the exact
+// defect this whole feature already fixed once (src/lib/comparison-artifact-markup.ts
+// `buildHandleMarkup`, Problem 1): two formally similar but independently
+// drifting implementations. Rather than asserting each renderer's own
+// output against the shared formula in isolation (already covered above and
+// in test/e2e/comparison-slider-handle-geometry.spec.ts), this directly
+// compares the Live Preview's and the generated Standalone HTML's actually
+// rendered Handle size *at the same actually rendered Stage size* — the two
+// renderers' own outer chrome differs (the two-column app grid vs. the
+// artifact's centered `#sameview-output-frame`), so matching viewport pixels
+// alone does not guarantee a matching Stage size; this converges the
+// artifact's own viewport (a handful of real resizes, not a guessed
+// constant) until its measured Stage size matches the Preview's.
+test("Preview and the generated Standalone HTML render the exact same Handle size at the same actually rendered Stage size", async ({
+	page,
+	context,
+}) => {
+	await page.setViewportSize({ width: 800, height: 500 });
+	await importFullFixture(page);
+	const previewStageBox = await page
+		.locator('[data-testid="comparison-slider"]')
+		.boundingBox();
+	if (!previewStageBox) throw new Error("preview stage has no bounding box");
+	const previewHandleBox = await measureHandleVisualBox(
+		page.locator(".comparison-slider__handle-visual"),
+	);
+
+	await openOutputInspector(page);
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const savedPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-standalone-parity-")),
+		"sameview-comparison.html",
+	);
+	await download.saveAs(savedPath);
+
+	const offlinePage = await context.newPage();
+	let viewport = { width: 800, height: 500 };
+	let artifactStageBox: { width: number; height: number } | null = null;
+	for (let attempt = 0; attempt < 6; attempt++) {
+		await offlinePage.setViewportSize(viewport);
+		if (attempt === 0) {
+			await offlinePage.goto(pathToFileURL(savedPath).href);
+			await expect(offlinePage.locator("#sameview-canvas")).toHaveClass(
+				/presentation-canvas--ready/,
+				{ timeout: 10_000 },
+			);
+		} else {
+			await offlinePage.waitForTimeout(150);
+		}
+		const box = await offlinePage
+			.locator("#sameview-slider-frame")
+			.boundingBox();
+		if (!box) throw new Error("artifact stage has no bounding box");
+		artifactStageBox = box;
+		const deltaWidth = previewStageBox.width - box.width;
+		const deltaHeight = previewStageBox.height - box.height;
+		if (Math.abs(deltaWidth) < 1 && Math.abs(deltaHeight) < 1) break;
+		viewport = {
+			width: Math.round(viewport.width + deltaWidth),
+			height: Math.round(viewport.height + deltaHeight),
+		};
+	}
+	if (!artifactStageBox) throw new Error("artifact stage was never measured");
+
+	// Confirms the loop above actually found a matching real Stage size —
+	// the assertions below are only meaningful if this held.
+	expect(Math.abs(artifactStageBox.width - previewStageBox.width)).toBeLessThan(
+		1.5,
+	);
+	expect(
+		Math.abs(artifactStageBox.height - previewStageBox.height),
+	).toBeLessThan(1.5);
+
+	const artifactHandleBox = await measureHandleVisualBox(
+		offlinePage.locator("#sameview-handle-visual"),
+	);
+	expect(artifactHandleBox.width).toBeCloseTo(previewHandleBox.width, 0);
+	expect(artifactHandleBox.height).toBeCloseTo(previewHandleBox.height, 0);
+
+	await offlinePage.close();
+});
+
 test("generating the Static Microsite downloads sameview-comparison.zip with exactly the specified file structure, and the unpacked index.html works the same way", async ({
 	page,
 	context,
@@ -485,6 +769,162 @@ test("generating the Static Microsite downloads sameview-comparison.zip with exa
 	await expect(micrositePage.locator("#sameview-title")).toHaveText(
 		"White and black wall portait",
 	);
+
+	await micrositePage.close();
+});
+
+// Extracts a freshly generated Static Microsite ZIP to a temp directory and
+// returns its `index.html` path — factored out of the structure test above
+// so the parity test below can generate it twice (Branded, then Standard)
+// without duplicating the zip-reading mechanics.
+async function downloadAndExtractMicrosite(
+	page: import("@playwright/test").Page,
+	dirPrefix: string,
+): Promise<string> {
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const zipBytes = new Uint8Array(readFileSync(await download.path()));
+	const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	const entries = await zipReader.getEntries();
+	const extractDir = mkdtempSync(join(tmpdir(), dirPrefix));
+	for (const entry of entries) {
+		if (entry.directory) continue;
+		const bytes = await entry.getData(new Uint8ArrayWriter());
+		const destination = join(extractDir, entry.filename);
+		await mkdir(dirname(destination), { recursive: true });
+		await writeFile(destination, bytes);
+	}
+	await zipReader.close();
+	return join(extractDir, "index.html");
+}
+
+test("the Static Microsite's generated Handle visual matches the Live Preview's actually rendered size, for Branded and Standard branding alike", async ({
+	page,
+	context,
+}) => {
+	// See the Standalone HTML equivalent test's own comment: an explicit
+	// viewport is required so this Stage's shorter side stays above the
+	// 200px reference (Playwright's default "Desktop Chrome" viewport does
+	// not).
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	await expect(page.locator(".presentation-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+
+	// Same fixture default as the Standalone HTML parity test above: Branded
+	// (asset) branding already active.
+	const brandedPreviewBox = await measureHandleVisualBox(
+		page.locator(".comparison-slider__handle-visual"),
+	);
+	expect(brandedPreviewBox.width).toBeCloseTo(81, 0);
+
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+	const brandedIndexPath = await downloadAndExtractMicrosite(
+		page,
+		"sameview-microsite-branded-",
+	);
+
+	const brandedMicrositePage = await context.newPage();
+	await brandedMicrositePage.goto(pathToFileURL(brandedIndexPath).href);
+	await expect(brandedMicrositePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const brandedArtifactBox = await measureHandleVisualBox(
+		brandedMicrositePage.locator("#sameview-handle-visual"),
+	);
+	expect(brandedArtifactBox.width).toBeCloseTo(brandedPreviewBox.width, 0);
+	expect(brandedArtifactBox.height).toBeCloseTo(brandedPreviewBox.height, 0);
+	await brandedMicrositePage.close();
+
+	// Standard (no branding).
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+	await switchToNoneBranding(page);
+
+	const standardPreviewBox = await measureHandleVisualBox(
+		page.locator(".comparison-slider__handle-visual"),
+	);
+	expect(standardPreviewBox.width).toBeCloseTo(54, 0);
+
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+	const standardIndexPath = await downloadAndExtractMicrosite(
+		page,
+		"sameview-microsite-standard-",
+	);
+
+	const standardMicrositePage = await context.newPage();
+	await standardMicrositePage.goto(pathToFileURL(standardIndexPath).href);
+	await expect(standardMicrositePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const standardArtifactBox = await measureHandleVisualBox(
+		standardMicrositePage.locator("#sameview-handle-visual"),
+	);
+	expect(standardArtifactBox.width).toBeCloseTo(standardPreviewBox.width, 0);
+	expect(standardArtifactBox.height).toBeCloseTo(standardPreviewBox.height, 0);
+	await standardMicrositePage.close();
+});
+
+// Static Microsite equivalent of the Standalone HTML live-resize test above
+// — both share the exact same markup and runtime script (docs/COMPARISON_PRESENTATION.md
+// "Standalone HTML and Static Microsite Fidelity": "differ only in
+// packaging"), but this is exercised independently rather than assumed, per
+// this task's own explicit requirement.
+test("the Static Microsite's Handle visual resizes live when the already-opened, already-unpacked artifact's own window is resized, without regenerating or reloading", async ({
+	page,
+	context,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+	const indexPath = await downloadAndExtractMicrosite(
+		page,
+		"sameview-microsite-live-resize-",
+	);
+
+	const micrositePage = await context.newPage();
+	await micrositePage.setViewportSize({ width: 1280, height: 800 });
+	await micrositePage.goto(pathToFileURL(indexPath).href);
+	await expect(micrositePage.locator("#sameview-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	const normalBox = await measureHandleVisualBox(
+		micrositePage.locator("#sameview-handle-visual"),
+	);
+	expect(normalBox.width).toBeCloseTo(81, 0);
+
+	// See the Standalone HTML equivalent test's own comment: the artifact's
+	// own outer chrome needs a much smaller viewport than the Live Preview
+	// to genuinely cross the scaling threshold.
+	await micrositePage.setViewportSize({ width: 300, height: 300 });
+	await expect
+		.poll(async () => {
+			const box = await micrositePage
+				.locator("#sameview-handle-visual")
+				.boundingBox();
+			return box?.width;
+		})
+		.toBeLessThan(80);
+
+	await micrositePage.setViewportSize({ width: 1280, height: 800 });
+	await expect
+		.poll(async () => {
+			const box = await micrositePage
+				.locator("#sameview-handle-visual")
+				.boundingBox();
+			return box?.width;
+		})
+		.toBeCloseTo(81, 0);
 
 	await micrositePage.close();
 });

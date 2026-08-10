@@ -63,6 +63,97 @@ export const STANDARD_HANDLE_VISUAL_REM = 3.375;
 export const BRANDED_HANDLE_VISUAL_REM =
 	STANDARD_HANDLE_VISUAL_REM * HANDLE_ENLARGEMENT_FACTOR;
 
+// Browser default — matches how STANDARD_HANDLE_VISUAL_REM/
+// BRANDED_HANDLE_VISUAL_REM have always been described throughout this
+// codebase's own comments (54px/81px). getHandleVisualSizePx below works in
+// px, not rem, because its whole point is comparing the handle's own
+// rendered size against the Presentation Stage's own rendered pixel size —
+// a plain, consistent unit conversion of the same rem constants above, not
+// a second, independently chosen size.
+const ROOT_FONT_SIZE_PX = 16;
+export const STANDARD_HANDLE_VISUAL_PX =
+	STANDARD_HANDLE_VISUAL_REM * ROOT_FONT_SIZE_PX;
+export const BRANDED_HANDLE_VISUAL_PX =
+	STANDARD_HANDLE_VISUAL_PX * HANDLE_ENLARGEMENT_FACTOR;
+
+// docs/COMPARISON_PRESENTATION.md Part 2 "Handle", "Responsive Handle Size
+// on a Small Presentation Stage": the Presentation Stage's own shorter side,
+// in px, at which the Handle renders at its full documented base size
+// (STANDARD_HANDLE_VISUAL_PX / BRANDED_HANDLE_VISUAL_PX) — i.e. the "normal
+// reference presentation" size this whole feature scales proportionally
+// against, per the approved product decision. No existing geometry in this
+// codebase defines a "normal" Stage size on its own (the Stage is always
+// purely a function of available container space and image aspect ratio —
+// see src/lib/canvas-geometry.ts's own header comment), so this is a
+// deliberately chosen constant, not a derived one; chosen low enough that
+// this project's own reference desktop fixture (~227px Stage width) still
+// renders at exactly the base size unaffected, with headroom to spare.
+export const REFERENCE_STAGE_MIN_DIMENSION_PX = 200;
+
+// A purely visual legibility floor (docs/COMPARISON_PRESENTATION.md Part 2
+// "Handle"): the Pointer/Touch/Keyboard hit area
+// (`.comparison-slider__handle`, a fixed-width wrapper around this visual —
+// see that class's own comment in src/styles/comparison-presentation.css)
+// is deliberately never derived from this value and never shrinks with it,
+// so this floor exists only to keep the ring/chevrons/branding content
+// visually recognizable at the smallest Stage sizes, not to satisfy a touch
+// target minimum.
+export const MIN_STANDARD_HANDLE_VISUAL_PX = 28;
+// HANDLE_ENLARGEMENT_FACTOR keeps this exactly the same 1.5× relationship
+// the base sizes already use — never a second, independently chosen
+// Branded minimum.
+export const MIN_BRANDED_HANDLE_VISUAL_PX =
+	MIN_STANDARD_HANDLE_VISUAL_PX * HANDLE_ENLARGEMENT_FACTOR;
+
+// The single shared computation every renderer of the Handle (the live
+// Workspace Preview's src/components/ComparisonSlider.tsx and the generated
+// Standalone HTML/Static Microsite's src/lib/comparison-presentation-runtime.ts)
+// must call unchanged, so the two can never drift into two formally similar
+// but independently tuned formulas again (the exact defect this module
+// already exists to prevent for every other Handle number — see this
+// module's own header comment). `stageWidthPx`/`stageHeightPx` are the
+// Presentation Stage's own actually rendered size at this moment (not the
+// Presentation Canvas including padding/frame, and not the viewport) — the
+// same two numbers src/lib/canvas-geometry.ts's `computeCanvasGeometry`
+// already returns as `stageWidth`/`stageHeight`. Returns a concrete pixel
+// size, ready to be written directly to the Handle SVG's own CSS
+// width/height — the SVG's `viewBox="0 0 54 54"` (unchanged by this
+// function) already scales the ring, chevrons and branding content
+// proportionally with whatever size is applied here, so nothing else needs
+// its own scaling logic.
+export function getHandleVisualSizePx(
+	stageWidthPx: number,
+	stageHeightPx: number,
+	isBranded: boolean,
+): number {
+	// The Standard size is computed once, via its own clamp, and Branded is
+	// always exactly this same value × HANDLE_ENLARGEMENT_FACTOR — never a
+	// second, independently clamped Branded curve. Clamping Standard and
+	// Branded separately (each against its own base/minimum) would only
+	// reproduce the exact 1.5× relationship at the two extremes (the base
+	// size and the minimum) and silently drift from it everywhere in
+	// between, since the *unclamped* linear term below does not itself
+	// depend on `isBranded` — confirmed by an actual failing test, not a
+	// theoretical concern.
+	const minStageDimensionPx = Math.min(stageWidthPx, stageHeightPx);
+	// Not yet measured (0) or a not-yet-loaded/invalid Stage: the documented
+	// base size is the correct, already-established fallback — the same
+	// value src/lib/comparison-artifact-markup.ts's own static bootstrap
+	// markup already renders before the runtime's first real measurement.
+	const standardPx = !(minStageDimensionPx > 0)
+		? STANDARD_HANDLE_VISUAL_PX
+		: Math.max(
+				MIN_STANDARD_HANDLE_VISUAL_PX,
+				// A genuine proportion of the Stage's own shorter side relative
+				// to REFERENCE_STAGE_MIN_DIMENSION_PX — clamped to 1 so the
+				// Handle can never grow past its documented base size for a
+				// Stage larger than the reference, only ever shrink below it.
+				Math.min(1, minStageDimensionPx / REFERENCE_STAGE_MIN_DIMENSION_PX) *
+					STANDARD_HANDLE_VISUAL_PX,
+			);
+	return isBranded ? standardPx * HANDLE_ENLARGEMENT_FACTOR : standardPx;
+}
+
 // docs/COMPARISON_PRESENTATION.md Part 2 "Handle": a Custom Image or an
 // imported branding image occupies 72% of the Handle's diameter — sameview
 // BrandingHandleRenderer.kt's LOGO_SIZE_FRACTION, unchanged.
@@ -113,13 +204,21 @@ export const SYMBOL_COLOR_BRAND = "#4F8CFF";
 // Date-label placement (src/components/ComparisonSlider.tsx) has no direct
 // Android precedent for the branded case: Android's own interactive
 // CompareScreen divider never shows branding at all (SESSION_BRANDING_V1.md
-// §14), so `handleRadiusPx` there is always the standard, unbranded value.
-// This is the derived generalization the regression analysis approved:
-// scale that same radius by HANDLE_ENLARGEMENT_FACTOR whenever the handle
-// itself is actually rendered enlarged, so labels can never end up placed
-// for a handle size that is not the one on screen.
-export function getEffectiveRingRadiusPx(isBranded: boolean): number {
-	return isBranded
-		? STANDARD_RING_RADIUS_PX * HANDLE_ENLARGEMENT_FACTOR
-		: STANDARD_RING_RADIUS_PX;
+// §14). This is the derived generalization the regression analysis
+// approved: derive the ring radius from the handle's own actually rendered
+// diameter, so labels can never end up placed for a handle size that is not
+// the one on screen — this held only for the two fixed base sizes before
+// responsive scaling existed (STANDARD_RING_RADIUS_PX is exactly
+// STANDARD_HANDLE_VISUAL_PX / 2, and the previous branded formula was
+// exactly BRANDED_HANDLE_VISUAL_PX / 2), and holds for any size in between
+// or below now: the ring's outer edge sits at radius 27 of the SVG's own
+// fixed 54-unit `viewBox`, i.e. always exactly half of whatever concrete
+// pixel size `getHandleVisualSizePx` above renders the SVG at, by
+// construction of that `viewBox`'s own proportional scaling — not an
+// approximation. Takes the already-computed rendered diameter (px), never
+// `isBranded` directly, so this can never silently fall back to the old,
+// now-incorrect fixed-size assumption at a Stage size where the Handle is
+// actually rendered smaller (or larger) than its base size.
+export function getEffectiveRingRadiusPx(handleVisualSizePx: number): number {
+	return handleVisualSizePx / 2;
 }

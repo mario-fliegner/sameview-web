@@ -31,13 +31,11 @@ import {
 	getSymbolViewBox,
 } from "../lib/builtin-branding-symbols";
 import {
-	BRANDED_HANDLE_VISUAL_REM,
 	getContentBox,
 	HANDLE_RADIUS_PX,
 	IMAGE_CONTENT_RATIO,
 	RING_STROKE_WIDTH_PX,
 	STANDARD_ARROW_COLOR,
-	STANDARD_HANDLE_VISUAL_REM,
 	SYMBOL_CONTENT_RATIO,
 } from "../lib/comparison-handle-geometry";
 
@@ -48,6 +46,16 @@ interface ComparisonSliderHandleProps {
 	// Current Working State directly, for the same reason it never reads
 	// locale or i18n copy.
 	readonly brandingSrc: string | undefined;
+	// The rendered CSS box size in px, already computed by the caller
+	// (src/components/ComparisonSlider.tsx) via src/lib/comparison-handle-geometry.ts
+	// `getHandleVisualSizePx` — this component never computes it itself
+	// (docs/COMPARISON_PRESENTATION.md Part 2 "Handle", "Responsive Handle
+	// Size on a Small Presentation Stage"): the caller is the one that
+	// already measures the Presentation Stage's own rendered size, so
+	// deciding the concrete size here too would be a second, independently
+	// evaluated formula rather than the one shared computation every
+	// renderer of the Handle must agree on.
+	readonly visualSizePx: number;
 }
 
 // Two broken ring arcs (viewBox 0 0 54 54, center 27,27, radius 26 — the
@@ -73,25 +81,17 @@ const symbolBox = getContentBox(SYMBOL_CONTENT_RATIO);
 export default function ComparisonSliderHandle({
 	branding,
 	brandingSrc,
+	visualSizePx,
 }: ComparisonSliderHandleProps) {
-	const isBranded = branding.kind !== "none";
 	const symbol =
 		branding.kind === "symbol"
 			? getBuiltinBrandingSymbol(branding.builtinId)
 			: undefined;
-	// The rendered CSS box size is set here, from the one shared constant
-	// (src/lib/comparison-handle-geometry.ts), rather than via a second
-	// `--branded` CSS class carrying its own independent 5.0625rem value —
-	// the exact duplication that let the label placement and the visual
-	// size drift apart before this fix.
-	const visualSizeRem = isBranded
-		? BRANDED_HANDLE_VISUAL_REM
-		: STANDARD_HANDLE_VISUAL_REM;
 
 	return (
 		<svg
 			className="comparison-slider__handle-visual"
-			style={{ width: `${visualSizeRem}rem`, height: `${visualSizeRem}rem` }}
+			style={{ width: `${visualSizePx}px`, height: `${visualSizePx}px` }}
 			viewBox="0 0 54 54"
 			aria-hidden="true"
 			focusable="false"

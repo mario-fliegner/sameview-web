@@ -22,6 +22,13 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import {
+	BRANDED_HANDLE_VISUAL_PX,
+	getHandleVisualSizePx,
+	HANDLE_ENLARGEMENT_FACTOR,
+	REFERENCE_STAGE_MIN_DIMENSION_PX,
+	STANDARD_HANDLE_VISUAL_PX,
+} from "../../src/lib/comparison-handle-geometry.ts";
 
 const fixturesDir = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -418,5 +425,122 @@ test.describe("Fullscreen", () => {
 			page.locator('[data-testid="comparison-slider-handle"] > image'),
 		);
 		await expectDividerBeneathHandle(page);
+	});
+});
+
+// Confirmed regression fix (docs/COMPARISON_PRESENTATION.md Part 2 "Handle",
+// "Responsive Handle Size on a Small Presentation Stage"): the Handle used
+// to keep its fixed 54px/81px diameter regardless of the Comparison Stage's
+// own size, making it look grotesquely oversized once the Stage shrank far
+// enough (confirmed empirically: the Handle's own diameter exceeded the
+// entire Stage width at some viewport sizes). `[data-testid="comparison-slider"]`
+// is `.comparison-slider__frame`, whose rendered box *is* the Comparison
+// Stage's own size (`--stage-width`/`--stage-height`,
+// src/styles/comparison-presentation.css) — no separate Stage measurement
+// exists anywhere else.
+async function measureStageAndHandle(page: import("@playwright/test").Page) {
+	const stage = await page
+		.locator('[data-testid="comparison-slider"]')
+		.boundingBox();
+	const handle = await page
+		.getByTestId("comparison-slider-handle")
+		.boundingBox();
+	if (!stage || !handle) throw new Error("stage or handle has no bounding box");
+	return { stage, handle };
+}
+
+test.describe("Responsive Handle Size on a Small Presentation Stage", () => {
+	test("at normal desktop size, the Handle keeps its exact documented base size — Branded (the fixture's own default) and Standard alike", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		const { stage, handle: brandedHandle } = await measureStageAndHandle(page);
+		// Confirms this test's own precondition: DESKTOP_VIEWPORT's Stage is
+		// genuinely above the 200px reference, not a coincidentally-small one.
+		expect(Math.min(stage.width, stage.height)).toBeGreaterThan(
+			REFERENCE_STAGE_MIN_DIMENSION_PX,
+		);
+		expect(brandedHandle.width).toBeCloseTo(BRANDED_HANDLE_VISUAL_PX, 0);
+		expect(brandedHandle.height).toBeCloseTo(BRANDED_HANDLE_VISUAL_PX, 0);
+
+		await expandBrandingSection(page);
+		await page.getByTestId("edit-branding-option-none").click();
+		const { handle: standardHandle } = await measureStageAndHandle(page);
+		expect(standardHandle.width).toBeCloseTo(STANDARD_HANDLE_VISUAL_PX, 0);
+		expect(standardHandle.height).toBeCloseTo(STANDARD_HANDLE_VISUAL_PX, 0);
+	});
+
+	test("on a heavily shrunk Presentation Stage, the Handle's rendered size matches the shared formula exactly, stays exactly HANDLE_ENLARGEMENT_FACTOR x for Branded, and the existing divider/label geometry invariants still hold", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 800, height: 500 });
+		await importFullFixture(page);
+
+		const { stage: brandedStage, handle: brandedHandle } =
+			await measureStageAndHandle(page);
+		// Confirms this genuinely exercises the scaling/floor path, not a
+		// coincidentally still-large Stage.
+		expect(Math.min(brandedStage.width, brandedStage.height)).toBeLessThan(
+			REFERENCE_STAGE_MIN_DIMENSION_PX,
+		);
+		const expectedBranded = getHandleVisualSizePx(
+			brandedStage.width,
+			brandedStage.height,
+			true,
+		);
+		expect(brandedHandle.width).toBeCloseTo(expectedBranded, 0);
+		expect(brandedHandle.width).toBeLessThan(BRANDED_HANDLE_VISUAL_PX);
+
+		await expandBrandingSection(page);
+		await page.getByTestId("edit-branding-option-none").click();
+		const { stage: standardStage, handle: standardHandle } =
+			await measureStageAndHandle(page);
+		const expectedStandard = getHandleVisualSizePx(
+			standardStage.width,
+			standardStage.height,
+			false,
+		);
+		expect(standardHandle.width).toBeCloseTo(expectedStandard, 0);
+
+		// The two measurements above come from two independently rendered
+		// moments (a real branding switch in between) — a tolerant ratio check
+		// rather than `toBeCloseTo`'s tight precision, since the Stage's own
+		// size can shift by a sub-pixel amount between them.
+		const ratio = brandedHandle.width / standardHandle.width;
+		expect(Math.abs(ratio - HANDLE_ENLARGEMENT_FACTOR)).toBeLessThan(0.05);
+
+		// Root Cause A/B still hold at this scaled-down size — the ring radius
+		// driving label placement must reflect the Handle's own actually
+		// rendered (now smaller) size, never the old fixed assumption.
+		await expectDividerBeneathHandle(page);
+		await expectLabelsOutsideHandle(page);
+	});
+
+	test("live-resizes the Handle without a reload as the viewport shrinks and grows again", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		const { handle: normalHandle } = await measureStageAndHandle(page);
+		expect(normalHandle.width).toBeCloseTo(BRANDED_HANDLE_VISUAL_PX, 0);
+
+		await page.setViewportSize({ width: 800, height: 500 });
+		await expect
+			.poll(async () => {
+				const box = await page
+					.getByTestId("comparison-slider-handle")
+					.boundingBox();
+				return box?.width;
+			})
+			.toBeLessThan(BRANDED_HANDLE_VISUAL_PX - 1);
+
+		await page.setViewportSize(DESKTOP_VIEWPORT);
+		await expect
+			.poll(async () => {
+				const box = await page
+					.getByTestId("comparison-slider-handle")
+					.boundingBox();
+				return box?.width;
+			})
+			.toBeCloseTo(BRANDED_HANDLE_VISUAL_PX, 0);
 	});
 });

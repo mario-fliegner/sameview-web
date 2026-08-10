@@ -2355,14 +2355,24 @@ test("selecting None removes branding and restores the standard Handle", async (
 test("the Handle enlarges for Symbol and Custom Image but not for None", async ({
 	page,
 }) => {
+	// docs/COMPARISON_PRESENTATION.md Part 2 "Handle", "Responsive Handle
+	// Size on a Small Presentation Stage": below a 200px Comparison Stage
+	// reference, the Handle scales down proportionally — Playwright's
+	// default "Desktop Chrome" viewport (1280x720, no explicit size set)
+	// produces a Stage whose shorter side is only ~173px for this fixture,
+	// already below that reference, which would make the "is at its base
+	// size" assertions below fail on a partially-scaled value instead. An
+	// explicit viewport is required for these fixed 54px/81px expectations
+	// to mean anything.
+	await page.setViewportSize({ width: 1280, height: 800 });
 	await importFullFixture(page);
 	await expandBrandingSection(page);
 	const handle = page.getByTestId("comparison-slider-handle");
 
-	// src/lib/comparison-handle-geometry.ts: STANDARD_HANDLE_VISUAL_REM=3.375
-	// (54px), BRANDED_HANDLE_VISUAL_REM=5.0625 (81px) at the default 16px
-	// root font size — the one shared source for both the visual size here
-	// and the date-label placement asserted elsewhere in this file.
+	// src/lib/comparison-handle-geometry.ts: STANDARD_HANDLE_VISUAL_PX=54,
+	// BRANDED_HANDLE_VISUAL_PX=81 — the one shared source for both the
+	// visual size here and the date-label placement asserted elsewhere in
+	// this file.
 	const STANDARD_WIDTH_PX = "54px";
 	const BRANDED_WIDTH_PX = "81px";
 

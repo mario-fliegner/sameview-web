@@ -50,7 +50,10 @@ import {
 } from "react";
 import type { HandleBranding } from "../lib/branding";
 import { buildSliderLabelFont } from "../lib/comparison-canvas-fonts";
-import { getEffectiveRingRadiusPx } from "../lib/comparison-handle-geometry";
+import {
+	getEffectiveRingRadiusPx,
+	getHandleVisualSizePx,
+} from "../lib/comparison-handle-geometry";
 import {
 	computeLabelVisibility,
 	dividerPositionPx,
@@ -151,6 +154,17 @@ export default function ComparisonSlider({
 	// event of a high-frequency stream). ResizeObserver reports the same
 	// number, but only when the box's size genuinely changes.
 	const [frameWidthPx, setFrameWidthPx] = useState(0);
+	// The frame's own rendered height — read from the exact same
+	// ResizeObserver entry as `frameWidthPx` above (never a second
+	// observer), needed alongside it for src/lib/comparison-handle-geometry.ts
+	// `getHandleVisualSizePx`, which scales the Handle down against the
+	// Presentation Stage's own *shorter* side (docs/COMPARISON_PRESENTATION.md
+	// Part 2 "Handle", "Responsive Handle Size on a Small Presentation
+	// Stage") — this frame's rendered box already *is* the Stage's own size
+	// (`.comparison-slider__frame--ready`'s `width`/`height` come directly
+	// from `--stage-width`/`--stage-height`, src/styles/comparison-presentation.css),
+	// so no second measurement of "the Stage" is needed anywhere else.
+	const [frameHeightPx, setFrameHeightPx] = useState(0);
 	// The one remaining read per drag *gesture* (not per move): the frame's
 	// viewport-relative left edge, needed to convert an absolute clientX into
 	// a fraction of the frame. Captured once at pointerdown and reused for
@@ -167,7 +181,9 @@ export default function ComparisonSlider({
 		if (!frame) return;
 		const observer = new ResizeObserver((entries) => {
 			const entry = entries[0];
-			if (entry) setFrameWidthPx(entry.contentRect.width);
+			if (!entry) return;
+			setFrameWidthPx(entry.contentRect.width);
+			setFrameHeightPx(entry.contentRect.height);
 		});
 		observer.observe(frame);
 		return () => observer.disconnect();
@@ -293,17 +309,30 @@ export default function ComparisonSlider({
 				} as CSSProperties)
 			: undefined;
 
+	// The Handle's own rendered size (docs/COMPARISON_PRESENTATION.md Part 2
+	// "Handle", "Responsive Handle Size on a Small Presentation Stage") —
+	// the single shared computation src/lib/comparison-handle-geometry.ts
+	// `getHandleVisualSizePx` also drives for the generated Standalone
+	// HTML/Static Microsite runtime, from the exact same two inputs
+	// (`frameWidthPx`/`frameHeightPx` above *are* the Presentation Stage's
+	// own rendered size — see that state's own comment).
+	const handleVisualSizePx = getHandleVisualSizePx(
+		frameWidthPx,
+		frameHeightPx,
+		branding.kind !== "none",
+	);
+
 	// Android CompareDivider: showLeftLabel/showRightLabel — each label
 	// independently disappears once its own measured bounds would reach or
 	// cross the corresponding Viewer edge, not at an arbitrary percentage.
 	// The ring radius used here must reflect the handle as it is actually
 	// rendered (src/components/ComparisonSliderHandle.tsx) — a fixed,
-	// always-standard radius let labels overlap an enlarged branded handle
-	// (see src/lib/comparison-handle-geometry.ts's own header comment).
+	// always-standard radius let labels overlap an enlarged branded handle,
+	// and later, before responsive scaling existed, would have let them
+	// overlap a Handle now rendered smaller on a shrunk Stage too (see
+	// src/lib/comparison-handle-geometry.ts's own header comment).
 	const dividerXPx = dividerPositionPx(position, frameWidthPx);
-	const effectiveRingRadiusPx = getEffectiveRingRadiusPx(
-		branding.kind !== "none",
-	);
+	const effectiveRingRadiusPx = getEffectiveRingRadiusPx(handleVisualSizePx);
 	const { showLeft: showLeftLabel, showRight: showRightLabel } =
 		computeLabelVisibility({
 			showDateLabels,
@@ -384,6 +413,7 @@ export default function ComparisonSlider({
 						<ComparisonSliderHandle
 							branding={branding}
 							brandingSrc={brandingSrc}
+							visualSizePx={handleVisualSizePx}
 						/>
 					</div>
 					{showLeftLabel && (
