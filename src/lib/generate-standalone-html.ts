@@ -38,6 +38,7 @@ export interface GenerateStandaloneHtmlOptions {
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
+	readonly noscriptText: string;
 }
 
 // The reference/capture images are always original JPEG for V1
@@ -51,8 +52,14 @@ const FAVICON_MIME = "image/svg+xml";
 export async function generateStandaloneHtml(
 	options: GenerateStandaloneHtmlOptions,
 ): Promise<Uint8Array> {
-	const { snapshot, copy, titleText, metaDescriptionText, themeColor } =
-		options;
+	const {
+		snapshot,
+		copy,
+		titleText,
+		metaDescriptionText,
+		themeColor,
+		noscriptText,
+	} = options;
 	const fontId = snapshot.configuration.presentationFont;
 
 	const [fontAsset, faviconBytes, runtimeScriptText] = await Promise.all([
@@ -104,11 +111,13 @@ export async function generateStandaloneHtml(
 		titleText,
 		metaDescriptionText,
 		themeColor,
+		includeOpenGraph: false,
 		faviconMarkup,
 		cssMarkup: `<style>\n${css}\n</style>`,
 		presentationMarkup,
 		scriptMarkup: `<script>\n${escapeClosingTag(runtimeScriptText, "script")}\n</script>`,
 		fontLicenseText: fontAsset.licenseText,
+		noscriptText,
 	});
 
 	return new TextEncoder().encode(html);

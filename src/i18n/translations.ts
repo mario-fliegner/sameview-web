@@ -206,6 +206,7 @@ export interface Translations {
 		readonly errorMessage: string;
 		readonly artifactTitleFallback: string;
 		readonly artifactMetaDescription: string;
+		readonly artifactNoscriptHint: string;
 	};
 }
 
@@ -397,6 +398,8 @@ export const translations: Record<Locale, Translations> = {
 			artifactTitleFallback: "SameView Comparison",
 			artifactMetaDescription:
 				"An interactive before/after comparison, created with SameView.",
+			artifactNoscriptHint:
+				"JavaScript is required to view this interactive SameView comparison.",
 		},
 	},
 	de: {
@@ -589,6 +592,8 @@ export const translations: Record<Locale, Translations> = {
 			artifactTitleFallback: "SameView-Vergleich",
 			artifactMetaDescription:
 				"Ein interaktiver Vorher-Nachher-Vergleich, erstellt mit SameView.",
+			artifactNoscriptHint:
+				"JavaScript ist erforderlich, um diesen interaktiven SameView-Vergleich anzuzeigen.",
 		},
 	},
 };

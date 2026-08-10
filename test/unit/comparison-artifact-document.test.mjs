@@ -1,21 +1,24 @@
-// Coverage for the FINAL composed Standalone HTML document — not just
-// individual markup fragments. Reproduces src/lib/generate-standalone-html.ts's
+// Coverage for the FINAL composed Standalone HTML / Static Microsite
+// `index.html` document — not just individual markup fragments. Reproduces
+// src/lib/generate-standalone-html.ts's and src/lib/generate-static-microsite.ts's
 // own composition (buildComparisonArtifactMarkup + composeArtifactCss +
 // buildFontFaceCss + buildArtifactDocument) with real on-disk CSS and font
-// license assets, bypassing only its browser `fetch()` wrapper
+// license assets, bypassing only their browser `fetch()` wrapper
 // (src/lib/comparison-artifact-assets.ts, pure I/O with no generation logic
 // of its own) — so these assertions run against the same bytes a real
-// generation produces. Guards the W3C/Nu HTML validator findings fixed here:
-// no XHTML-style void-element slashes, no unprefixed `line-clamp`, the font
-// license fully preserved but moved out of an HTML comment into an inert
-// `<template>`, and the inline runtime script guarded against a literal
-// `</script>`.
+// generation produces. Guards the W3C/Nu HTML validator findings fixed
+// earlier (no XHTML-style void-element slashes, no unprefixed `line-clamp`,
+// the font license moved out of an HTML comment into an inert `<template>`,
+// the inline runtime script guarded against a literal `</script>`) and the
+// Microsite-only Open Graph tags / shared localized `<noscript>` hint added
+// here (docs/APPLICATION_LAYOUT.md "Standalone HTML"/"Static Microsite").
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { translations } from "../../src/i18n/translations.ts";
 import { buildComparisonArtifactMarkup } from "../../src/lib/comparison-artifact-markup.ts";
 import {
 	buildArtifactDocument,
@@ -57,11 +60,24 @@ const COPY = {
 	loadingLabel: "Loading comparison…",
 };
 
+const DEFAULT_NOSCRIPT_TEXT =
+	translations.en.outputInspector.artifactNoscriptHint;
+
 // Builds the exact same document src/lib/generate-standalone-html.ts
-// produces, given a real Presentation Font id, an injected runtime script
-// text (to test the `</script>` guard) and a fake `-->`-adjacent, `--`-laden
-// license text (to prove it survives the move out of an HTML comment).
-function buildDocument({ fontId = "inter", runtimeScriptText, licenseText }) {
+// (includeOpenGraph: false) or src/lib/generate-static-microsite.ts
+// (includeOpenGraph: true) produces, given a real Presentation Font id, an
+// injected runtime script text (to test the `</script>` guard) and a fake
+// `-->`-adjacent, `--`-laden license text (to prove it survives the move out
+// of an HTML comment).
+function buildDocument({
+	fontId = "inter",
+	runtimeScriptText,
+	licenseText,
+	includeOpenGraph = false,
+	noscriptText = DEFAULT_NOSCRIPT_TEXT,
+	titleText = "Comparison — Test",
+	metaDescriptionText = "Test description",
+}) {
 	const fontBytes = fs.readFileSync(
 		path.join(ROOT, "public/fonts/inter/InterVariable.woff2"),
 	);
@@ -98,14 +114,16 @@ function buildDocument({ fontId = "inter", runtimeScriptText, licenseText }) {
 	const faviconMarkup = `<link rel="icon" type="image/svg+xml" href="${bytesToDataUrl(faviconBytes, "image/svg+xml")}">`;
 
 	return buildArtifactDocument({
-		titleText: "Comparison — Test",
-		metaDescriptionText: "Test description",
+		titleText,
+		metaDescriptionText,
 		themeColor: "#0f1115",
+		includeOpenGraph,
 		faviconMarkup,
 		cssMarkup: `<style>\n${css}\n</style>`,
 		presentationMarkup,
 		scriptMarkup: `<script>\n${escapeClosingTag(runtimeScriptText, "script")}\n</script>`,
 		fontLicenseText: licenseText,
+		noscriptText,
 	});
 }
 
@@ -199,4 +217,87 @@ describe("the final composed Standalone HTML document", () => {
 			"a literal </script> in the runtime script broke out of the wrapping <script> element",
 		);
 	});
+
+	test("Standalone HTML (includeOpenGraph: false) contains no Open Graph tags at all", () => {
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+			includeOpenGraph: false,
+		});
+		assert.doesNotMatch(html, /property="og:/);
+	});
+
+	test('Static Microsite (includeOpenGraph: true) contains exactly og:type/og:title/og:description, using the same already-resolved and escaped values as <title>/<meta name="description">', () => {
+		const titleText = 'A "special" & <tricky> title';
+		const metaDescriptionText = 'A description with & and "quotes"';
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+			includeOpenGraph: true,
+			titleText,
+			metaDescriptionText,
+		});
+
+		const ogTags = html.match(/<meta property="og:[^>]*>/g) ?? [];
+		assert.equal(
+			ogTags.length,
+			3,
+			`expected exactly 3 og: tags, found ${ogTags.length}`,
+		);
+		assert.match(html, /<meta property="og:type" content="website">/);
+
+		const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
+		const descriptionMatch = html.match(
+			/<meta name="description" content="([^"]*)">/,
+		);
+		assert.ok(titleMatch && descriptionMatch);
+
+		assert.match(
+			html,
+			new RegExp(
+				`<meta property="og:title" content="${titleMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}">`,
+			),
+		);
+		assert.match(
+			html,
+			new RegExp(
+				`<meta property="og:description" content="${descriptionMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}">`,
+			),
+		);
+
+		// Exact same escaping function/value as the pre-existing <title>/<meta
+		// name="description"> — no second resolution or escaping path.
+		assert.equal(titleMatch[1], escapeHtml(titleText));
+		assert.equal(descriptionMatch[1], escapeHtml(metaDescriptionText));
+	});
+
+	test("Static Microsite never gets og:url, og:image or a canonical link — not requested by spec", () => {
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+			includeOpenGraph: true,
+		});
+		assert.doesNotMatch(html, /property="og:url"/);
+		assert.doesNotMatch(html, /property="og:image"/);
+		assert.doesNotMatch(html, /rel="canonical"/);
+	});
+
+	for (const includeOpenGraph of [false, true]) {
+		test(`both EN and DE localized <noscript> text appear verbatim (escaped) regardless of includeOpenGraph=${includeOpenGraph}`, () => {
+			for (const locale of ["en", "de"]) {
+				const noscriptText =
+					translations[locale].outputInspector.artifactNoscriptHint;
+				const html = buildDocument({
+					runtimeScriptText: "console.log('ok');",
+					licenseText: realLicenseText,
+					includeOpenGraph,
+					noscriptText,
+				});
+				assert.match(
+					html,
+					new RegExp(`<noscript>${escapeHtml(noscriptText)}</noscript>`),
+				);
+			}
+		});
+	}
 });

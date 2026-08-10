@@ -50,6 +50,7 @@ export interface GenerateComparisonOutputOptions {
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
+	readonly noscriptText: string;
 	readonly onPhase?: (phase: GenerateComparisonOutputPhase) => void;
 }
 
@@ -105,6 +106,7 @@ export async function generateComparisonOutput(
 		titleText: options.titleText,
 		metaDescriptionText: options.metaDescriptionText,
 		themeColor: options.themeColor,
+		noscriptText: options.noscriptText,
 	};
 
 	options.onPhase?.("building-output");

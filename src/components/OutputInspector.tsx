@@ -93,6 +93,7 @@ export default function OutputInspector({
 			titleText: presentation.title || t.outputInspector.artifactTitleFallback,
 			metaDescriptionText: t.outputInspector.artifactMetaDescription,
 			themeColor: THEME_COLOR,
+			noscriptText: t.outputInspector.artifactNoscriptHint,
 			onPhase: (nextPhase) => setProgressPhase(nextPhase),
 		});
 

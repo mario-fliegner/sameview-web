@@ -16,6 +16,14 @@ export interface ArtifactDocumentSections {
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
+	// Static Microsite only (docs/APPLICATION_LAYOUT.md "Static Microsite"):
+	// emits `og:type`/`og:title`/`og:description` from the same already-resolved
+	// `titleText`/`metaDescriptionText` above, through the same `escapeHtml`
+	// already used for `<title>`/`<meta name="description">` — never a second
+	// resolution or escaping path. Standalone HTML always passes `false`: a
+	// `file://`-opened single document has no shareable URL for Open Graph
+	// unfurling to apply to.
+	readonly includeOpenGraph: boolean;
 	// Already a complete `<link rel="icon" ...>` element (differs by output
 	// type: an embedded `data:` URI for Standalone HTML, a relative
 	// `favicon.svg` href for Static Microsite).
@@ -38,6 +46,12 @@ export interface ArtifactDocumentSections {
 	// actually embedded font family is included, inert and never rendered,
 	// in the document) — this module escapes and wraps it in a `<template>`.
 	readonly fontLicenseText: string;
+	// The localized "JavaScript is required..." hint (docs/APPLICATION_LAYOUT.md
+	// "Standalone HTML"/"Static Microsite"), already resolved for the active
+	// locale exactly like every other Output Inspector string passed into this
+	// module. Shown in both outputs: neither has any content without the
+	// embedded/linked runtime script actually running.
+	readonly noscriptText: string;
 }
 
 export function buildArtifactDocument(
@@ -47,12 +61,21 @@ export function buildArtifactDocument(
 		titleText,
 		metaDescriptionText,
 		themeColor,
+		includeOpenGraph,
 		faviconMarkup,
 		cssMarkup,
 		presentationMarkup,
 		scriptMarkup,
 		fontLicenseText,
+		noscriptText,
 	} = sections;
+
+	const openGraphMarkup = includeOpenGraph
+		? `<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(titleText)}">
+<meta property="og:description" content="${escapeHtml(metaDescriptionText)}">
+`
+		: "";
 
 	return `<!doctype html>
 <html lang="en">
@@ -62,10 +85,11 @@ export function buildArtifactDocument(
 <title>${escapeHtml(titleText)}</title>
 <meta name="description" content="${escapeHtml(metaDescriptionText)}">
 <meta name="theme-color" content="${themeColor}">
-${faviconMarkup}
+${openGraphMarkup}${faviconMarkup}
 ${cssMarkup}
 </head>
 <body>
+<noscript>${escapeHtml(noscriptText)}</noscript>
 <main id="sameview-output-frame">
 ${presentationMarkup}
 </main>

@@ -42,6 +42,7 @@ export interface GenerateStaticMicrositeOptions {
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
+	readonly noscriptText: string;
 }
 
 function basename(path: string): string {
@@ -52,8 +53,14 @@ function basename(path: string): string {
 export async function generateStaticMicrosite(
 	options: GenerateStaticMicrositeOptions,
 ): Promise<Uint8Array> {
-	const { snapshot, copy, titleText, metaDescriptionText, themeColor } =
-		options;
+	const {
+		snapshot,
+		copy,
+		titleText,
+		metaDescriptionText,
+		themeColor,
+		noscriptText,
+	} = options;
 	const fontId = snapshot.configuration.presentationFont;
 
 	const [fontAsset, faviconBytes, runtimeScriptText] = await Promise.all([
@@ -94,11 +101,13 @@ export async function generateStaticMicrosite(
 		titleText,
 		metaDescriptionText,
 		themeColor,
+		includeOpenGraph: true,
 		faviconMarkup: '<link rel="icon" type="image/svg+xml" href="favicon.svg">',
 		cssMarkup: '<link rel="stylesheet" href="css/sameview-comparison.css">',
 		presentationMarkup,
 		scriptMarkup: '<script src="js/sameview-comparison.js"></script>',
 		fontLicenseText: fontAsset.licenseText,
+		noscriptText,
 	});
 
 	const zipWriter = new ZipWriter(new Uint8ArrayWriter());

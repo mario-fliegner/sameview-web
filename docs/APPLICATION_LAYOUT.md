@@ -518,7 +518,9 @@ The export consists of:
 - inline JavaScript
 - embedded Base64 images
 - the selected Presentation Font embedded (docs/COMPARISON_PRESENTATION.md Part 3 "Typography")
+- a localized `<noscript>` hint (same wording/mechanism as Static Microsite below), for the rare case scripting is disabled
 - no external resources
+- no Open Graph metadata (no shareable URL exists for a `file://`-opened single document)
 - complete offline functionality
 
 ## Static Microsite
@@ -534,6 +536,8 @@ The export consists of:
 - local CSS, JavaScript and image assets in a sensible subfolder structure
 - no external resources or CDNs
 - only the selected Presentation Font included locally, as a local asset (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"); no unnecessary fonts otherwise
+- a localized `<noscript>` hint (same wording/mechanism as Standalone HTML above), for the rare case scripting is disabled
+- Open Graph metadata (`og:type` = `website`, `og:title` and `og:description` set to the exact same already-resolved values as `<title>` and `<meta name="description">`) — this output type alone, since it may be hosted at a shareable URL; no `og:url`, `og:image` or canonical link
 - complete offline functionality once unpacked onto ordinary static webspace
 
 ## Remove Embedded Location Data
