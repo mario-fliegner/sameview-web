@@ -4,11 +4,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import {
-	escapeClosingTag,
-	escapeHtml,
-	escapeHtmlComment,
-} from "../../src/lib/html-escape.ts";
+import { escapeClosingTag, escapeHtml } from "../../src/lib/html-escape.ts";
 
 describe("escapeHtml", () => {
 	test("escapes the five HTML-significant characters", () => {
@@ -45,19 +41,5 @@ describe("escapeClosingTag", () => {
 
 	test("leaves unrelated text untouched", () => {
 		assert.equal(escapeClosingTag("const x = 1;", "script"), "const x = 1;");
-	});
-});
-
-describe("escapeHtmlComment", () => {
-	test("neutralizes a --> sequence that would otherwise close the comment early", () => {
-		const licenseText = "Some license text --> <script>alert(1)</script>";
-		const escaped = escapeHtmlComment(licenseText);
-		assert.ok(!escaped.includes("-->"));
-	});
-
-	test("leaves ordinary license text (including single hyphens) unchanged", () => {
-		const licenseText =
-			"Copyright 2020-2024 The Font Authors. SIL Open Font License.";
-		assert.equal(escapeHtmlComment(licenseText), licenseText);
 	});
 });

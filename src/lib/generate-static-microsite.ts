@@ -94,9 +94,8 @@ export async function generateStaticMicrosite(
 		titleText,
 		metaDescriptionText,
 		themeColor,
-		faviconMarkup:
-			'<link rel="icon" type="image/svg+xml" href="favicon.svg" />',
-		cssMarkup: '<link rel="stylesheet" href="css/sameview-comparison.css" />',
+		faviconMarkup: '<link rel="icon" type="image/svg+xml" href="favicon.svg">',
+		cssMarkup: '<link rel="stylesheet" href="css/sameview-comparison.css">',
 		presentationMarkup,
 		scriptMarkup: '<script src="js/sameview-comparison.js"></script>',
 		fontLicenseText: fontAsset.licenseText,

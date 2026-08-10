@@ -10,7 +10,7 @@
 // never in this structure itself. Pure string composition: no new
 // templating engine or dependency.
 
-import { escapeHtml, escapeHtmlComment } from "./html-escape.ts";
+import { escapeHtml } from "./html-escape.ts";
 
 export interface ArtifactDocumentSections {
 	readonly titleText: string;
@@ -34,9 +34,9 @@ export interface ArtifactDocumentSections {
 	// `<script src="...">` element.
 	readonly scriptMarkup: string;
 	// The selected Presentation Font's full, unescaped license text
-	// (docs/APPLICATION_LAYOUT.md "Standalone HTML": "The full license text
-	// of the actually embedded font family is included as an invisible HTML
-	// comment in the document") — this module escapes and wraps it.
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 9: the full license text of the
+	// actually embedded font family is included, inert and never rendered,
+	// in the document) — this module escapes and wraps it in a `<template>`.
 	readonly fontLicenseText: string;
 }
 
@@ -57,11 +57,11 @@ export function buildArtifactDocument(
 	return `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(titleText)}</title>
-<meta name="description" content="${escapeHtml(metaDescriptionText)}" />
-<meta name="theme-color" content="${themeColor}" />
+<meta name="description" content="${escapeHtml(metaDescriptionText)}">
+<meta name="theme-color" content="${themeColor}">
 ${faviconMarkup}
 ${cssMarkup}
 </head>
@@ -70,9 +70,7 @@ ${cssMarkup}
 ${presentationMarkup}
 </main>
 ${scriptMarkup}
-<!--
-${escapeHtmlComment(fontLicenseText)}
--->
+<template id="sameview-font-license">${escapeHtml(fontLicenseText)}</template>
 </body>
 </html>
 `;

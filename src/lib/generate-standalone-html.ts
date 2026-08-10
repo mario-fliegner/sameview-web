@@ -25,6 +25,7 @@ import {
 	buildArtifactDocument,
 	composeArtifactCss,
 } from "./comparison-artifact-scaffold.ts";
+import { escapeClosingTag } from "./html-escape.ts";
 import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
 import { buildFontFaceCss } from "./presentation-font-assets.ts";
 import { resolvePresentationFontFamily } from "./presentation-fonts.ts";
@@ -97,7 +98,7 @@ export async function generateStandaloneHtml(
 		initialSliderPosition: snapshot.initialSliderPosition,
 	});
 
-	const faviconMarkup = `<link rel="icon" type="${FAVICON_MIME}" href="${bytesToDataUrl(faviconBytes, FAVICON_MIME)}" />`;
+	const faviconMarkup = `<link rel="icon" type="${FAVICON_MIME}" href="${bytesToDataUrl(faviconBytes, FAVICON_MIME)}">`;
 
 	const html = buildArtifactDocument({
 		titleText,
@@ -106,7 +107,7 @@ export async function generateStandaloneHtml(
 		faviconMarkup,
 		cssMarkup: `<style>\n${css}\n</style>`,
 		presentationMarkup,
-		scriptMarkup: `<script>\n${runtimeScriptText}\n</script>`,
+		scriptMarkup: `<script>\n${escapeClosingTag(runtimeScriptText, "script")}\n</script>`,
 		fontLicenseText: fontAsset.licenseText,
 	});
 

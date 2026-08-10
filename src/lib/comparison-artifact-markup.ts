@@ -237,8 +237,8 @@ export function buildComparisonArtifactMarkup(
 
 	return `<div class="presentation-canvas" id="sameview-canvas" style="${escapeHtml(canvasStyle)}" data-show-slider-date-labels="${configuration.showSliderDateLabels}"${brandingSrcAttr}>
 	<div class="comparison-slider__frame comparison-slider__frame--loading" id="sameview-slider-frame" data-testid="comparison-slider">
-		<img src="${escapeHtml(assets.captureSrc)}" alt="${escapeHtml(copy.captureAlt)}" class="comparison-slider__image" draggable="false" id="sameview-capture-image" data-testid="capture-image" style="visibility: hidden" />
-		<img src="${escapeHtml(assets.referenceSrc)}" alt="${escapeHtml(copy.referenceAlt)}" class="comparison-slider__image comparison-slider__image--overlay" draggable="false" id="sameview-reference-image" data-testid="reference-image" style="visibility: hidden; clip-path: inset(0 ${100 - positionPercent}% 0 0)" />
+		<img src="${escapeHtml(assets.captureSrc)}" alt="${escapeHtml(copy.captureAlt)}" class="comparison-slider__image" draggable="false" id="sameview-capture-image" data-testid="capture-image" style="visibility: hidden">
+		<img src="${escapeHtml(assets.referenceSrc)}" alt="${escapeHtml(copy.referenceAlt)}" class="comparison-slider__image comparison-slider__image--overlay" draggable="false" id="sameview-reference-image" data-testid="reference-image" style="visibility: hidden; clip-path: inset(0 ${100 - positionPercent}% 0 0)">
 		<div class="comparison-slider__divider-line" id="sameview-divider-line" data-testid="comparison-divider-line" style="inset-inline-start: ${positionPercent}%; display: none"></div>
 		<div class="comparison-slider__handle" id="sameview-handle" role="slider" aria-label="${escapeHtml(copy.sliderLabel)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(positionPercent)}" tabindex="0" style="inset-inline-start: ${positionPercent}%; display: none">
 			${handleMarkup}
