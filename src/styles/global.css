@@ -1882,13 +1882,15 @@ html:has(.workspace-active__preview--fullscreen) {
 	flex: 1;
 }
 
+/* Compact secondary/helper text directly under a field-row — no container,
+   no background, deliberately not a card (docs/APPLICATION_LAYOUT.md
+   "Use Current Slider Position"/"Remove Embedded Location Data"). Shared by
+   both the always-visible slider-position hint and the conditional
+   location-data hint below it. */
 .output-inspector__hint {
-	margin: 0;
-	padding: 0.5rem 0.75rem;
-	border-radius: 0.5rem;
-	background: #131a29;
+	margin: -0.25rem 0 0;
 	color: #c7ccd6;
-	font-size: 0.8125rem;
+	font-size: 0.75rem;
 }
 
 .output-inspector__progress {
@@ -1933,20 +1935,6 @@ html:has(.workspace-active__preview--fullscreen) {
 }
 
 .output-inspector__error-heading {
-	margin: 0 0 0.25rem;
-	font-weight: 600;
-}
-
-.output-inspector__ready {
-	padding: 0.75rem;
-	border: 1px solid #2a3445;
-	border-radius: 0.75rem;
-	background: #131a29;
-	color: #ffffff;
-	font-size: 0.8125rem;
-}
-
-.output-inspector__ready-heading {
 	margin: 0 0 0.25rem;
 	font-weight: 600;
 }

@@ -51,6 +51,13 @@ export interface GenerateComparisonOutputOptions {
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
 	readonly noscriptText: string;
+	// docs/COMPARISON_PRESENTATION.md "Initial Slider Position", "Use Current
+	// Slider Position": a [0, 1] fraction, already resolved by the caller —
+	// either the fixed V1 default or a live Workspace Preview slider position
+	// read at the moment Generate was pressed. Forwarded to
+	// createOutcomeSnapshot() unchanged; this module makes no decision of its
+	// own about which value to use.
+	readonly initialSliderPosition: number;
 	readonly onPhase?: (phase: GenerateComparisonOutputPhase) => void;
 }
 
@@ -81,6 +88,7 @@ export async function generateComparisonOutput(
 		options.currentWorkingState,
 		options.locale,
 		options.presentationOptions,
+		options.initialSliderPosition,
 	);
 
 	options.onPhase?.("processing-images");

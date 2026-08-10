@@ -104,6 +104,19 @@ test("Create Output opens the Output Inspector with Standalone HTML selected, Re
 	await expect(
 		page.getByTestId("output-remove-location-data-switch"),
 	).toHaveAttribute("aria-checked", "true");
+	await expect(
+		page.getByTestId("output-use-current-slider-position-switch"),
+	).toHaveAttribute("aria-checked", "false");
+	// Both output-specific switches must have a programmatically determined
+	// accessible name (aria-labelledby to their own visible label), not just a
+	// visually adjacent, unassociated <span> — checked via the real browser
+	// accessibility tree, not by asserting any particular translated text.
+	await expect(
+		page.getByTestId("output-use-current-slider-position-switch"),
+	).toHaveAccessibleName(/\S/);
+	await expect(
+		page.getByTestId("output-remove-location-data-switch"),
+	).toHaveAccessibleName(/\S/);
 
 	const cmsCard = page.getByTestId("output-card-cms-package");
 	await expect(cmsCard).toBeVisible();
@@ -347,7 +360,7 @@ test("← Edit returns to the Edit Inspector without discarding any workspace st
 	await expect(page.getByTestId("output-inspector")).toHaveCount(0);
 });
 
-test("generating the Standalone HTML downloads sameview-comparison.html, shows a non-claiming Completion state, and Download again re-downloads identical bytes without regenerating", async ({
+test("generating the Standalone HTML downloads sameview-comparison.html, shows no success screen, and Download again re-downloads identical bytes without regenerating", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -359,14 +372,9 @@ test("generating the Standalone HTML downloads sameview-comparison.html, shows a
 	]);
 	expect(firstDownload.suggestedFilename()).toBe("sameview-comparison.html");
 
-	await expect(page.getByTestId("output-ready")).toBeVisible();
-	const readyText = await page.getByTestId("output-ready").innerText();
-	// The Completion state must never assert the file was actually saved —
-	// only that a download was started (Variante A, no reliable browser
-	// signal exists for the former).
-	expect(readyText.toLowerCase()).not.toMatch(/saved|successfully/);
-	expect(readyText).toMatch(/should start automatically/i);
-
+	// No dedicated success screen (docs/APPLICATION_LAYOUT.md "Completion"):
+	// the only visible change on success is the primary action itself
+	// becoming "Download again" — no success card, no ready message.
 	const downloadAgainButton = page.getByTestId("output-primary-action");
 	await expect(downloadAgainButton).toHaveText(/download again/i);
 
@@ -946,7 +954,12 @@ test("a generation failure never triggers a download and shows the specified err
 
 	await page.getByTestId("output-primary-action").click();
 	await expect(page.getByTestId("output-error")).toBeVisible();
-	await expect(page.getByTestId("output-ready")).toHaveCount(0);
+	// A failure never leaves the primary action in the post-success "Download
+	// again" state (docs/APPLICATION_LAYOUT.md "Completion": no dedicated
+	// success screen exists to leave either).
+	await expect(page.getByTestId("output-primary-action")).not.toHaveText(
+		/download again/i,
+	);
 	expect(downloadFired).toBe(false);
 });
 
@@ -965,4 +978,115 @@ test("Remove Embedded Location Data hint appears only while it is on and Show Lo
 	await expect(
 		page.getByTestId("output-remove-location-data-hint"),
 	).toHaveCount(0);
+});
+
+// docs/COMPARISON_PRESENTATION.md "Use Current Slider Position". Covers the
+// full chain end to end: a real keyboard-driven Workspace Preview slider
+// move, through src/components/ComparisonSlider.tsx's `onPositionChange` and
+// src/components/WorkspaceActive.tsx's ref, into
+// src/components/OutputInspector.tsx's Generate-time snapshot, through
+// src/lib/outcome-snapshot.ts, and finally the actually generated/downloaded
+// artifact — not just the intermediate generator functions.
+test("Use Current Slider Position: Off always starts at 50/50, On carries over a known non-50% Preview position identically into Standalone HTML and Static Microsite, and later Preview movement never changes an already-generated output", async ({
+	page,
+	context,
+}) => {
+	await importFullFixture(page);
+	await expect(page.locator(".presentation-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+
+	// Move the live Workspace Preview's own slider to a known, non-50%
+	// position via its existing keyboard support (SLIDER_KEYBOARD_STEP = 5,
+	// src/lib/comparison-slider-interaction.ts) — the same interaction a real
+	// user performs, not a direct state injection.
+	const previewHandle = page.getByRole("slider");
+	await previewHandle.focus();
+	for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
+	await expect(previewHandle).toHaveAttribute("aria-valuenow", "75");
+
+	await openOutputInspector(page);
+	const toggle = page.getByTestId("output-use-current-slider-position-switch");
+	await expect(toggle).toHaveAttribute("aria-checked", "false");
+
+	// Off (the default): Standalone HTML starts at 50/50 regardless of the
+	// Preview's own current position.
+	const [offDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const offPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-slider-off-")),
+		"sameview-comparison.html",
+	);
+	await offDownload.saveAs(offPath);
+	const offPage = await context.newPage();
+	await offPage.goto(pathToFileURL(offPath).href);
+	await expect(offPage.locator("#sameview-handle")).toHaveAttribute(
+		"aria-valuenow",
+		"50",
+	);
+	await offPage.close();
+
+	// Back to Edit and Output again: a fresh OutputInspector instance, the
+	// toggle back at its own default (Off) — output-specific state, not part
+	// of Current Working State (see OutputInspector.tsx's own header
+	// comment). The Preview's own slider position, unlike the toggle, is
+	// unaffected by this Edit/Output switch (owned by WorkspaceActive, one
+	// level up) and remains at 75.
+	await page.getByTestId("output-inspector-back-button").click();
+	await openOutputInspector(page);
+	await expect(
+		page.getByTestId("output-use-current-slider-position-switch"),
+	).toHaveAttribute("aria-checked", "false");
+	await page.getByTestId("output-use-current-slider-position-switch").click();
+
+	const [onDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const onPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-slider-on-standalone-")),
+		"sameview-comparison.html",
+	);
+	await onDownload.saveAs(onPath);
+	const onPage = await context.newPage();
+	await onPage.goto(pathToFileURL(onPath).href);
+	await expect(onPage.locator("#sameview-handle")).toHaveAttribute(
+		"aria-valuenow",
+		"75",
+	);
+
+	// Static Microsite, generated at the same, still-unmoved Preview position
+	// (75): carries the identical value into index.html — proving both output
+	// types consume the identical Outcome Snapshot value.
+	await page.getByTestId("output-inspector-back-button").click();
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+	await page.getByTestId("output-use-current-slider-position-switch").click();
+	const micrositeIndexPath = await downloadAndExtractMicrosite(
+		page,
+		"sameview-slider-on-microsite-",
+	);
+	const micrositePage = await context.newPage();
+	await micrositePage.goto(pathToFileURL(micrositeIndexPath).href);
+	await expect(micrositePage.locator("#sameview-handle")).toHaveAttribute(
+		"aria-valuenow",
+		"75",
+	);
+	await micrositePage.close();
+
+	// The Preview's own slider is unaffected by any of the above — nothing
+	// here ever writes back into it — and both already-generated outputs stay
+	// exactly as captured regardless of later Preview movement.
+	await expect(previewHandle).toHaveAttribute("aria-valuenow", "75");
+	await previewHandle.focus();
+	await page.keyboard.press("ArrowLeft");
+	await expect(previewHandle).toHaveAttribute("aria-valuenow", "70");
+	await expect(onPage.locator("#sameview-handle")).toHaveAttribute(
+		"aria-valuenow",
+		"75",
+	);
+	await onPage.close();
 });

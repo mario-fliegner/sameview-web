@@ -481,7 +481,9 @@ The Presentation Preview always remains visible while only the inspector content
 
 # Output Inspector
 
-The Output Inspector replaces the Edit Inspector after the user selects **Create Output**.
+The Output Inspector replaces the Edit Inspector after the user selects **Create Output** — the Edit Inspector's own action, unaffected by anything below.
+
+The Output Inspector's own visible heading is **Choose output**, distinct from that action: the user has already left the Edit Inspector by the time this heading is shown, and is now choosing which output type to generate.
 
 The Presentation Preview remains visible and unchanged.
 
@@ -507,7 +509,7 @@ Standalone HTML and Static Microsite can be selected. CMS Package cannot be sele
 
 ## Standalone HTML
 
-Standalone HTML supports one additional output setting: Remove Embedded Location Data (see below).
+Standalone HTML supports two additional output settings: Use Current Slider Position and Remove Embedded Location Data (see below).
 
 The generated file represents the current Presentation Preview exactly at the moment of download.
 
@@ -525,7 +527,7 @@ The export consists of:
 
 ## Static Microsite
 
-Static Microsite supports the same additional output setting as Standalone HTML: Remove Embedded Location Data (see below).
+Static Microsite supports the same additional output settings as Standalone HTML: Use Current Slider Position and Remove Embedded Location Data (see below).
 
 The generated microsite represents the current Presentation Preview exactly at the moment of download, using the same presentation and interaction source as Standalone HTML — no separate presentation renderer exists for this output type.
 
@@ -539,6 +541,22 @@ The export consists of:
 - a localized `<noscript>` hint (same wording/mechanism as Standalone HTML above), for the rare case scripting is disabled
 - Open Graph metadata (`og:type` = `website`, `og:title` and `og:description` set to the exact same already-resolved values as `<title>` and `<meta name="description">`) — this output type alone, since it may be hosted at a shareable URL; no `og:url`, `og:image` or canonical link
 - complete offline functionality once unpacked onto ordinary static webspace
+
+## Use Current Slider Position
+
+Both Standalone HTML and Static Microsite share one additional output setting, shown before Remove Embedded Location Data:
+
+`Use current slider position`
+
+Default: Off.
+
+The setting is a plain switch inside the Output Inspector, available once an output type is selected, with a permanently visible helper line directly beneath it explaining its effect. It is not part of the Current Working State and has no effect on the Workspace Preview.
+
+When Off, the generated output's Comparison Stage divider starts at the exact midpoint (50/50) — docs/COMPARISON_PRESENTATION.md Part 2 "Initial Slider Position".
+
+When On, the divider instead starts at the Presentation Preview's own current interactive slider position, read exactly once at the moment generation is triggered and captured into that generation's Outcome Snapshot like every other value it carries. The already-generated output is then fully independent: its own divider remains fully interactive, and any later movement of the Workspace Preview's slider never changes it.
+
+Standalone HTML and Static Microsite always use the same resulting starting position for a given outcome; no output-type-specific value exists.
 
 ## Remove Embedded Location Data
 

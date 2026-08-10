@@ -191,6 +191,8 @@ export interface Translations {
 		readonly cmsName: string;
 		readonly cmsDescription: string;
 		readonly comingSoonBadge: string;
+		readonly useCurrentSliderPositionLabel: string;
+		readonly useCurrentSliderPositionHint: string;
 		readonly removeLocationDataLabel: string;
 		readonly removeLocationDataHint: string;
 		readonly downloadHtmlButton: string;
@@ -199,8 +201,6 @@ export interface Translations {
 		readonly progressProcessingImages: string;
 		readonly progressBuildingOutput: string;
 		readonly progressStartingDownload: string;
-		readonly readyHeading: string;
-		readonly readyMessage: string;
 		readonly downloadAgainButton: string;
 		readonly errorHeading: string;
 		readonly errorMessage: string;
@@ -369,7 +369,7 @@ export const translations: Record<Locale, Translations> = {
 			createOutputButton: "Create Output",
 		},
 		outputInspector: {
-			heading: "Create Output",
+			heading: "Choose output",
 			backToEditButton: "← Edit",
 			standaloneName: "Standalone HTML",
 			standaloneDescription:
@@ -380,17 +380,18 @@ export const translations: Record<Locale, Translations> = {
 			cmsName: "CMS Package",
 			cmsDescription: "Coming soon.",
 			comingSoonBadge: "Coming Soon",
+			useCurrentSliderPositionLabel: "Use current slider position",
+			useCurrentSliderPositionHint:
+				"Starts the output at the slider position currently shown in the preview.",
 			removeLocationDataLabel: "Remove embedded location data",
 			removeLocationDataHint:
-				"The visible location stays part of the comparison — this only removes embedded location data from the comparison image files.",
+				"Visible location stays in the comparison. Only location data embedded in the image files is removed.",
 			downloadHtmlButton: "Download HTML",
 			downloadZipButton: "Download ZIP",
 			progressPreparingComparison: "Preparing comparison…",
 			progressProcessingImages: "Processing images…",
 			progressBuildingOutput: "Building output…",
 			progressStartingDownload: "Starting download…",
-			readyHeading: "Output ready",
-			readyMessage: "Your download should start automatically.",
 			downloadAgainButton: "Download again",
 			errorHeading: "Generation failed",
 			errorMessage:
@@ -563,7 +564,7 @@ export const translations: Record<Locale, Translations> = {
 			createOutputButton: "Ausgabe erstellen",
 		},
 		outputInspector: {
-			heading: "Ausgabe erstellen",
+			heading: "Ausgabe wählen",
 			backToEditButton: "← Bearbeiten",
 			standaloneName: "Eigenständige HTML-Datei",
 			standaloneDescription:
@@ -574,17 +575,18 @@ export const translations: Record<Locale, Translations> = {
 			cmsName: "CMS-Paket",
 			cmsDescription: "Demnächst verfügbar.",
 			comingSoonBadge: "Demnächst",
+			useCurrentSliderPositionLabel: "Aktuelle Slider-Position verwenden",
+			useCurrentSliderPositionHint:
+				"Startet die Ausgabe mit der aktuell in der Vorschau eingestellten Slider-Position.",
 			removeLocationDataLabel: "Eingebettete Standortdaten entfernen",
 			removeLocationDataHint:
-				"Der sichtbare Standort bleibt Teil des Vergleichs — dies entfernt nur eingebettete Standortdaten aus den Vergleichsbild-Dateien.",
+				"Der sichtbare Ort bleibt im Vergleich. Entfernt werden nur in den Bilddateien eingebettete Standortdaten.",
 			downloadHtmlButton: "HTML herunterladen",
 			downloadZipButton: "ZIP herunterladen",
 			progressPreparingComparison: "Vergleich wird vorbereitet…",
 			progressProcessingImages: "Bilder werden verarbeitet…",
 			progressBuildingOutput: "Ausgabe wird erstellt…",
 			progressStartingDownload: "Download wird gestartet…",
-			readyHeading: "Ausgabe bereit",
-			readyMessage: "Dein Download sollte automatisch starten.",
 			downloadAgainButton: "Erneut herunterladen",
 			errorHeading: "Erstellung fehlgeschlagen",
 			errorMessage:

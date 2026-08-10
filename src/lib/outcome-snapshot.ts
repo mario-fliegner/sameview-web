@@ -23,10 +23,13 @@
 // differ here).
 //
 // initialSliderPosition (docs/COMPARISON_PRESENTATION.md Part 2 "Initial
-// Slider Position"): fixed to DEFAULT_INITIAL_SLIDER_POSITION for the
-// current V1 implementation, independent of any live Workspace Preview
-// slider state — this module never reads Comparison Slider component state,
-// which does not exist at this layer.
+// Slider Position", "Use Current Slider Position"): defaults to
+// DEFAULT_INITIAL_SLIDER_POSITION, but the caller may pass an already-read
+// live Workspace Preview slider position instead (as a [0, 1] fraction) —
+// this module itself still never reads Comparison Slider component state
+// directly; it only accepts the value already resolved by the caller
+// (src/components/OutputInspector.tsx), exactly like every other
+// caller-resolved value this module accepts (locale, options).
 //
 // No React, no DOM, no async: pure and synchronous, mirroring every other
 // derivation module this one composes.
@@ -86,6 +89,7 @@ export function createOutcomeSnapshot(
 	cws: CurrentWorkingState,
 	locale: Locale,
 	options: DeriveComparisonPresentationOptions,
+	initialSliderPosition: number = DEFAULT_INITIAL_SLIDER_POSITION,
 ): OutcomeSnapshot {
 	const branding = resolveHandleBranding(cws);
 	return {
@@ -99,6 +103,6 @@ export function createOutcomeSnapshot(
 				: undefined,
 		referenceImageBytes: cloneBytes(cws.files.referenceBytes),
 		captureImageBytes: cloneBytes(cws.files.captureBytes),
-		initialSliderPosition: DEFAULT_INITIAL_SLIDER_POSITION,
+		initialSliderPosition,
 	};
 }

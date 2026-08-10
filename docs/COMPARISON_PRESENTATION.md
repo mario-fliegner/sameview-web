@@ -338,23 +338,30 @@ The Comparison Stage's divider starts at a defined position for each
 generated output — a property of that output's Outcome Snapshot
 (`initialSliderPosition`), not of the live, interactive Workspace Preview.
 
-In the current Version 1 implementation, `initialSliderPosition` is always
-set to the exact midpoint (50/50). The Workspace Preview's own current
-interactive slider position is not carried over in this implementation.
+By default, `initialSliderPosition` is set to the exact midpoint (50/50);
+the Workspace Preview's own current interactive slider position is not
+carried over.
 
-A later, explicitly specified output option may instead initialize the same
-`initialSliderPosition` value from the Workspace Preview's current slider
-position at the moment the outcome is generated. Such an option is not
-implemented now.
+"Use Current Slider Position" (docs/APPLICATION_LAYOUT.md "Output
+Inspector"), an output-specific setting available once an output type is
+selected, default Off, changes this: when On, `initialSliderPosition` is
+instead set from the Workspace Preview's current slider position at the
+exact moment Generate is pressed, converted to the same [0, 1] fraction
+scale. This is a one-time snapshot, exactly like the rest of the Outcome
+Snapshot — the generated output's divider position is then fully
+independent of the Workspace Preview: it never changes as a result of later
+Workspace Preview slider movement, and the divider remains fully
+interactive once the output is opened. The setting itself is not part of
+the Current Working State and has no effect on the Workspace Preview.
 
 Standalone HTML and Static Microsite always use the same
 `initialSliderPosition` value from the Outcome Snapshot; no
 output-type-specific starting position exists.
 
-This is the one deliberate exception, for the current V1 implementation, to
-"Generated outputs reproduce the Workspace Preview as closely as
-technically possible" (Part 1 "WYSIWYG"): the divider remains fully
-interactive once the output is opened.
+Off (the default) remains the one deliberate exception to "Generated
+outputs reproduce the Workspace Preview as closely as technically possible"
+(Part 1 "WYSIWYG"); On removes that exception for the divider's starting
+position specifically.
 
 ## Comparison Information Rendering
 

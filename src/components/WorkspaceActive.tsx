@@ -228,6 +228,18 @@ export default function WorkspaceActive({
 	const previousSessionDirectoryRef = useRef(
 		currentWorkingState.sessionDirectory,
 	);
+	// The Presentation Preview's live Comparison Stage divider position
+	// (docs/COMPARISON_PRESENTATION.md "Initial Slider Position": Use Current
+	// Slider Position), mirrored here only for OutputInspector to read on
+	// demand at Generate — never rendered from, never written back into
+	// Current Working State. A plain ref, not state: every drag/keyboard
+	// frame updates it (via `handleSliderPositionChange` below), which would
+	// otherwise re-render this whole component on every pixel of a drag.
+	// Reset to ComparisonSlider's own initial value alongside
+	// `contextInspectorMode`/`editInspectorOpenSection` in the
+	// sessionDirectory effect below, on an actual Replace Export only — a
+	// fresh ComparisonSlider mount always starts back at 50.
+	const currentSliderPositionRef = useRef(50);
 	const previewRef = useRef<HTMLDivElement>(null);
 	// The Presentation Canvas's own sub-region of the Presentation Preview —
 	// everything below the Reserved Control Area (docs/APPLICATION_LAYOUT.md
@@ -284,9 +296,23 @@ export default function WorkspaceActive({
 			workspaceHeadingRef.current?.focus();
 			setContextInspectorMode("edit");
 			setEditInspectorOpenSection("comparison-information");
+			currentSliderPositionRef.current = 50;
 		}
 		previousSessionDirectoryRef.current = currentWorkingState.sessionDirectory;
 	}, [currentWorkingState.sessionDirectory]);
+
+	// Mirrors PresentationCanvas's own `handleDimensionsChange` below: a
+	// stable callback (never causes ComparisonSlider to re-render on its
+	// account) that only mutates the plain ref above, never triggers a
+	// WorkspaceActive re-render itself — deliberately, since every drag frame
+	// would otherwise re-render everything else in this component.
+	const handleSliderPositionChange = useCallback((position: number) => {
+		currentSliderPositionRef.current = position;
+	}, []);
+	const getCurrentSliderPosition = useCallback(
+		() => currentSliderPositionRef.current,
+		[],
+	);
 
 	// Fullscreen Mode focus management (docs/APPLICATION_LAYOUT.md "Fullscreen
 	// Mode": "Keyboard focus returns to the Fullscreen button" on close, and —
@@ -633,6 +659,7 @@ export default function WorkspaceActive({
 							configuration={currentWorkingState.presentationConfiguration}
 							branding={handleBranding}
 							brandingSrc={brandingSrc}
+							onPositionChange={handleSliderPositionChange}
 						/>
 					</div>
 				</div>
@@ -663,6 +690,7 @@ export default function WorkspaceActive({
 							currentWorkingState={currentWorkingState}
 							presentation={presentation}
 							onBackToEdit={() => setContextInspectorMode("edit")}
+							getCurrentSliderPosition={getCurrentSliderPosition}
 						/>
 					)}
 				</div>
@@ -689,6 +717,12 @@ interface PresentationCanvasProps {
 	readonly configuration: PresentationConfiguration;
 	readonly branding: HandleBranding;
 	readonly brandingSrc: string | undefined;
+	// Pure passthrough to ComparisonSlider's own identically-named optional
+	// prop — see that component's own header comment. Owned by
+	// WorkspaceActive, not here: it describes OutputInspector's needs, not
+	// canvas rendering. Required (not optional) here since WorkspaceActive,
+	// this component's only caller, always provides a stable callback.
+	readonly onPositionChange: (position: number) => void;
 }
 
 // Canvas Background/Frame/Text semantic-to-concrete resolution
@@ -719,6 +753,7 @@ function PresentationCanvas({
 	configuration,
 	branding,
 	brandingSrc,
+	onPositionChange,
 }: PresentationCanvasProps) {
 	const infoRef = useRef<HTMLDivElement>(null);
 	const [ratio, setRatio] = useState<number | null>(null);
@@ -983,6 +1018,7 @@ function PresentationCanvas({
 					brandingSrc={brandingSrc}
 					presentationFontFamily={presentationFontFamily}
 					onDimensionsChange={handleDimensionsChange}
+					onPositionChange={onPositionChange}
 				/>
 				<div ref={infoRef} className="presentation-canvas__info-wrapper">
 					<ComparisonPresentationInfo

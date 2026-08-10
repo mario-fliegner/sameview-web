@@ -18,12 +18,13 @@
 // reconcile, crop or independently scale them; it reads the shared aspect
 // ratio once, from whichever image's `onLoad` fires first.
 //
-// Position is uncontrolled local state: nothing outside this component
-// needs to read or set it in this iteration (no synchronization, no
-// persistence, no external reset control). It is isolated behind local
-// `useState` specifically so that promoting it to an optional controlled
-// prop later — if Fullscreen or synchronization ever need it — is a small,
-// local change, not a rewrite.
+// Position remains uncontrolled local state — nothing outside this component
+// sets it, and it is never written back into Current Working State or
+// persisted. The optional `onPositionChange` below is a read-only reporting
+// channel (docs/COMPARISON_PRESENTATION.md "Initial Slider Position": Use
+// Current Slider Position), not the "promoting it to an optional controlled
+// prop" this comment used to only anticipate — a caller can read the latest
+// position on demand without this component ever becoming controlled.
 //
 // Handle geometry (ring, chevrons, divider line) is the SameView Android
 // production Compare screen's own geometry
@@ -99,6 +100,15 @@ interface ComparisonSliderProps {
 		readonly width: number;
 		readonly height: number;
 	}) => void;
+	// Additive and optional, the same "promoting the local `position` state to
+	// an optional controlled prop later is a small, local change" this
+	// component's own module comment above already anticipates. Fires
+	// synchronously, at the same point `position` itself changes (pointer
+	// drag/click and keyboard) — never via a separate effect — so a parent can
+	// read the latest value on demand (e.g. at Generate) without this
+	// component's position ever becoming controlled, persisted or written
+	// back into Current Working State.
+	readonly onPositionChange?: (position: number) => void;
 }
 
 // Android CompareHandleLabelGap = 8.dp. Unlike the ring radius below, this
@@ -122,6 +132,7 @@ export default function ComparisonSlider({
 	brandingSrc,
 	presentationFontFamily,
 	onDimensionsChange,
+	onPositionChange,
 }: ComparisonSliderProps) {
 	const frameRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState(50);
@@ -244,13 +255,22 @@ export default function ComparisonSlider({
 		setDimensions((previous) => previous ?? { width, height });
 	}
 
+	// The one place `position` actually changes (both call sites below feed
+	// through here) — `onPositionChange` fires synchronously alongside
+	// `setPosition`, not from a separate effect, so a parent reading it later
+	// (e.g. at Generate) never depends on render timing.
+	function updatePosition(next: number) {
+		setPosition(next);
+		onPositionChange?.(next);
+	}
+
 	function updatePositionFromClientX(
 		clientX: number,
 		leftPx: number,
 		widthPx: number,
 	) {
 		const next = positionFromClientX(clientX, leftPx, widthPx);
-		if (next !== undefined) setPosition(next);
+		if (next !== undefined) updatePosition(next);
 	}
 
 	function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -299,7 +319,7 @@ export default function ComparisonSlider({
 		const next = nextPositionForKey(event.key, position);
 		if (next === undefined) return;
 		event.preventDefault();
-		setPosition(next);
+		updatePosition(next);
 	}
 
 	const frameStyle: CSSProperties | undefined =

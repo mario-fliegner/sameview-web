@@ -292,6 +292,28 @@ describe("createOutcomeSnapshot", () => {
 		assert.equal(snapshotTwo.initialSliderPosition, 0.5);
 	});
 
+	// docs/COMPARISON_PRESENTATION.md "Use Current Slider Position": the
+	// caller (src/components/OutputInspector.tsx) may pass an already-read
+	// live Workspace Preview slider position as a [0, 1] fraction instead of
+	// the default — this module accepts it as-is, 0 and 1 both valid
+	// endpoints, no clamping or other new semantics for out-of-range values.
+	test("an explicit initialSliderPosition overrides the default", () => {
+		const cws = fakeCurrentWorkingState();
+
+		assert.equal(
+			createOutcomeSnapshot(cws, LOCALE, OPTIONS, 0).initialSliderPosition,
+			0,
+		);
+		assert.equal(
+			createOutcomeSnapshot(cws, LOCALE, OPTIONS, 1).initialSliderPosition,
+			1,
+		);
+		assert.equal(
+			createOutcomeSnapshot(cws, LOCALE, OPTIONS, 0.37).initialSliderPosition,
+			0.37,
+		);
+	});
+
 	test("produces one snapshot usable identically by two independent output consumers", () => {
 		const cws = fakeCurrentWorkingState({
 			content: { title: "Shared Snapshot" },
