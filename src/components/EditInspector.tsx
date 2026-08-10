@@ -18,47 +18,68 @@
 // boolean per section) is what makes "at most one" hold by construction:
 // opening one section is the same state update as closing whichever other
 // section was open, never two separate updates that could otherwise leave
-// both — or, with three sections now, more than one — open at once. Local
-// `useState` already satisfies "the expanded/collapsed state should be
-// preserved while the workspace remains open": the component only unmounts
-// (resetting to this initial value) when the parent remounts it via
-// `key={sessionDirectory}` on an actual workspace replacement, never on an
-// edit — the same reset boundary every other workspace-scoped local UI
-// state in this app already uses (e.g. src/components/
-// ComparisonSlider.tsx's drag position).
+// both — or, with three sections now, more than one — open at once.
+//
+// `openSection` is a controlled prop, owned by
+// src/components/WorkspaceActive.tsx, not local `useState` — confirmed
+// regression fix: this component is conditionally rendered alongside
+// OutputInspector (WorkspaceActive.tsx's Edit/Output ternary), and React
+// unmounts/remounts a component whenever the element type at that tree
+// position changes, `key` or not — `key={sessionDirectory}` only prevents a
+// remount across renders of this *same* type, it does nothing to keep this
+// component alive across a switch to OutputInspector and back. Local state
+// here was silently discarded on every "Create Output" and replaced with
+// this component's own initial value on every "← Edit", which regressed
+// docs/APPLICATION_LAYOUT.md "the expanded/collapsed state should be
+// preserved while the workspace remains open" (confirmed by dedicated
+// regression tests) and, because the discarded/default-reopened section can
+// render at a different height than whatever was actually open before, also
+// regressed docs/COMPARISON_PRESENTATION.md "Preview Consistency" (a taller
+// or shorter Context Inspector column changes whether the document needs a
+// scrollbar, which changes the two-column grid's own available width — see
+// `scrollbar-gutter: stable` on `html` in src/styles/global.css for the
+// other half of that same fix). WorkspaceActive survives the Edit/Output
+// switch (it is the component that renders both), so it is the smallest
+// state owner this can move to without any other structural change.
 
-import { useState } from "react";
 import { useLocale } from "../i18n/LocaleContext";
 import type { CurrentWorkingState } from "../lib/workspace-state";
 import BrandingSection from "./BrandingSection";
 import ComparisonInformationSection from "./ComparisonInformationSection";
 import PresentationSection from "./PresentationSection";
 
+export type OpenSection =
+	| "comparison-information"
+	| "presentation"
+	| "branding"
+	| null;
+
 interface EditInspectorProps {
 	readonly currentWorkingState: CurrentWorkingState;
 	readonly captureDateLabel: string;
 	readonly onCurrentWorkingStateChange: (next: CurrentWorkingState) => void;
+	// docs/APPLICATION_LAYOUT.md "Output Inspector": "The Output Inspector
+	// replaces the Edit Inspector after the user selects Create Output."
+	readonly onCreateOutput: () => void;
+	// See this file's own header comment: owned by WorkspaceActive so it
+	// survives the Edit/Output switch instead of resetting on every remount.
+	readonly openSection: OpenSection;
+	readonly onOpenSectionChange: (next: OpenSection) => void;
 }
 
 const COMPARISON_INFORMATION_BODY_ID = "edit-inspector-comparison-information";
 const PRESENTATION_BODY_ID = "edit-inspector-presentation";
 const BRANDING_BODY_ID = "edit-inspector-branding";
 
-type OpenSection =
-	| "comparison-information"
-	| "presentation"
-	| "branding"
-	| null;
-
 export default function EditInspector({
 	currentWorkingState,
 	captureDateLabel,
 	onCurrentWorkingStateChange,
+	onCreateOutput,
+	openSection,
+	onOpenSectionChange,
 }: EditInspectorProps) {
 	const { t } = useLocale();
-	const [openSection, setOpenSection] = useState<OpenSection>(
-		"comparison-information",
-	);
 	const isComparisonInformationExpanded =
 		openSection === "comparison-information";
 	const isPresentationExpanded = openSection === "presentation";
@@ -67,7 +88,7 @@ export default function EditInspector({
 	function toggleSection(
 		section: "comparison-information" | "presentation" | "branding",
 	) {
-		setOpenSection((current) => (current === section ? null : section));
+		onOpenSectionChange(openSection === section ? null : section);
 	}
 
 	return (
@@ -187,6 +208,14 @@ export default function EditInspector({
 					</div>
 				)}
 			</section>
+			<button
+				type="button"
+				className="edit-inspector__create-output-button"
+				data-testid="create-output-button"
+				onClick={onCreateOutput}
+			>
+				{t.editInspector.createOutputButton}
+			</button>
 		</aside>
 	);
 }

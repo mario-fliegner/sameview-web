@@ -1,11 +1,37 @@
+/* CSS `@import` must precede every other rule in a stylesheet (except
+   `@charset`) or browsers ignore it — this has to stay the first rule in
+   this file. See the Comparison Presentation section further below for why
+   this particular file is imported rather than defined inline. */
+@import "./comparison-presentation.css";
+
 *,
 *::before,
 *::after {
 	box-sizing: border-box;
 }
 
+/* `html` is this document's actual root scroller (`body` sets no `overflow`
+   of its own, so it never becomes one). Confirmed regression fix
+   (docs/COMPARISON_PRESENTATION.md "Preview Consistency"; the Presentation
+   Preview's own explicit-height fix further below): the Context Inspector
+   column (`.workspace-active__layout`) is deliberately free to grow taller
+   than the Presentation Preview and scroll the page — but on a classic,
+   non-overlay scrollbar (the default on Windows/Linux browsers; this
+   project's own Playwright runs hide it via Chromium's `--hide-scrollbars`,
+   which is why this was missed by the existing E2E suite) crossing the
+   "does the page still fit in one viewport" threshold reserves or releases
+   real horizontal layout space, changing every column's actual pixel width
+   — including the Preview's, via `.workspace-active__layout`'s own
+   `minmax(0, 1fr)` columns — purely because the Context Inspector's content
+   height changed, with no viewport resize involved at all. `stable`
+   permanently reserves that gutter regardless of whether the page actually
+   overflows right now, so a scrollbar appearing or disappearing — most
+   commonly when switching between the Edit Inspector and the Output
+   Inspector, whose contents differ in height — can never again change any
+   column's width. */
 html {
 	color-scheme: dark;
+	scrollbar-gutter: stable;
 }
 
 body {
@@ -664,6 +690,27 @@ main {
 	background: #0d1424;
 }
 
+/* Confirmed regression fix, scoped narrowly to Fullscreen: `html`'s own
+   `scrollbar-gutter: stable` (top of this file) permanently reserves the
+   scrollbar's width — including, per the CSS Scrollbar Gutter spec, from
+   the initial containing block that `position: fixed; inset: 0` above sizes
+   against, not only from ordinary in-flow content. Fullscreen's own "the
+   complete Presentation Canvas remains visible … scales proportionally to
+   the maximum available space" (docs/APPLICATION_LAYOUT.md "Fullscreen
+   Mode") means it must still fill the real, full viewport, not one
+   permanently shrunk by a gutter that only ever existed to stop the
+   Edit/Output Context Inspector swap from changing the two-column grid's
+   width — header, footer and the Context Inspector are already fully
+   covered and inert while Fullscreen is open, so nothing that reservation
+   protects is even visible at that point. `:has()` toggles the reservation
+   off for exactly as long as `.workspace-active__preview--fullscreen`
+   exists in the document — no JS/state change needed, this class is already
+   the sole source of truth for whether Fullscreen is open
+   (src/components/WorkspaceActive.tsx). */
+html:has(.workspace-active__preview--fullscreen) {
+	scrollbar-gutter: auto;
+}
+
 /* A `display: contents` wrapper contributes no box of its own, so an
    element made `inert` through it (src/components/App.tsx,
    src/components/WorkspaceActive.tsx) stays exactly the same flex/grid item
@@ -793,462 +840,13 @@ main {
 	justify-content: center;
 }
 
-/* Presentation Canvas (docs/COMPARISON_PRESENTATION.md Part 2): the
-   Comparison Stage and the rendered Comparison Information beneath it are
-   sized together as one unit by src/lib/canvas-geometry.ts, driven by
-   src/components/WorkspaceActive.tsx's `PresentationCanvas`. Widths/heights
-   arrive as CSS custom properties (`--stage-width` etc.) rather than as a
-   CSS `fit-content` shrink-to-fit box — the Comparison Stage has no in-flow
-   content (its images are `position: absolute`), so it has no usable
-   intrinsic-size contribution for `fit-content`/`max-content` sizing without
-   a definite containing block; this was confirmed empirically unreliable
-   during this feature's design, not assumed. Hidden via `visibility` (not
-   `display`) until the geometry settles, so it keeps contributing real
-   layout boxes for the `ResizeObserver`s driving that same geometry. */
-.presentation-canvas {
-	position: relative;
-	width: var(--canvas-width, 100%);
-	height: var(--canvas-height, auto);
-	/* Canvas Padding (docs/COMPARISON_PRESENTATION.md Part 2 "Presentation
-	   Canvas"). Must stay numerically equal to CANVAS_PADDING_PX in
-	   src/lib/canvas-geometry.ts — that module's geometry already assumes
-	   this exact padding on all four sides when it computes `--stage-width`/
-	   `--canvas-width` etc. above. */
-	padding: var(--canvas-padding, 1rem);
-	margin-inline: auto;
-	visibility: hidden;
-	/* Canvas Background and Frame (docs/COMPARISON_PRESENTATION.md Part 3
-	   "Canvas"): both custom properties are always set by
-	   src/components/WorkspaceActive.tsx's `PresentationCanvas`
-	   (`--frame-width` is "0px" for Frame "None"), so the box-sizing:
-	   border-box reset (top of this file) draws the frame border fully
-	   inside the already-computed `--canvas-width`/`--canvas-height` rather
-	   than growing the box further. */
-	background: var(--canvas-background, transparent);
-	border: var(--frame-width, 0) solid var(--frame-color, transparent);
-	/* Corner Radius (docs/COMPARISON_PRESENTATION.md Part 3 "Corner Radius"):
-	   "applies to the entire Presentation Canvas … as one continuous visual
-	   unit" — set once here and inherited by `.comparison-slider__frame`
-	   below (a descendant), rather than threaded through as a second prop,
-	   since a plain CSS custom property already inherits down the DOM tree. */
-	border-radius: var(--corner-radius, 0.75rem);
-}
-
-.presentation-canvas--ready {
-	visibility: visible;
-}
-
-.presentation-canvas__info-wrapper {
-	width: var(--stage-width, 100%);
-	/* Zero when nothing is visible (docs/COMPARISON_PRESENTATION.md "Hidden
-	   or unavailable items reserve no space") — WorkspaceActive.tsx sets this
-	   custom property to match the same condition computeCanvasGeometry
-	   itself uses internally. Small — "One Cohesive Card", not a footer —
-	   and must stay numerically equal to CANVAS_CONTENT_GAP_PX in
-	   src/lib/canvas-geometry.ts, which assumes this exact gap when it
-	   computes `--stage-height`/`--canvas-height` above. */
-	margin-block-start: var(--content-gap, 0.5rem);
-}
-
-/* Comparison Viewer (docs/APPLICATION_LAYOUT.md "Viewer"). The frame's
-   aspect ratio is set inline once real image dimensions are known
-   (src/components/ComparisonSlider.tsx) — never guessed as portrait or
-   landscape beforehand, hence the plain `--loading` treatment below instead
-   of a default `aspect-ratio`. */
-
-.comparison-slider__frame {
-	position: relative;
-	width: 100%;
-	margin-inline: auto;
-	/* Inherits `--corner-radius` from `.presentation-canvas` above — see that
-	   rule's own comment for why Corner Radius is set once there rather than
-	   threaded through as a component prop. */
-	border-radius: var(--corner-radius, 0.75rem);
-	overflow: hidden;
-	/* Surface color (docs/BRAND_GUIDE.md): "compare viewports... compare
-	   letterbox background" — the same established treatment for the area
-	   behind/around the comparison images. */
-	background: #17202f;
-	/* `pan-y` (not `none`): lets the browser keep handling vertical page
-	   scroll natively when a touch gesture starts inside the Viewer, while
-	   horizontal movement is still left entirely to the pointer handlers
-	   below — `none` would also block scrolling straight past the Viewer on
-	   a phone. */
-	touch-action: pan-y;
-}
-
-.comparison-slider__frame--loading {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 16rem;
-}
-
-.comparison-slider__frame--ready {
-	/* Deliberately no `aspect-ratio` fallback here: `--stage-width` and
-	   `--stage-height` are always computed together by the same
-	   src/lib/canvas-geometry.ts call, already ratio-consistent by
-	   construction, so `aspect-ratio` would be redundant once both are set —
-	   and actively harmful before they are. This component briefly reaches
-	   `--ready` (both comparison images decoded) before
-	   src/components/WorkspaceActive.tsx's own geometry has been computed
-	   for the first time (that additionally requires this component's
-	   `onDimensionsChange` callback, then a parent re-render); during that
-	   gap, `width: var(--stage-width, 100%)` still resolves to the
-	   bootstrap-phase width (see .presentation-canvas__info-wrapper below),
-	   and pairing that width with `aspect-ratio` would derive a wildly tall
-	   height from it — confirmed to actually happen, not just a theoretical
-	   risk: it measurably inflated the Preview Area's own reported height,
-	   corrupting the geometry computed from it. `16rem` (not `0`) matches
-	   `.comparison-slider__frame--loading`'s own floor above: this state is
-	   reached a second time, not just at first mount — Fullscreen Mode
-	   (src/components/WorkspaceActive.tsx) deliberately clears `previewSize`
-	   to `null` when it closes into a genuinely resized layout, to force this
-	   same bootstrap gap open again rather than reuse a pixel size measured
-	   for a viewport that no longer applies. On first mount that gap is
-	   invisibly bridged by `--loading`'s own floor before this rule is ever
-	   reached (images are still decoding); on that second occasion, images
-	   are already decoded and `--ready` applies immediately, so this rule's
-	   own fallback is what the Preview Area's ResizeObserver actually
-	   measures — `0` would starve it back to a collapsed, self-reinforcing
-	   Stage height (the same class of fixed point that fallback comment
-	   above already fought), never correcting itself without this floor. */
-	width: var(--stage-width, 100%);
-	height: var(--stage-height, 16rem);
-}
-
-.comparison-slider__image {
-	position: absolute;
-	inset: 0;
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	user-select: none;
-	-webkit-user-drag: none;
-	/* The frame itself owns all pointer handling (docs/... F-002 Viewer
-	   interaction model) — the images are purely decorative layers and must
-	   never be the ones hit-tested, dragged natively, or selected. */
-	pointer-events: none;
-}
-
-/* Comparison handle (Android CompareScreen.kt `CompareDivider`/
-   `CompareSliderViewport` — see src/components/ComparisonSlider.tsx's own
-   constants comment for the exact dp values each rule below transcribes).
-   This wrapper is the 56dp-equivalent invisible interaction/focus corridor,
-   wider than the 48dp visible handle on purpose — the visual ring, circle
-   and chevrons live in the child SVG. */
-.comparison-slider__handle {
-	position: absolute;
-	inset-block: 0;
-	width: 3.5rem;
-	margin-inline-start: -1.75rem;
-	cursor: ew-resize;
-}
-
-/* Width/height (standard vs. 1.5× branding-enlarged) are set inline by
-   src/components/ComparisonSliderHandle.tsx itself, from
-   src/lib/comparison-handle-geometry.ts's STANDARD_HANDLE_VISUAL_REM /
-   BRANDED_HANDLE_VISUAL_REM — not declared here, so that single module
-   stays the only place either size is written down (docs/FEATURE_SPECIFICATION.md
-   F-004; docs/COMPARISON_PRESENTATION.md Part 2 "Handle": "automatically
-   increases in size"). */
-.comparison-slider__handle-visual {
-	position: absolute;
-	inset-block-start: 50%;
-	inset-inline-start: 50%;
-	transform: translate(-50%, -50%);
-	/* Approximates Android's `shadow(3.dp, CircleShape)` on the handle. */
-	filter: drop-shadow(0 0.1875rem 0.1875rem rgba(0, 0, 0, 0.3));
-}
-
-.comparison-slider__handle:focus-visible .comparison-slider__handle-visual {
-	outline: 0.1875rem solid #ffffff;
-	outline-offset: 0.1875rem;
-	border-radius: 50%;
-}
-
-.comparison-slider__divider-line {
-	position: absolute;
-	inset-block: 0;
-	/* inset-inline-start is set inline (src/components/ComparisonSlider.tsx),
-	   driven by the live slider position — same coordinate system as
-	   `.comparison-slider__handle` below, so both always share one center. */
-	width: 0.125rem;
-	margin-inline-start: -0.0625rem;
-	background: rgba(255, 255, 255, 0.9);
-	pointer-events: none;
-}
-
-.comparison-slider__label {
-	position: absolute;
-	inset-block-start: 50%;
-	color: #ffffff;
-	font-family: var(
-		--presentation-font-family,
-		ui-sans-serif,
-		system-ui,
-		sans-serif,
-		"Apple Color Emoji",
-		"Segoe UI Emoji",
-		"Segoe UI Symbol",
-		"Noto Color Emoji"
-	);
-	font-size: 0.875rem;
-	font-weight: 600;
-	white-space: nowrap;
-	/* Approximates Android's Shadow(color = Black @ 0.75 alpha, offset (0,1),
-	   blurRadius = 4) — legible over arbitrary image content without a
-	   background chip. */
-	text-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.75);
-	pointer-events: none;
-}
-
-.comparison-slider__loading {
-	color: #c7ccd6;
-	font-size: 0.875rem;
-}
-
-/* Presentation Canvas info (docs/COMPARISON_PRESENTATION.md Part 2
-   "Presentation Layout", "Comparison Information Rendering"). Rendered
-   directly beneath the Comparison Stage, inside the Presentation Preview
-   column — src/components/ComparisonPresentationInfo.tsx. Left-aligned per
-   "General Rules"; a hidden/absent item is simply not rendered by the
-   component, so no `display: none` handling is needed here. */
-
-/* Typographic Hierarchy (docs/COMPARISON_PRESENTATION.md "Typographic
-   Hierarchy"): two visual clusters, not one uniform list — a Primary
-   Cluster (Title, Description) and a Context Cluster (Time, Location),
-   src/components/ComparisonPresentationInfo.tsx's `__primary`/`__context`
-   wrappers. This gap is the deliberately larger space *between* the two
-   clusters; each cluster's own, smaller internal spacing is set on the
-   wrapper rules below instead. A wrapper is only ever rendered when at
-   least one of its own items is visible, so this gap correctly collapses
-   to nothing when one whole cluster is absent, and correctly applies
-   whenever both clusters are present — regardless of which individual
-   items within them are visible. */
-.presentation-info {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
-}
-
-.presentation-info__primary,
-.presentation-info__context {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-}
-
-/* Primary Cluster's own internal gap (Title → Description) — deliberately
-   looser than the Context Cluster's below, since Title/Description read as
-   a headline + supporting line rather than the tighter "single fact line"
-   pairing Time/Location form. */
-.presentation-info__primary {
-	gap: 0.25rem;
-}
-
-/* Context Cluster's own internal gap (Time → Location) — tighter than the
-   Primary Cluster's above on purpose: Time and Location read as one
-   associated caption line, not two separate paragraphs. */
-.presentation-info__context {
-	gap: 0.1875rem;
-}
-
-/* Text (docs/COMPARISON_PRESENTATION.md Part 3 "Text"): all four rendered
-   items resolve from the same `--text-color` custom property, set by
-   src/components/WorkspaceActive.tsx's `PresentationCanvas` on
-   `.presentation-canvas` and inherited down the DOM exactly like
-   `--corner-radius` already is. The fallback values reproduce this
-   component's pre-Text-Color appearance if the variable is ever unset.
-   Each `__title`/`__description`/`__time`/`__location` rule below carries
-   exactly one standard size; the matching `--compact` modifier class
-   (applied by src/components/ComparisonPresentationInfo.tsx's Adaptive
-   Sizing, docs/COMPARISON_PRESENTATION.md "Adaptive Sizing") is the one
-   additional, smaller defined size — never a third size, never continuous
-   scaling. Line-clamp/ellipsis on both the standard and compact rules is
-   the same, already-existing mechanism; Adaptive Sizing only ever changes
-   which of these two sizes is active.
-
-   Each of the four items also carries its own `opacity` on top of the one
-   shared `--text-color`, graduating Title (100%) → Description (78%) →
-   Time (72%) → Location (64%) — the "lower contrast" step the Typographic
-   Hierarchy requires between Title, Time and Location, without storing a
-   second color anywhere: `opacity` only ever dims the one resolved color
-   already in effect. `opacity` is a distinct CSS property from `color`, so
-   this does not change what a Text color selection (Automatic/Light/Dark/
-   Custom) itself resolves to. */
-.presentation-info__title {
-	margin: 0;
-	color: var(--text-color, #ffffff);
-	font-family: var(
-		--presentation-font-family,
-		ui-sans-serif,
-		system-ui,
-		sans-serif,
-		"Apple Color Emoji",
-		"Segoe UI Emoji",
-		"Segoe UI Symbol",
-		"Noto Color Emoji"
-	);
-	font-size: 1rem;
-	font-weight: 500;
-	line-height: 1.25;
-	/* "Maximum two lines, ellipsis on overflow." Deliberately still 2 here
-	   even though Standard now only ever renders while the Title fits in
-	   one line (src/components/ComparisonPresentationInfo.tsx
-	   `TITLE_STANDARD_MAX_LINES`) — this clamp is Compact's own ceiling,
-	   not the Standard/Compact decision threshold; the two are
-	   intentionally decoupled. */
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-}
-
-.presentation-info__title--compact {
-	font-size: 0.875rem;
-}
-
-.presentation-info__description {
-	margin: 0;
-	color: var(--text-color, #c7ccd6);
-	font-family: var(
-		--presentation-font-family,
-		ui-sans-serif,
-		system-ui,
-		sans-serif,
-		"Apple Color Emoji",
-		"Segoe UI Emoji",
-		"Segoe UI Symbol",
-		"Noto Color Emoji"
-	);
-	font-size: 0.875rem;
-	line-height: 1.4;
-	opacity: 0.78;
-	/* "Maximum three lines, ellipsis on overflow." */
-	display: -webkit-box;
-	-webkit-line-clamp: 3;
-	line-clamp: 3;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-}
-
-.presentation-info__description--compact {
-	font-size: 0.8125rem;
-}
-
-/* Single line, fixed height regardless of content or the width this block
-   is currently measured at (matching the Title's existing treatment) —
-   keeps metadataHeight's only width-sensitive contributor the Description
-   above, per src/components/WorkspaceActive.tsx's bootstrap/convergence
-   argument. No `font-variant-numeric` here: Canvas `measureText()` cannot
-   evaluate that property (it is not part of the CSS font shorthand Canvas
-   accepts), so applying it here while src/components/
-   ComparisonPresentationInfo.tsx's `TIME_FONT` measures without it would
-   reintroduce exactly the measured-vs-rendered-width divergence this
-   component's Adaptive Sizing already avoids for letter-spacing. */
-.presentation-info__time {
-	margin: 0;
-	color: var(--text-color, #c7ccd6);
-	font-family: var(
-		--presentation-font-family,
-		ui-sans-serif,
-		system-ui,
-		sans-serif,
-		"Apple Color Emoji",
-		"Segoe UI Emoji",
-		"Segoe UI Symbol",
-		"Noto Color Emoji"
-	);
-	font-size: 0.8125rem;
-	font-weight: 500;
-	line-height: 1.3;
-	opacity: 0.72;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-
-.presentation-info__time--compact {
-	font-size: 0.75rem;
-}
-
-.presentation-info__location {
-	margin: 0;
-	color: var(--text-color, #c7ccd6);
-	font-family: var(
-		--presentation-font-family,
-		ui-sans-serif,
-		system-ui,
-		sans-serif,
-		"Apple Color Emoji",
-		"Segoe UI Emoji",
-		"Segoe UI Symbol",
-		"Noto Color Emoji"
-	);
-	font-size: 0.75rem;
-	line-height: 1.3;
-	/* Deliberately not reduced to ~0.52 in line with Time's/Description's
-	   own step-down ratio: at that level Location can read as too weak
-	   against Custom or Transparent backgrounds, which this presentation
-	   model performs no automatic contrast adjustment for (Part 3 "Custom
-	   Color Editing": "WYSIWYG fidelity takes precedence"). 0.64 is the
-	   floor. */
-	opacity: 0.64;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-
-.presentation-info__location--compact {
-	font-size: 0.6875rem;
-}
-
-/* Overflow Tooltip (docs/COMPARISON_PRESENTATION.md Part 2 "Overflow
-   Tooltip"). A single shared node, created, measured and positioned
-   entirely by src/lib/overflow-tooltip.ts — a framework-independent DOM
-   module with no React dependency, so this exact class and module can be
-   reused unchanged by a future Output Preview, Standalone HTML export or
-   Microsite renderer ("Interaction Parity", Part 1). `position: fixed`
-   keeps it viewport-relative and outside the normal document flow, so it
-   never affects the Presentation Canvas's own geometry and is never
-   clipped by any ancestor's `overflow`/corner-radius. Deliberately not
-   tied to the user-configurable Background/Frame/Text/Corners semantics
-   (Part 3 enumerates exactly which elements those control; this is not
-   one of them) — the same fixed dark-panel treatment as
-   `.edit-inspector__section`, independent of the Presentation Canvas's own
-   configuration. `top`/`left` are set inline by the module; everything
-   else is static. */
-.presentation-tooltip {
-	position: fixed;
-	z-index: 100;
-	margin: 0;
-	padding: 0.375rem 0.5rem;
-	/* Guarantees no horizontal document overflow purely via CSS, regardless
-	   of where the module positions it. */
-	max-width: min(20rem, calc(100vw - 1rem));
-	/* "Extreme long content" (docs/COMPARISON_PRESENTATION.md "Overflow
-	   Tooltip"): once content genuinely cannot fit the available viewport
-	   height, this becomes the tooltip's own internal vertical scroll —
-	   never a new document scrollbar, never the Presentation Canvas's own
-	   scroll area. `auto` only ever becomes visible when content actually
-	   overflows, so no separate JS branch is needed for this case. */
-	max-height: calc(100vh - 1rem);
-	overflow-y: auto;
-	background: #17202f;
-	border: 1px solid #2a3445;
-	border-radius: 0.375rem;
-	color: #ffffff;
-	font-size: 0.8125rem;
-	line-height: 1.4;
-	white-space: normal;
-	/* Even a single, pathologically long unbroken word must never create a
-	   horizontal tooltip scrollbar — the one deliberate exception to this
-	   app's general "never break inside a word" text handling
-	   (src/lib/adaptive-text-size.ts), scoped only to this element. */
-	overflow-wrap: anywhere;
-}
+/* Comparison Presentation rendering rules (Presentation Canvas, Comparison
+   Stage/Slider, rendered Comparison Information, Overflow Tooltip) now live
+   in ./comparison-presentation.css (imported at the very top of this file,
+   as CSS `@import` requires) — the single source also consumed unchanged by
+   the generated Standalone HTML/Static Microsite
+   (src/lib/comparison-artifact-scaffold.ts). See that file's own header
+   comment for the full reasoning. */
 
 /* Edit Inspector (docs/APPLICATION_LAYOUT.md "Edit Inspector", "Structure").
    `.edit-inspector` itself is only a vertical layout container for its
@@ -2150,4 +1748,231 @@ main {
 .replacement-mode__button--primary:active {
 	background: #1f47a0;
 	transform: scale(0.97);
+}
+
+/* "Create Output" (docs/APPLICATION_LAYOUT.md "Output Inspector") — the
+   Edit Inspector's own last child, after its three accordion sections
+   (`.edit-inspector`'s existing flex `gap` already spaces it identically to
+   the gap between those sections); a workspace action, not a fourth
+   section. Deliberately still a direct child of the single `<aside>` root
+   EditInspector returns — `.inert-region`'s `display: contents` in
+   src/components/WorkspaceActive.tsx unwraps EditInspector's own root
+   directly into `.workspace-active__layout`'s CSS Grid, so EditInspector
+   returning more than one root element would silently add a second,
+   unintended grid item there instead of staying inside the Inspector's own
+   column (confirmed by an actual regression this caused, not a theoretical
+   concern). */
+.edit-inspector__create-output-button {
+	align-self: flex-start;
+	padding: 0.625rem 1rem;
+	border: 1px solid #4f8cff;
+	border-radius: 0.5rem;
+	background: #2757b8;
+	color: #ffffff;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.edit-inspector__create-output-button:hover {
+	border-color: #6ba3ff;
+	background: #3568d6;
+}
+
+.edit-inspector__create-output-button:focus-visible {
+	border-color: #ffffff;
+	background: #3568d6;
+}
+
+/* Output Inspector (docs/APPLICATION_LAYOUT.md "Output Inspector") —
+   src/components/OutputInspector.tsx. Reuses this file's established Edit
+   Inspector visual language (dark panel surfaces, the brand accent for the
+   selected state, the same `.switch` already used by Presentation's Show
+   date labels) rather than introducing a second control style. */
+.output-inspector {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.output-inspector__back-button {
+	align-self: flex-start;
+	padding: 0.375rem 0.75rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.output-inspector__back-button:hover,
+.output-inspector__back-button:focus-visible {
+	border-color: #4f8cff;
+}
+
+.output-inspector__heading {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.output-inspector__cards {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.output-inspector__card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	padding: 0.75rem;
+	border: 1px solid #3a4658;
+	border-radius: 0.75rem;
+	background: #131a29;
+	color: #ffffff;
+	text-align: start;
+	font: inherit;
+	cursor: pointer;
+}
+
+.output-inspector__card--selected {
+	border-color: #4f8cff;
+	background: rgba(79, 140, 255, 0.12);
+}
+
+.output-inspector__card--disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.output-inspector__card-name {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 600;
+	font-size: 0.875rem;
+}
+
+.output-inspector__card-description {
+	color: #c7ccd6;
+	font-size: 0.8125rem;
+}
+
+.output-inspector__card-badge {
+	padding: 0.125rem 0.5rem;
+	border-radius: 999px;
+	background: #2a3445;
+	color: #c7ccd6;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.output-inspector__field-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.output-inspector__toggle-label {
+	flex: 1;
+}
+
+.output-inspector__hint {
+	margin: 0;
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.5rem;
+	background: #131a29;
+	color: #c7ccd6;
+	font-size: 0.8125rem;
+}
+
+.output-inspector__progress {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	font-size: 0.8125rem;
+	color: #c7ccd6;
+}
+
+.output-inspector__progress-bar {
+	display: block;
+	height: 0.25rem;
+	border-radius: 999px;
+	background: linear-gradient(90deg, #4f8cff, rgba(79, 140, 255, 0.2));
+	background-size: 200% 100%;
+	animation: output-inspector-progress 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.output-inspector__progress-bar {
+		animation: none;
+	}
+}
+
+@keyframes output-inspector-progress {
+	0% {
+		background-position: 0% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+.output-inspector__error {
+	padding: 0.75rem;
+	border: 1px solid #ff8080;
+	border-radius: 0.75rem;
+	background: rgba(255, 128, 128, 0.08);
+	color: #ffffff;
+	font-size: 0.8125rem;
+}
+
+.output-inspector__error-heading {
+	margin: 0 0 0.25rem;
+	font-weight: 600;
+}
+
+.output-inspector__ready {
+	padding: 0.75rem;
+	border: 1px solid #2a3445;
+	border-radius: 0.75rem;
+	background: #131a29;
+	color: #ffffff;
+	font-size: 0.8125rem;
+}
+
+.output-inspector__ready-heading {
+	margin: 0 0 0.25rem;
+	font-weight: 600;
+}
+
+.output-inspector__primary-button {
+	padding: 0.625rem 1rem;
+	border: 1px solid #4f8cff;
+	border-radius: 0.5rem;
+	background: #2757b8;
+	color: #ffffff;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.output-inspector__primary-button:hover {
+	border-color: #6ba3ff;
+	background: #3568d6;
+}
+
+.output-inspector__primary-button:focus-visible {
+	border-color: #ffffff;
+	background: #3568d6;
+}
+
+.output-inspector__primary-button:disabled {
+	opacity: 0.6;
+	cursor: default;
 }

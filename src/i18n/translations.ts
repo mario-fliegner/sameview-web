@@ -179,6 +179,33 @@ export interface Translations {
 			readonly replaceImageButton: string;
 			readonly invalidImageError: string;
 		};
+		readonly createOutputButton: string;
+	};
+	readonly outputInspector: {
+		readonly heading: string;
+		readonly backToEditButton: string;
+		readonly standaloneName: string;
+		readonly standaloneDescription: string;
+		readonly micrositeName: string;
+		readonly micrositeDescription: string;
+		readonly cmsName: string;
+		readonly cmsDescription: string;
+		readonly comingSoonBadge: string;
+		readonly removeLocationDataLabel: string;
+		readonly removeLocationDataHint: string;
+		readonly downloadHtmlButton: string;
+		readonly downloadZipButton: string;
+		readonly progressPreparingComparison: string;
+		readonly progressProcessingImages: string;
+		readonly progressBuildingOutput: string;
+		readonly progressStartingDownload: string;
+		readonly readyHeading: string;
+		readonly readyMessage: string;
+		readonly downloadAgainButton: string;
+		readonly errorHeading: string;
+		readonly errorMessage: string;
+		readonly artifactTitleFallback: string;
+		readonly artifactMetaDescription: string;
 	};
 }
 
@@ -338,6 +365,38 @@ export const translations: Record<Locale, Translations> = {
 				replaceImageButton: "Replace photo",
 				invalidImageError: "Couldn't load that image — try another file.",
 			},
+			createOutputButton: "Create Output",
+		},
+		outputInspector: {
+			heading: "Create Output",
+			backToEditButton: "← Edit",
+			standaloneName: "Standalone HTML",
+			standaloneDescription:
+				"A single self-contained file. Opens offline in any browser.",
+			micrositeName: "Static Microsite",
+			micrositeDescription:
+				"A ZIP with an index.html and local assets, ready for static webspace.",
+			cmsName: "CMS Package",
+			cmsDescription: "Coming soon.",
+			comingSoonBadge: "Coming Soon",
+			removeLocationDataLabel: "Remove embedded location data",
+			removeLocationDataHint:
+				"The visible location stays part of the comparison — this only removes embedded location data from the comparison image files.",
+			downloadHtmlButton: "Download HTML",
+			downloadZipButton: "Download ZIP",
+			progressPreparingComparison: "Preparing comparison…",
+			progressProcessingImages: "Processing images…",
+			progressBuildingOutput: "Building output…",
+			progressStartingDownload: "Starting download…",
+			readyHeading: "Output ready",
+			readyMessage: "Your download should start automatically.",
+			downloadAgainButton: "Download again",
+			errorHeading: "Generation failed",
+			errorMessage:
+				"Something went wrong while creating this output. Please try again.",
+			artifactTitleFallback: "SameView Comparison",
+			artifactMetaDescription:
+				"An interactive before/after comparison, created with SameView.",
 		},
 	},
 	de: {
@@ -498,6 +557,38 @@ export const translations: Record<Locale, Translations> = {
 				invalidImageError:
 					"Dieses Bild konnte nicht geladen werden — versuche eine andere Datei.",
 			},
+			createOutputButton: "Ausgabe erstellen",
+		},
+		outputInspector: {
+			heading: "Ausgabe erstellen",
+			backToEditButton: "← Bearbeiten",
+			standaloneName: "Eigenständige HTML-Datei",
+			standaloneDescription:
+				"Eine einzige eigenständige Datei. Öffnet offline in jedem Browser.",
+			micrositeName: "Statische Microsite",
+			micrositeDescription:
+				"Ein ZIP mit index.html und lokalen Assets, bereit für statischen Webspace.",
+			cmsName: "CMS-Paket",
+			cmsDescription: "Demnächst verfügbar.",
+			comingSoonBadge: "Demnächst",
+			removeLocationDataLabel: "Eingebettete Standortdaten entfernen",
+			removeLocationDataHint:
+				"Der sichtbare Standort bleibt Teil des Vergleichs — dies entfernt nur eingebettete Standortdaten aus den Vergleichsbild-Dateien.",
+			downloadHtmlButton: "HTML herunterladen",
+			downloadZipButton: "ZIP herunterladen",
+			progressPreparingComparison: "Vergleich wird vorbereitet…",
+			progressProcessingImages: "Bilder werden verarbeitet…",
+			progressBuildingOutput: "Ausgabe wird erstellt…",
+			progressStartingDownload: "Download wird gestartet…",
+			readyHeading: "Ausgabe bereit",
+			readyMessage: "Dein Download sollte automatisch starten.",
+			downloadAgainButton: "Erneut herunterladen",
+			errorHeading: "Erstellung fehlgeschlagen",
+			errorMessage:
+				"Beim Erstellen dieser Ausgabe ist etwas schiefgelaufen. Bitte versuche es erneut.",
+			artifactTitleFallback: "SameView-Vergleich",
+			artifactMetaDescription:
+				"Ein interaktiver Vorher-Nachher-Vergleich, erstellt mit SameView.",
 		},
 	},
 };

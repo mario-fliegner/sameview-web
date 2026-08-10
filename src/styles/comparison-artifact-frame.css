@@ -1,0 +1,58 @@
+/* The generated Standalone HTML/Static Microsite's own outer document frame
+   — distinct from src/styles/comparison-presentation.css (the Comparison
+   Presentation itself, shared with the live Workspace Preview): this file
+   exists only inside a generated artifact, never imported by
+   src/styles/global.css, since the live Preview already has its own
+   Workspace/Editor chrome to sit inside instead. Both output types render
+   from this exact file — read via Vite `?raw` by
+   src/lib/comparison-artifact-scaffold.ts — never a second, independently
+   maintained copy. Product decision: centered, as large as possible,
+   `object-fit: contain`-equivalent, no document scroll, a responsive outer
+   margin, SameView Dark as the outer background. */
+
+:root {
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	/* No scrollbar under any circumstance: the frame below is pinned to the
+	   viewport by `position: fixed`, so the document itself never needs to
+	   grow past one screen. */
+	overflow: hidden;
+	/* SameView Dark — easily changeable in one place, by design. */
+	background: #0d1424;
+	color: #ffffff;
+	font-family:
+		ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+		"Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Fixed + `inset` gives this element a real, immediately definite box (the
+   full viewport minus the responsive outer margin) with no dependency on
+   its own content's height — required by src/lib/comparison-presentation-runtime.ts's
+   `ResizeObserver`-driven geometry convergence, which needs a genuine
+   available width/height to measure from its very first frame, before the
+   Comparison Presentation's own size is known. */
+#sameview-output-frame {
+	position: fixed;
+	inset: clamp(0.5rem, 2vmin, 1.5rem);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* "Maximal groß, contain": the Presentation Canvas itself is already sized
+   by src/lib/canvas-geometry.ts to fit exactly within this frame — this is
+   only a hard safety ceiling, never expected to actually constrain
+   anything in normal operation. */
+#sameview-canvas {
+	max-width: 100%;
+	max-height: 100%;
+}

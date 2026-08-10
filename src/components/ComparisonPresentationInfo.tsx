@@ -46,6 +46,12 @@ import {
 	computeWrappedLineCount,
 	selectAdaptiveTextSize,
 } from "../lib/adaptive-text-size";
+import {
+	buildDescriptionFont,
+	buildLocationFont,
+	buildTimeFont,
+	buildTitleFont,
+} from "../lib/comparison-canvas-fonts";
 import type { ComparisonPresentation } from "../lib/comparison-presentation";
 import { attachPresentationOverflowTooltips } from "../lib/overflow-tooltip";
 import { measureSpaceWidth, measureWordWidths } from "../lib/text-measurement";
@@ -70,41 +76,11 @@ interface ComparisonPresentationInfoProps {
 	readonly presentationFontFamily: string;
 }
 
-// Must match this file's own CSS standard-size rules exactly
-// (src/styles/global.css `.presentation-info__title` / `__description` /
-// `__time` / `__location`) — Canvas `measureText()` only reports the width
-// the browser will actually render for the font it is given, not an
-// approximation (the same requirement already documented for
-// src/components/ComparisonSlider.tsx's `LABEL_FONT`). Only each item's
-// standard size is measured — `selectAdaptiveTextSize` (src/lib/
-// adaptive-text-size.ts) decides "standard" vs. "compact" from that one
-// measurement alone and never re-measures at the compact size, so no
-// compact-size font string exists here to match.
-//
-// Deliberately excludes any CSS property Canvas' `font` shorthand cannot
-// represent (letter-spacing, `font-variant-numeric`, …): including one in
-// the CSS rule without a corresponding change here would silently diverge
-// the measured width from the rendered width.
-//
-// The font-family portion is `presentationFontFamily`
-// (docs/COMPARISON_PRESENTATION.md Part 3 "Typography"), not a fixed
-// constant: these four strings are built fresh whenever the selected
-// Presentation Font changes, from the same resolved value
-// src/components/WorkspaceActive.tsx also applies as `--presentation-font-family`
-// to this file's own CSS rules — one resolved value, never two independently
-// derived font strings that could drift apart.
-function buildTitleFont(presentationFontFamily: string): string {
-	return `500 1rem ${presentationFontFamily}`;
-}
-function buildDescriptionFont(presentationFontFamily: string): string {
-	return `400 0.875rem ${presentationFontFamily}`;
-}
-function buildTimeFont(presentationFontFamily: string): string {
-	return `500 0.8125rem ${presentationFontFamily}`;
-}
-function buildLocationFont(presentationFontFamily: string): string {
-	return `400 0.75rem ${presentationFontFamily}`;
-}
+// The four Canvas `font` shorthand builders this file measures with
+// (Title/Description/Time/Location) now live in
+// src/lib/comparison-canvas-fonts.ts — the single source shared with the
+// generated Standalone HTML/Static Microsite runtime; see that module's own
+// header comment for why they must match this file's own CSS rules exactly.
 
 // The Adaptive Sizing decision threshold, deliberately kept separate from
 // each item's visible clamp (src/styles/global.css

@@ -2097,6 +2097,135 @@ test("clicking the currently open section again closes it, leaving no section op
 	).toHaveCount(0);
 });
 
+// Confirmed regression fix (docs/APPLICATION_LAYOUT.md "Structure": "The
+// expanded/collapsed state should be preserved while the workspace remains
+// open"): src/components/WorkspaceActive.tsx renders EditInspector and
+// OutputInspector as mutually exclusive alternatives at the same tree
+// position, so React always unmounts one and mounts a fresh instance of the
+// other on "Create Output" / "← Edit" — a local `useState` inside
+// EditInspector cannot survive that. `openSection` now lives in
+// WorkspaceActive itself (the component that stays mounted through the
+// switch) and is passed down as a controlled prop, so it is unaffected by
+// EditInspector's own remount. These four tests cover every accordion state
+// (each of the three sections individually, and none open at all) — not
+// only the one that happens to match EditInspector's own default
+// ("Comparison information"), which would otherwise pass even with the
+// regression still present.
+test("Create Output → ← Edit restores the Presentation section as the one still open, instead of resetting to Comparison information", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandPresentationSection(page);
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await page.getByTestId("create-output-button").click();
+	await expect(page.getByTestId("output-inspector")).toBeVisible();
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	// Its controls are still usable, not just visually marked expanded.
+	await expect(
+		page.getByTestId("edit-presentation-background-brand"),
+	).toBeVisible();
+});
+
+test("Create Output → ← Edit restores the Branding section as the one still open", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await page.getByTestId("create-output-button").click();
+	await expect(page.getByTestId("output-inspector")).toBeVisible();
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-branding-option-none")).toBeVisible();
+});
+
+test("Create Output → ← Edit keeps Comparison information open when it was deliberately reopened (not merely because it is the default)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// Moves away from, then explicitly back to, Comparison information so
+	// this exercises the same preserved-state path as the other two tests
+	// rather than coincidentally matching EditInspector's own initial value.
+	await expandPresentationSection(page);
+	await page
+		.getByTestId("edit-inspector-comparison-information-toggle")
+		.click();
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+
+	await page.getByTestId("create-output-button").click();
+	await expect(page.getByTestId("output-inspector")).toBeVisible();
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-title-input")).toBeVisible();
+});
+
+test("Create Output → ← Edit keeps every section closed when none was open before", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// Comparison information starts open (documented default) — close it so
+	// no section is open at all, per "clicking the currently open section
+	// again closes it, leaving no section open" above.
+	await page
+		.getByTestId("edit-inspector-comparison-information-toggle")
+		.click();
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+
+	await page.getByTestId("create-output-button").click();
+	await expect(page.getByTestId("output-inspector")).toBeVisible();
+	await page.getByTestId("output-inspector-back-button").click();
+	await expect(page.getByTestId("edit-inspector")).toBeVisible();
+
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAttribute("aria-expanded", "false");
+	await expect(page.getByTestId("edit-title-input")).toHaveCount(0);
+});
+
 test("replacing the workspace resets Presentation Configuration to the documented defaults", async ({
 	page,
 }) => {

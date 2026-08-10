@@ -2,6 +2,11 @@
 dist/
 release/
 
+# pre-bundled Comparison Presentation runtime (scripts/build-presentation-runtime.mjs,
+# `pnpm build:runtime`) — generated before `astro dev`/`astro build`, never
+# committed, exactly like dist/.
+public/generated/
+
 # Playwright output (test/e2e, see playwright.config.ts)
 test-results/
 playwright-report/

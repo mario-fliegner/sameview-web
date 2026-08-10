@@ -89,6 +89,13 @@ import {
 } from "../lib/comparison-presentation";
 import { attachPresentationOverflowTooltips } from "../lib/overflow-tooltip";
 import { resolvePresentationFontFamily } from "../lib/presentation-fonts";
+import {
+	CORNER_RADIUS_ROUNDED_PX,
+	CORNER_RADIUS_SHARP_PX,
+	resolveCanvasBackground,
+	resolveFrame,
+	resolveTextColor,
+} from "../lib/presentation-style-resolution";
 import { useObjectUrl } from "../lib/use-object-url";
 import type {
 	CurrentWorkingState,
@@ -97,7 +104,8 @@ import type {
 } from "../lib/workspace-state";
 import ComparisonPresentationInfo from "./ComparisonPresentationInfo";
 import ComparisonSlider from "./ComparisonSlider";
-import EditInspector from "./EditInspector";
+import EditInspector, { type OpenSection } from "./EditInspector";
+import OutputInspector from "./OutputInspector";
 
 // The desktop Presentation Preview's own height, in pixels, derived by
 // src/components/App.tsx from the actually rendered header, footer and
@@ -190,6 +198,32 @@ export default function WorkspaceActive({
 }: WorkspaceActiveProps) {
 	const { locale, t } = useLocale();
 	const availableHeightPx = useContext(WorkspaceAvailableHeightContext);
+	// docs/APPLICATION_LAYOUT.md "Output Inspector": "The Output Inspector
+	// replaces the Edit Inspector after the user selects Create Output" — a
+	// workspace-scoped UI choice. Unlike EditInspector/ComparisonSlider's own
+	// local state, this one lives in WorkspaceActive itself (both inspectors
+	// occupy the same grid slot here), so it needs its own explicit reset
+	// effect below, keyed on `sessionDirectory` exactly like the existing
+	// heading-focus effect, to return to "edit" on an actual Replace Export
+	// without resetting on every ordinary content edit.
+	const [contextInspectorMode, setContextInspectorMode] = useState<
+		"edit" | "output"
+	>("edit");
+	// EditInspector's own accordion section (docs/APPLICATION_LAYOUT.md
+	// "Structure": "the expanded/collapsed state should be preserved while
+	// the workspace remains open"). Owned here, not by EditInspector's own
+	// local state, for the same reason `contextInspectorMode` above already
+	// is: EditInspector and OutputInspector occupy the same grid slot as
+	// alternatives, so React unmounts EditInspector whenever OutputInspector
+	// is shown instead — a component's local `useState` cannot survive that,
+	// only a value owned by the ancestor that stays mounted through the
+	// switch can (see EditInspector.tsx's own header comment for the
+	// confirmed regression this fixes). Reset alongside
+	// `contextInspectorMode` in the same sessionDirectory effect below, on
+	// an actual Replace Export only — never on an ordinary Edit/Output
+	// switch.
+	const [editInspectorOpenSection, setEditInspectorOpenSection] =
+		useState<OpenSection>("comparison-information");
 	const workspaceHeadingRef = useRef<HTMLHeadingElement>(null);
 	const previousSessionDirectoryRef = useRef(
 		currentWorkingState.sessionDirectory,
@@ -248,6 +282,8 @@ export default function WorkspaceActive({
 			currentWorkingState.sessionDirectory
 		) {
 			workspaceHeadingRef.current?.focus();
+			setContextInspectorMode("edit");
+			setEditInspectorOpenSection("comparison-information");
 		}
 		previousSessionDirectoryRef.current = currentWorkingState.sessionDirectory;
 	}, [currentWorkingState.sessionDirectory]);
@@ -611,12 +647,24 @@ export default function WorkspaceActive({
 				    covered by the fullscreen Presentation Preview above it in the
 				    same stacking context regardless. */}
 				<div className="inert-region" inert={isFullscreen ? true : undefined}>
-					<EditInspector
-						key={currentWorkingState.sessionDirectory}
-						currentWorkingState={currentWorkingState}
-						captureDateLabel={presentation.captureLabel}
-						onCurrentWorkingStateChange={onCurrentWorkingStateChange}
-					/>
+					{contextInspectorMode === "edit" ? (
+						<EditInspector
+							key={currentWorkingState.sessionDirectory}
+							currentWorkingState={currentWorkingState}
+							captureDateLabel={presentation.captureLabel}
+							onCurrentWorkingStateChange={onCurrentWorkingStateChange}
+							onCreateOutput={() => setContextInspectorMode("output")}
+							openSection={editInspectorOpenSection}
+							onOpenSectionChange={setEditInspectorOpenSection}
+						/>
+					) : (
+						<OutputInspector
+							key={currentWorkingState.sessionDirectory}
+							currentWorkingState={currentWorkingState}
+							presentation={presentation}
+							onBackToEdit={() => setContextInspectorMode("edit")}
+						/>
+					)}
 				</div>
 			</div>
 		</section>
@@ -643,107 +691,11 @@ interface PresentationCanvasProps {
 	readonly brandingSrc: string | undefined;
 }
 
-// docs/BRAND_GUIDE.md "Brand Accent Color" (#4F8CFF) — already reused as-is
-// elsewhere in this codebase (src/components/ComparisonSlider.tsx's
-// `ACCENT_COLOR`) rather than introducing a second, slightly different
-// blue; the one existing brand-specific color token, and the only sensible
-// reading of Canvas Background's "Brand" option next to the literal
-// "White"/"Black"/"Transparent" options beside it.
-const BRAND_ACCENT_COLOR = "#4F8CFF";
-
-// docs/COMPARISON_PRESENTATION.md Part 3 "Frame": "Frame width is not a user
-// setting … concrete frame width is a rendering concern" — this is that
-// rendering decision, a fixed value applied whenever Frame is not "none".
-const FRAME_WIDTH_PX = 8;
-
-// docs/COMPARISON_PRESENTATION.md Part 3 "Corner Radius": "Sharp"/"Rounded".
-// 0.75rem matches the corner radius this canvas already used unconditionally
-// before this option existed, kept as the concrete "Rounded" value so the
-// documented default reproduces today's existing appearance unchanged.
-const CORNER_RADIUS_ROUNDED_PX = "0.75rem";
-const CORNER_RADIUS_SHARP_PX = "0";
-
-function resolveCanvasBackground(
-	background: PresentationConfiguration["canvasBackground"],
-): string {
-	switch (background.kind) {
-		case "transparent":
-			return "transparent";
-		case "white":
-			return "#FFFFFF";
-		case "black":
-			return "#000000";
-		case "brand":
-			return BRAND_ACCENT_COLOR;
-		case "custom":
-			return background.color;
-	}
-}
-
-function resolveFrame(frame: PresentationConfiguration["frame"]): {
-	readonly color: string;
-	readonly widthPx: number;
-} {
-	switch (frame.kind) {
-		case "none":
-			return { color: "transparent", widthPx: 0 };
-		case "white":
-			return { color: "#FFFFFF", widthPx: FRAME_WIDTH_PX };
-		case "black":
-			return { color: "#000000", widthPx: FRAME_WIDTH_PX };
-		case "custom":
-			return { color: frame.color, widthPx: FRAME_WIDTH_PX };
-	}
-}
-
-// docs/BRAND_GUIDE.md "Text Colors" → "Primary" — Text's "Light" value
-// (docs/COMPARISON_PRESENTATION.md "Text" → "Light": "the project's existing
-// light presentation text color").
-const LIGHT_TEXT_COLOR = "#FFFFFF";
-// docs/BRAND_GUIDE.md "Brand Identity Color" — Text's "Dark" value
-// (docs/COMPARISON_PRESENTATION.md "Text" → "Dark": "not pure black").
-const DARK_TEXT_COLOR = "#0D1424";
-
-// Relative luminance of a `#RRGGBB` hex color, sRGB-linearized per the
-// standard WCAG/ITU-R BT.709 coefficients — used only to pick a light or
-// dark text tone for "Automatic" (docs/COMPARISON_PRESENTATION.md "Text" →
-// "Automatic": deliberately no algorithm or luminance threshold is
-// specified there, so this is an ordinary, unremarkable renderer choice,
-// not a documented contract).
-function relativeLuminance(hexColor: string): number {
-	const channel = (start: number) => {
-		const value = Number.parseInt(hexColor.slice(start, start + 2), 16) / 255;
-		return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-	};
-	return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-}
-
-// "Transparent" has no fixed color of its own to derive a tone from — this
-// app's own surrounding surfaces are always dark (docs/BRAND_GUIDE.md
-// "SameView is a dark-only app"), so Automatic treats Transparent the same
-// way it would treat any other dark-enough background: a light text tone.
-const AUTOMATIC_TRANSPARENT_LUMINANCE = 0;
-
-function resolveTextColor(
-	textColor: PresentationConfiguration["textColor"],
-	resolvedBackground: string,
-): string {
-	switch (textColor.kind) {
-		case "light":
-			return LIGHT_TEXT_COLOR;
-		case "dark":
-			return DARK_TEXT_COLOR;
-		case "custom":
-			return textColor.color;
-		case "automatic": {
-			const luminance =
-				resolvedBackground === "transparent"
-					? AUTOMATIC_TRANSPARENT_LUMINANCE
-					: relativeLuminance(resolvedBackground);
-			return luminance > 0.5 ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR;
-		}
-	}
-}
+// Canvas Background/Frame/Text semantic-to-concrete resolution
+// (resolveCanvasBackground/resolveFrame/resolveTextColor and their shared
+// constants) now live in src/lib/presentation-style-resolution.ts — the
+// single source also used by the generated Standalone HTML/Static Microsite
+// (src/lib/comparison-artifact-markup.ts), imported above.
 
 // The Presentation Canvas itself (docs/COMPARISON_PRESENTATION.md Part 2).
 // Deliberately a separate component, always rendered with

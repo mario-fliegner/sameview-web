@@ -1,0 +1,114 @@
+// Generates the self-contained Standalone HTML artifact
+// (docs/APPLICATION_LAYOUT.md "Standalone HTML"; docs/IMPLEMENTATION_PLAN_V1.md
+// Phase 9): a single, fully self-contained `sameview-comparison.html` file
+// with a semantic `<main>`... — see src/lib/comparison-artifact-scaffold.ts
+// for the shared document structure this composes. CSS, JS, images,
+// branding and the selected Presentation Font are all embedded inline
+// (Base64 for binary assets); no external request of any kind. Shares
+// every actual rendering/behavior source with
+// src/lib/generate-static-microsite.ts — the two differ only in how each
+// section's content is packaged (inline vs. external file).
+
+import frameCssRaw from "../styles/comparison-artifact-frame.css?raw";
+import presentationCssRaw from "../styles/comparison-presentation.css?raw";
+import { bytesToDataUrl } from "./base64.ts";
+import {
+	fetchFaviconBytes,
+	fetchPresentationFontAsset,
+	fetchPresentationRuntimeScript,
+} from "./comparison-artifact-assets.ts";
+import {
+	buildComparisonArtifactMarkup,
+	type ComparisonArtifactCopy,
+} from "./comparison-artifact-markup.ts";
+import {
+	buildArtifactDocument,
+	composeArtifactCss,
+} from "./comparison-artifact-scaffold.ts";
+import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
+import { buildFontFaceCss } from "./presentation-font-assets.ts";
+import { resolvePresentationFontFamily } from "./presentation-fonts.ts";
+
+export const STANDALONE_HTML_FILENAME = "sameview-comparison.html";
+
+export interface GenerateStandaloneHtmlOptions {
+	readonly snapshot: OutcomeSnapshot;
+	readonly copy: ComparisonArtifactCopy;
+	readonly titleText: string;
+	readonly metaDescriptionText: string;
+	readonly themeColor: string;
+}
+
+// The reference/capture images are always original JPEG for V1
+// (docs/IMPLEMENTATION_PLAN_V1.md Phase 8: "the reference and capture
+// images keep their original JPEG format"); the branding asset, when
+// present, is always the Phase 6-normalized 512×512 PNG.
+const COMPARISON_IMAGE_MIME = "image/jpeg";
+const BRANDING_IMAGE_MIME = "image/png";
+const FAVICON_MIME = "image/svg+xml";
+
+export async function generateStandaloneHtml(
+	options: GenerateStandaloneHtmlOptions,
+): Promise<Uint8Array> {
+	const { snapshot, copy, titleText, metaDescriptionText, themeColor } =
+		options;
+	const fontId = snapshot.configuration.presentationFont;
+
+	const [fontAsset, faviconBytes, runtimeScriptText] = await Promise.all([
+		fetchPresentationFontAsset(fontId),
+		fetchFaviconBytes(),
+		fetchPresentationRuntimeScript(),
+	]);
+
+	const fontFaceCss = buildFontFaceCss(fontId, (file) => {
+		const fetched = fontAsset.files.find(
+			(candidate) => candidate.path === file.path,
+		);
+		if (!fetched) {
+			throw new Error(`Missing fetched font file for "${file.path}"`);
+		}
+		return bytesToDataUrl(fetched.bytes, "font/woff2");
+	});
+	const css = composeArtifactCss(fontFaceCss, presentationCssRaw, frameCssRaw);
+
+	const brandingSrc =
+		snapshot.branding.kind === "asset" && snapshot.brandingAssetBytes
+			? bytesToDataUrl(snapshot.brandingAssetBytes, BRANDING_IMAGE_MIME)
+			: undefined;
+
+	const presentationMarkup = buildComparisonArtifactMarkup({
+		presentation: snapshot.presentation,
+		visibility: snapshot.visibility,
+		configuration: snapshot.configuration,
+		branding: snapshot.branding,
+		assets: {
+			referenceSrc: bytesToDataUrl(
+				snapshot.referenceImageBytes,
+				COMPARISON_IMAGE_MIME,
+			),
+			captureSrc: bytesToDataUrl(
+				snapshot.captureImageBytes,
+				COMPARISON_IMAGE_MIME,
+			),
+			brandingSrc,
+		},
+		copy,
+		presentationFontFamily: resolvePresentationFontFamily(fontId),
+		initialSliderPosition: snapshot.initialSliderPosition,
+	});
+
+	const faviconMarkup = `<link rel="icon" type="${FAVICON_MIME}" href="${bytesToDataUrl(faviconBytes, FAVICON_MIME)}" />`;
+
+	const html = buildArtifactDocument({
+		titleText,
+		metaDescriptionText,
+		themeColor,
+		faviconMarkup,
+		cssMarkup: `<style>\n${css}\n</style>`,
+		presentationMarkup,
+		scriptMarkup: `<script>\n${runtimeScriptText}\n</script>`,
+		fontLicenseText: fontAsset.licenseText,
+	});
+
+	return new TextEncoder().encode(html);
+}

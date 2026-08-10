@@ -49,7 +49,15 @@ import {
 	useState,
 } from "react";
 import type { HandleBranding } from "../lib/branding";
+import { buildSliderLabelFont } from "../lib/comparison-canvas-fonts";
 import { getEffectiveRingRadiusPx } from "../lib/comparison-handle-geometry";
+import {
+	computeLabelVisibility,
+	dividerPositionPx,
+	nextPositionForKey,
+	positionFromClientX,
+} from "../lib/comparison-slider-interaction";
+import { measureTextWidth } from "../lib/text-measurement";
 import ComparisonSliderHandle from "./ComparisonSliderHandle";
 
 interface ComparisonSliderProps {
@@ -90,41 +98,12 @@ interface ComparisonSliderProps {
 	}) => void;
 }
 
-const KEYBOARD_STEP = 5;
-
 // Android CompareHandleLabelGap = 8.dp. Unlike the ring radius below, this
 // gap has no Android precedent for scaling with branding enlargement
 // (Android's own interactive divider never shows branding at all — see
 // src/lib/comparison-handle-geometry.ts's own header comment) and is kept
 // as a fixed addend for that reason, not scaled.
 const LABEL_GAP_PX = 8;
-// Label font must match `.comparison-slider__label` in global.css exactly —
-// canvas measureText() only reports the width the browser will actually
-// render for this font, not an approximation. The font-family portion is
-// `presentationFontFamily` (docs/COMPARISON_PRESENTATION.md Part 3
-// "Typography"), not a fixed constant — see this component's own `labelFont`
-// below.
-function buildLabelFont(presentationFontFamily: string): string {
-	return `600 0.875rem ${presentationFontFamily}`;
-}
-
-let measurementCanvas: HTMLCanvasElement | null = null;
-
-// Mirrors Android's TextMeasurer role for the edge-hiding rule below: a pure
-// text-shaping measurement, independent of DOM layout, so it never forces a
-// layout read the way measuring a rendered element's own box would.
-function measureLabelWidth(text: string, font: string): number {
-	if (typeof document === "undefined") return 0;
-	measurementCanvas ??= document.createElement("canvas");
-	const context = measurementCanvas.getContext("2d");
-	if (!context) return 0;
-	context.font = font;
-	return context.measureText(text).width;
-}
-
-function clampPercent(value: number): number {
-	return Math.min(100, Math.max(0, value));
-}
 
 export default function ComparisonSlider({
 	referenceSrc,
@@ -196,9 +175,9 @@ export default function ComparisonSlider({
 
 	// docs/COMPARISON_PRESENTATION.md Part 3 "Typography": the font-family
 	// portion of the measured label font, not a fixed constant — see
-	// `buildLabelFont` above.
+	// src/lib/comparison-canvas-fonts.ts `buildSliderLabelFont`.
 	const labelFont = useMemo(
-		() => buildLabelFont(presentationFontFamily),
+		() => buildSliderLabelFont(presentationFontFamily),
 		[presentationFontFamily],
 	);
 
@@ -227,12 +206,12 @@ export default function ComparisonSlider({
 	// so re-measuring on every render they're stable is itself already rare.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: fontsReadyTick is a deliberate recompute trigger, intentionally unused inside — see the comment above.
 	const leftLabelWidthPx = useMemo(
-		() => measureLabelWidth(leftLabel, labelFont),
+		() => measureTextWidth(leftLabel, labelFont),
 		[leftLabel, labelFont, fontsReadyTick],
 	);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: fontsReadyTick is a deliberate recompute trigger, intentionally unused inside — see the comment above.
 	const rightLabelWidthPx = useMemo(
-		() => measureLabelWidth(rightLabel, labelFont),
+		() => measureTextWidth(rightLabel, labelFont),
 		[rightLabel, labelFont, fontsReadyTick],
 	);
 
@@ -254,9 +233,8 @@ export default function ComparisonSlider({
 		leftPx: number,
 		widthPx: number,
 	) {
-		if (widthPx === 0) return;
-		const ratio = (clientX - leftPx) / widthPx;
-		setPosition(clampPercent(ratio * 100));
+		const next = positionFromClientX(clientX, leftPx, widthPx);
+		if (next !== undefined) setPosition(next);
 	}
 
 	function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -302,19 +280,10 @@ export default function ComparisonSlider({
 	}
 
 	function handleHandleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-			event.preventDefault();
-			setPosition((current) => Math.max(0, current - KEYBOARD_STEP));
-		} else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-			event.preventDefault();
-			setPosition((current) => Math.min(100, current + KEYBOARD_STEP));
-		} else if (event.key === "Home") {
-			event.preventDefault();
-			setPosition(0);
-		} else if (event.key === "End") {
-			event.preventDefault();
-			setPosition(100);
-		}
+		const next = nextPositionForKey(event.key, position);
+		if (next === undefined) return;
+		event.preventDefault();
+		setPosition(next);
 	}
 
 	const frameStyle: CSSProperties | undefined =
@@ -331,19 +300,20 @@ export default function ComparisonSlider({
 	// rendered (src/components/ComparisonSliderHandle.tsx) — a fixed,
 	// always-standard radius let labels overlap an enlarged branded handle
 	// (see src/lib/comparison-handle-geometry.ts's own header comment).
-	const dividerXPx = (position / 100) * frameWidthPx;
+	const dividerXPx = dividerPositionPx(position, frameWidthPx);
 	const effectiveRingRadiusPx = getEffectiveRingRadiusPx(
 		branding.kind !== "none",
 	);
-	const showLeftLabel =
-		showDateLabels &&
-		frameWidthPx > 0 &&
-		dividerXPx - effectiveRingRadiusPx - LABEL_GAP_PX - leftLabelWidthPx >= 0;
-	const showRightLabel =
-		showDateLabels &&
-		frameWidthPx > 0 &&
-		dividerXPx + effectiveRingRadiusPx + LABEL_GAP_PX + rightLabelWidthPx <=
-			frameWidthPx;
+	const { showLeft: showLeftLabel, showRight: showRightLabel } =
+		computeLabelVisibility({
+			showDateLabels,
+			frameWidthPx,
+			dividerXPx,
+			effectiveRingRadiusPx,
+			labelGapPx: LABEL_GAP_PX,
+			leftLabelWidthPx,
+			rightLabelWidthPx,
+		});
 
 	return (
 		<div

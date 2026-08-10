@@ -7,11 +7,22 @@
 // Two projects, each scoped to its own spec file and its own server:
 // - "harness": the isolated, test-only page (test/e2e/harness/) for
 //   library-level capability checks that don't need the real app.
-// - "app": the real Astro application (via `astro dev` — no database
-//   dependency exists on this path, so a dev server is sufficient; Passenger
-//   -specific serving is already covered separately by
-//   test/passenger-boot.test.mjs), for real user-facing workflow behavior
-//   (docs/IMPLEMENTATION_PLAN_V1.md Phase 3).
+// - "app": the real Astro application (via `pnpm dev` — the same command
+//   README.md documents as the normal local workflow, not a raw `astro
+//   dev` duplicated here as a second, independently maintained entry
+//   point; no database dependency exists on this path, so a dev server is
+//   sufficient; Passenger-specific serving is already covered separately
+//   by test/passenger-boot.test.mjs), for real user-facing workflow
+//   behavior (docs/IMPLEMENTATION_PLAN_V1.md Phase 3). This distinction
+//   already mattered concretely once: with a raw `astro dev` here, this
+//   config's own `reuseExistingServer` silently rode on whatever
+//   already-running server happened to be up (most recently started via
+//   `pnpm dev`, in an earlier, unrelated session) instead of ever
+//   exercising this config's own cold-start path — a genuinely fresh run
+//   (`CI=true`, or no server yet running) would have launched a raw `astro
+//   dev` missing that other command's own setup. Delegating to `pnpm dev`
+//   here removes that gap by construction, independent of whatever `pnpm
+//   dev` itself happens to do today.
 //
 // Chromium-only, per the approved testing strategy's proportionality
 // principle: no evidence yet of cross-engine behavior differences for this
@@ -38,7 +49,7 @@ export default defineConfig({
 		{
 			name: "app",
 			testMatch:
-				/(workspace-creation|app-shell|comparison-viewer|comparison-editing|comparison-slider-handle-geometry|branding-normalization)\.spec\.ts/,
+				/(workspace-creation|app-shell|comparison-viewer|comparison-editing|comparison-slider-handle-geometry|branding-normalization|output-generation)\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"], baseURL: APP_URL },
 		},
 	],
@@ -50,7 +61,7 @@ export default defineConfig({
 			timeout: 30_000,
 		},
 		{
-			command: "astro dev",
+			command: "pnpm dev",
 			url: APP_URL,
 			reuseExistingServer: !process.env.CI,
 			timeout: 30_000,

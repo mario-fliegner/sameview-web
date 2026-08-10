@@ -36,3 +36,15 @@ export function measureSpaceWidth(font: string): number {
 	const context = getMeasurementContext(font);
 	return context ? context.measureText(" ").width : 0;
 }
+
+// A single already-shaped string's full rendered width — distinct from
+// `measureWordWidths` above (per-word, for wrap-line counting): used where
+// the text is never wrapped and must be measured as one unit, e.g. the
+// Comparison Stage's on-image Slider Date Labels
+// (src/lib/comparison-canvas-fonts.ts). Shares this module's own
+// `measurementCanvas`/`getMeasurementContext` rather than a second,
+// independent Canvas 2D context.
+export function measureTextWidth(text: string, font: string): number {
+	const context = getMeasurementContext(font);
+	return context ? context.measureText(text).width : 0;
+}
