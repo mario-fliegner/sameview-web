@@ -347,6 +347,7 @@ After successful generation:
 - Output generation never modifies the Current Working State.
 - Every generated output represents the Current Working State at the time of generation.
 - Previously generated outputs remain unchanged.
+- A previously generated output may be downloaded again only while the selected output type and output-specific settings still match those it was generated with; a change to either requires generating the newly selected configuration again before it can be downloaded.
 - Output-type-specific behavior may be defined by dedicated specifications.
 - This feature does not describe publishing an output.
 - This feature does not describe hosted comparison management.

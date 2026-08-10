@@ -1090,3 +1090,138 @@ test("Use Current Slider Position: Off always starts at 50/50, On carries over a
 	);
 	await onPage.close();
 });
+
+// docs/APPLICATION_LAYOUT.md "Completion": "The primary action remains a
+// repeat download of the same generated artifact only while the selected
+// output type and output-specific settings still match those it was
+// generated with." Confirmed regression fix (src/components/OutputInspector.tsx
+// `invalidateGeneratedArtifact`): switching the output type after a
+// successful generation used to leave the primary action as "Download
+// again", silently re-downloading the previous output type's artifact
+// instead of generating the newly selected one.
+test("switching from Standalone HTML to Static Microsite after a successful generation reverts the primary action to the normal Microsite state and generates a fresh ZIP, not the old HTML", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const [htmlDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(htmlDownload.suggestedFilename()).toBe("sameview-comparison.html");
+
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	await page.getByTestId("output-card-static-microsite").click();
+	await expect(primaryAction).toHaveText(/download zip/i);
+
+	const [zipDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	expect(zipDownload.suggestedFilename()).toBe("sameview-comparison.zip");
+});
+
+// Symmetric to the test above, the other direction.
+test("switching from Static Microsite to Standalone HTML after a successful generation reverts the primary action to the normal Standalone state and generates a fresh HTML file, not the old ZIP", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+
+	const [zipDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(zipDownload.suggestedFilename()).toBe("sameview-comparison.zip");
+
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	await page.getByTestId("output-card-standalone-html").click();
+	await expect(primaryAction).toHaveText(/download html/i);
+
+	const [htmlDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	expect(htmlDownload.suggestedFilename()).toBe("sameview-comparison.html");
+});
+
+test("changing Use Current Slider Position after a successful generation reverts Download again and the next generation carries the current Preview position, while a mere Preview slider movement alone does not revert it", async ({
+	page,
+	context,
+}) => {
+	await importFullFixture(page);
+	await expect(page.locator(".presentation-canvas")).toHaveClass(
+		/presentation-canvas--ready/,
+		{ timeout: 10_000 },
+	);
+	await openOutputInspector(page);
+
+	const [firstDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(firstDownload.suggestedFilename()).toBe("sameview-comparison.html");
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	// docs/APPLICATION_LAYOUT.md "Completion": "A Presentation Preview slider
+	// movement alone does not have this effect." — the Presentation Preview
+	// stays visible and interactive behind the Output Inspector throughout.
+	const previewHandle = page.getByRole("slider");
+	await previewHandle.focus();
+	for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
+	await expect(previewHandle).toHaveAttribute("aria-valuenow", "75");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	// Changing the setting itself does invalidate it.
+	await page.getByTestId("output-use-current-slider-position-switch").click();
+	await expect(primaryAction).toHaveText(/download html/i);
+
+	const [secondDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	const savedPath = join(
+		mkdtempSync(join(tmpdir(), "sameview-invalidate-slider-")),
+		"sameview-comparison.html",
+	);
+	await secondDownload.saveAs(savedPath);
+	const artifactPage = await context.newPage();
+	await artifactPage.goto(pathToFileURL(savedPath).href);
+	await expect(artifactPage.locator("#sameview-handle")).toHaveAttribute(
+		"aria-valuenow",
+		"75",
+	);
+	await artifactPage.close();
+});
+
+test("changing Remove Embedded Location Data after a successful generation reverts Download again and the next click performs a real new generation", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const [firstDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(firstDownload.suggestedFilename()).toBe("sameview-comparison.html");
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	await page.getByTestId("output-remove-location-data-switch").click();
+	await expect(primaryAction).toHaveText(/download html/i);
+
+	const [secondDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	expect(secondDownload.suggestedFilename()).toBe("sameview-comparison.html");
+	await expect(primaryAction).toHaveText(/download again/i);
+});

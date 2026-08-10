@@ -610,6 +610,8 @@ After the browser download starts:
 
 No dedicated success screen is displayed.
 
+The primary action remains a repeat download of the same generated artifact only while the selected output type and output-specific settings still match those it was generated with. Changing either reverts the primary action to its normal `Download HTML`/`Download ZIP` form for the newly selected configuration, which must be generated again before it can be downloaded. A Presentation Preview slider movement alone does not have this effect. The previously generated artifact itself remains unaffected.
+
 # Replace Export
 
 When a workspace already exists, importing another export becomes a dedicated workspace action.
