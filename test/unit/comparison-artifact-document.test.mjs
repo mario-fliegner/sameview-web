@@ -35,6 +35,12 @@ function bytesToDataUrl(bytes, mime) {
 	return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
+// Same escaping already used further below for building a RegExp from
+// already-resolved, dynamic string content (title/description matching).
+function escapeRegExp(text) {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const BASE_PRESENTATION = {
 	title: "White wall portrait",
 	description: "A short description.",
@@ -77,6 +83,7 @@ function buildDocument({
 	noscriptText = DEFAULT_NOSCRIPT_TEXT,
 	titleText = "Comparison — Test",
 	metaDescriptionText = "Test description",
+	locale = "en",
 }) {
 	const fontBytes = fs.readFileSync(
 		path.join(ROOT, "public/fonts/inter/InterVariable.woff2"),
@@ -114,6 +121,7 @@ function buildDocument({
 	const faviconMarkup = `<link rel="icon" type="image/svg+xml" href="${bytesToDataUrl(faviconBytes, "image/svg+xml")}">`;
 
 	return buildArtifactDocument({
+		locale,
 		titleText,
 		metaDescriptionText,
 		themeColor: "#0f1115",
@@ -142,36 +150,80 @@ describe("the final composed Standalone HTML document", () => {
 		);
 	});
 
-	// Deliberate public branding content (src/lib/comparison-artifact-scaffold.ts
-	// `SOURCE_BRANDING_COMMENT`) — the one exception to every other test in
-	// this file asserting internal information is stripped. Shared by both
-	// output types through this single document builder, so one assertion
-	// here covers both Standalone HTML and Static Microsite.
-	test('contains the public SameView source-branding comment exactly once, immediately after <html lang="en">, with the wave emoji intact', () => {
-		const html = buildDocument({
-			runtimeScriptText: "console.log('ok');",
-			licenseText: realLicenseText,
+	// Deliberate public branding content
+	// (src/lib/comparison-artifact-scaffold.ts
+	// `SOURCE_BRANDING_COMMENT_BY_LOCALE`) — the one exception to every other
+	// test in this file asserting internal information is stripped. Shared by
+	// both output types through this single document builder, so one
+	// assertion per locale here covers both Standalone HTML and Static
+	// Microsite. The `locale` this document is built with is the same
+	// `Locale` value src/components/OutputInspector.tsx already reads via
+	// `useLocale()` and forwards unchanged — this test proves both `<html
+	// lang>` and the comment language follow it, and that the *other*
+	// locale's comment never leaks in alongside it.
+	const BRANDING_COMMENT_BY_LOCALE = {
+		en: {
+			openingLine: "Hey there, you found the source!",
+			createdWith: "Created with https://web.sameview.app",
+			discover:
+				"Discover SameView and get the Android app at https://sameview.app",
+			closing: "Enjoy!",
+		},
+		de: {
+			openingLine: "Hey, du hast den Quelltext gefunden!",
+			createdWith: "Erstellt mit https://web.sameview.app",
+			discover:
+				"Entdecke SameView und die Android-App unter https://sameview.app",
+			closing: "Viel Spaß!",
+		},
+	};
+
+	for (const locale of ["en", "de"]) {
+		const other = locale === "en" ? "de" : "en";
+		const expected = BRANDING_COMMENT_BY_LOCALE[locale];
+		const otherExpected = BRANDING_COMMENT_BY_LOCALE[other];
+
+		test(`locale=${locale}: contains the public SameView source-branding comment in ${locale}, exactly once, immediately after <html lang="${locale}">, with the wave emoji intact, and never the ${other} wording`, () => {
+			const html = buildDocument({
+				runtimeScriptText: "console.log('ok');",
+				licenseText: realLicenseText,
+				locale,
+			});
+
+			const occurrences =
+				html.match(new RegExp(expected.openingLine, "g")) ?? [];
+			assert.equal(
+				occurrences.length,
+				1,
+				`expected the ${locale} source-branding comment exactly once`,
+			);
+			assert.match(
+				html,
+				new RegExp(
+					`<html lang="${locale}">\\n<!--\\n[ \\t]*\\u{1F44B} ${expected.openingLine}`,
+					"u",
+				),
+			);
+			assert.match(html, new RegExp(escapeRegExp(expected.createdWith)));
+			assert.match(html, new RegExp(escapeRegExp(expected.discover)));
+			assert.match(html, new RegExp(escapeRegExp(expected.closing)));
+			assert.ok(
+				html.includes("\u{1F44B}"),
+				"expected the literal wave emoji character to be present",
+			);
+
+			// The other locale's comment must never leak in alongside it.
+			assert.doesNotMatch(html, new RegExp(otherExpected.openingLine));
+			assert.doesNotMatch(
+				html,
+				new RegExp(escapeRegExp(otherExpected.createdWith)),
+			);
+			assert.doesNotMatch(
+				html,
+				new RegExp(escapeRegExp(otherExpected.discover)),
+			);
 		});
-		const occurrences = html.match(/Hey, you found the source!/g) ?? [];
-		assert.equal(
-			occurrences.length,
-			1,
-			"expected the source-branding comment exactly once",
-		);
-		assert.match(
-			html,
-			/<html lang="en">\n<!--\n {2}\u{1F44B} Hey, you found the source!/u,
-		);
-		assert.match(html, /Created with web\.sameview\.app/);
-		assert.match(
-			html,
-			/Discover SameView and get the Android app at sameview\.app/,
-		);
-		assert.ok(
-			html.includes("\u{1F44B}"),
-			"expected the literal wave emoji character to be present",
-		);
-	});
+	}
 
 	test("contains no XHTML-style self-closing slash on meta/link/img", () => {
 		const html = buildDocument({

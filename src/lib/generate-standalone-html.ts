@@ -9,6 +9,7 @@
 // src/lib/generate-static-microsite.ts — the two differ only in how each
 // section's content is packaged (inline vs. external file).
 
+import type { Locale } from "../i18n/translations.ts";
 import frameCssRaw from "../styles/comparison-artifact-frame.css?raw";
 import presentationCssRaw from "../styles/comparison-presentation.css?raw";
 import { bytesToDataUrl } from "./base64.ts";
@@ -34,6 +35,11 @@ export const STANDALONE_HTML_FILENAME = "sameview-comparison.html";
 
 export interface GenerateStandaloneHtmlOptions {
 	readonly snapshot: OutcomeSnapshot;
+	// The active SameView Web locale at generation time — forwarded unchanged
+	// to src/lib/comparison-artifact-scaffold.ts `buildArtifactDocument`,
+	// which alone decides `<html lang>` and the source-branding comment
+	// language; this module makes no locale decision of its own.
+	readonly locale: Locale;
 	readonly copy: ComparisonArtifactCopy;
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
@@ -54,6 +60,7 @@ export async function generateStandaloneHtml(
 ): Promise<Uint8Array> {
 	const {
 		snapshot,
+		locale,
 		copy,
 		titleText,
 		metaDescriptionText,
@@ -108,6 +115,7 @@ export async function generateStandaloneHtml(
 	const faviconMarkup = `<link rel="icon" type="${FAVICON_MIME}" href="${bytesToDataUrl(faviconBytes, FAVICON_MIME)}">`;
 
 	const html = buildArtifactDocument({
+		locale,
 		titleText,
 		metaDescriptionText,
 		themeColor,

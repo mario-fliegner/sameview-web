@@ -110,6 +110,7 @@ export async function generateComparisonOutput(
 
 	const generatorOptions = {
 		snapshot: processedSnapshot,
+		locale: options.locale,
 		copy: options.copy,
 		titleText: options.titleText,
 		metaDescriptionText: options.metaDescriptionText,

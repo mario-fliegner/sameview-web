@@ -15,6 +15,7 @@ import {
 	Uint8ArrayWriter,
 	ZipWriter,
 } from "@zip.js/zip.js";
+import type { Locale } from "../i18n/translations.ts";
 import frameCssRaw from "../styles/comparison-artifact-frame.css?raw";
 import presentationCssRaw from "../styles/comparison-presentation.css?raw";
 import {
@@ -38,6 +39,11 @@ export const STATIC_MICROSITE_FILENAME = "sameview-comparison.zip";
 
 export interface GenerateStaticMicrositeOptions {
 	readonly snapshot: OutcomeSnapshot;
+	// The active SameView Web locale at generation time — forwarded unchanged
+	// to src/lib/comparison-artifact-scaffold.ts `buildArtifactDocument`,
+	// which alone decides `<html lang>` and the source-branding comment
+	// language; this module makes no locale decision of its own.
+	readonly locale: Locale;
 	readonly copy: ComparisonArtifactCopy;
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
@@ -55,6 +61,7 @@ export async function generateStaticMicrosite(
 ): Promise<Uint8Array> {
 	const {
 		snapshot,
+		locale,
 		copy,
 		titleText,
 		metaDescriptionText,
@@ -98,6 +105,7 @@ export async function generateStaticMicrosite(
 	});
 
 	const html = buildArtifactDocument({
+		locale,
 		titleText,
 		metaDescriptionText,
 		themeColor,

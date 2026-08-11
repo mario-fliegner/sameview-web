@@ -10,6 +10,7 @@
 // never in this structure itself. Pure string composition: no new
 // templating engine or dependency.
 
+import type { Locale } from "../i18n/translations.ts";
 import { escapeHtml } from "./html-escape.ts";
 
 // Deliberate, intentional public branding content — not a development
@@ -20,19 +21,55 @@ import { escapeHtml } from "./html-escape.ts";
 // both render through this one document builder — never duplicated per
 // output type. Contains no `--` sequence (would prematurely terminate an
 // HTML comment).
-const SOURCE_BRANDING_COMMENT = `<!--
-  \u{1F44B} Hey, you found the source!
+//
+// Keyed by the same `Locale` the rest of the application already uses
+// (src/i18n/translations.ts) — resolved centrally in `buildArtifactDocument`
+// below from the caller-supplied `locale`, exactly like every other
+// generator input already resolved by the caller (see that function's own
+// `locale` parameter). The German slogan pair ("Dieselbe Perspektive erneut
+// fotografieren." / "Zwei Aufnahmen. Ein Vergleich.") is the existing,
+// already-approved SameView-Website wording (sameview-website/src/i18n/home/de.ts
+// `app.description`) for the same English pair used here ("Capture the same
+// view again." / "Compare moments. Not just photos.",
+// sameview-website/src/i18n/home/en.ts `app.description`) — not a fresh
+// translation.
+const SOURCE_BRANDING_COMMENT_BY_LOCALE: Record<Locale, string> = {
+	en: `<!--
+  \u{1F44B} Hey there, you found the source!
 
   This comparison was created with SameView.
 
   Capture the same view again.
   Compare moments. Not just photos.
 
-  Created with web.sameview.app
-  Discover SameView and get the Android app at sameview.app
--->`;
+  Created with https://web.sameview.app
+  Discover SameView and get the Android app at https://sameview.app
+
+  Enjoy!
+-->`,
+	de: `<!--
+  \u{1F44B} Hey, du hast den Quelltext gefunden!
+
+  Dieser Vergleich wurde mit SameView erstellt.
+
+  Dieselbe Perspektive erneut fotografieren.
+  Zwei Aufnahmen. Ein Vergleich.
+
+  Erstellt mit https://web.sameview.app
+  Entdecke SameView und die Android-App unter https://sameview.app
+
+  Viel Spaß!
+-->`,
+};
 
 export interface ArtifactDocumentSections {
+	// The active SameView Web locale at the moment generation was triggered
+	// (the same `Locale` src/components/OutputInspector.tsx already reads via
+	// `useLocale()` and forwards through src/lib/generate-comparison-output.ts
+	// unchanged) — drives both the document's own `<html lang>` and which
+	// `SOURCE_BRANDING_COMMENT_BY_LOCALE` entry is used below. No separate
+	// locale detection happens in this module.
+	readonly locale: Locale;
 	readonly titleText: string;
 	readonly metaDescriptionText: string;
 	readonly themeColor: string;
@@ -78,6 +115,7 @@ export function buildArtifactDocument(
 	sections: ArtifactDocumentSections,
 ): string {
 	const {
+		locale,
 		titleText,
 		metaDescriptionText,
 		themeColor,
@@ -98,8 +136,8 @@ export function buildArtifactDocument(
 		: "";
 
 	return `<!doctype html>
-<html lang="en">
-${SOURCE_BRANDING_COMMENT}
+<html lang="${locale}">
+${SOURCE_BRANDING_COMMENT_BY_LOCALE[locale]}
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

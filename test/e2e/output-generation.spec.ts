@@ -88,6 +88,44 @@ async function switchToNoneBranding(page: import("@playwright/test").Page) {
 	await page.getByTestId("edit-branding-option-none").click();
 }
 
+// English is the default locale (see test/e2e/app-shell.spec.ts); switching
+// to German uses the same role/name locator already established there — "DE"
+// is a locale code, not translated content, so this stays independent of
+// mutable UI copy (docs/AI_ENGINEERING_GUIDE.md "Testing"). Always called
+// after an import here (Workspace Active), where the language selector lives
+// in the footer: Astro's dev toolbar (dev-only, never present in a
+// production build) overlaps it in the Playwright dev server, exactly like
+// test/e2e/app-shell.spec.ts's own identical `.evaluate(...click())`
+// workaround — this only bypasses Playwright's pointer-actionability check,
+// not the real click handler.
+async function switchToGerman(page: import("@playwright/test").Page) {
+	const germanButton = page.getByRole("button", { name: "DE", exact: true });
+	await germanButton.evaluate((element: HTMLElement) => element.click());
+}
+
+// The public SameView source-branding comment
+// (src/lib/comparison-artifact-scaffold.ts `SOURCE_BRANDING_COMMENT_BY_LOCALE`)
+// in both locales — mirrors the same table in
+// test/unit/comparison-artifact-document.test.mjs, kept independently here
+// since this file verifies the real, browser-generated artifact bytes, not
+// a reconstruction.
+const BRANDING_COMMENT_BY_LOCALE = {
+	en: {
+		openingLine: "Hey there, you found the source!",
+		createdWith: "Created with https://web.sameview.app",
+		discover:
+			"Discover SameView and get the Android app at https://sameview.app",
+		closing: "Enjoy!",
+	},
+	de: {
+		openingLine: "Hey, du hast den Quelltext gefunden!",
+		createdWith: "Erstellt mit https://web.sameview.app",
+		discover:
+			"Entdecke SameView und die Android-App unter https://sameview.app",
+		closing: "Viel Spaß!",
+	},
+} as const;
+
 test("Create Output opens the Output Inspector with Standalone HTML selected, Remove Embedded Location Data on, and CMS Package shown but not selectable", async ({
 	page,
 }) => {
@@ -401,51 +439,89 @@ test("generating the Standalone HTML downloads sameview-comparison.html, shows n
 // publicly downloadable artifact. Reads the actually-downloaded HTML file's
 // real bytes, not a reconstruction, so this proves the real generation path
 // is clean, not just the unit-level building blocks.
-test("the downloaded Standalone HTML contains no internal developer comments, source paths, or design-tool metadata, but does contain the public source-branding comment exactly once", async ({
-	page,
-}) => {
-	await importFullFixture(page);
-	await openOutputInspector(page);
+//
+// Looped over both locales (src/lib/generate-comparison-output.ts now
+// forwards the active `locale` — already read via `useLocale()` in
+// src/components/OutputInspector.tsx — unchanged through to
+// `buildArtifactDocument`): proves `<html lang>` and the source-branding
+// comment both actually follow the language active at generation time, not
+// a fixed "en", and that the other language's comment never leaks in
+// alongside it.
+for (const locale of ["en", "de"] as const) {
+	const expectedBranding = BRANDING_COMMENT_BY_LOCALE[locale];
+	const otherBranding =
+		BRANDING_COMMENT_BY_LOCALE[locale === "en" ? "de" : "en"];
 
-	const [download] = await Promise.all([
-		page.waitForEvent("download"),
-		page.getByTestId("output-primary-action").click(),
-	]);
-	const html = readFileSync(await download.path(), "utf8");
+	test(`the downloaded Standalone HTML (locale=${locale}) contains no internal developer comments, source paths, or design-tool metadata, but does contain the public source-branding comment exactly once in the matching language`, async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		if (locale === "de") {
+			await switchToGerman(page);
+		}
+		await openOutputInspector(page);
 
-	// CSS comments (would have carried docs/COMPARISON_PRESENTATION.md,
-	// src/lib/canvas-geometry.ts, src/components/WorkspaceActive.tsx, etc.).
-	expect(html).not.toMatch(/\/\*[\s\S]*?docs\//);
-	expect(html).not.toMatch(/\/\*[\s\S]*?src\/(lib|components)\//);
+		const [download] = await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+		const html = readFileSync(await download.path(), "utf8");
 
-	// Bundler-inserted JS region markers revealing internal src/lib/*.ts
-	// file layout (the original .ts source comments themselves do not
-	// survive the bundling step at all, so no separate check for those is
-	// meaningful here).
-	expect(html).not.toContain("//#region");
-	expect(html).not.toContain("//#endregion");
+		// CSS comments (would have carried docs/COMPARISON_PRESENTATION.md,
+		// src/lib/canvas-geometry.ts, src/components/WorkspaceActive.tsx, etc.).
+		expect(html).not.toMatch(/\/\*[\s\S]*?docs\//);
+		expect(html).not.toMatch(/\/\*[\s\S]*?src\/(lib|components)\//);
 
-	// The embedded favicon is a base64 data: URI — decode it to check the
-	// actual SVG content, not just the opaque encoded string.
-	const faviconMatch = html.match(/href="data:image\/svg\+xml;base64,([^"]+)"/);
-	expect(faviconMatch).not.toBeNull();
-	const decodedFavicon = Buffer.from(
-		faviconMatch?.[1] ?? "",
-		"base64",
-	).toString("utf8");
-	expect(decodedFavicon).not.toMatch(/Inkscape/i);
-	expect(decodedFavicon).not.toContain("<metadata");
-	expect(decodedFavicon).not.toMatch(/display:\s*none/);
+		// Bundler-inserted JS region markers revealing internal src/lib/*.ts
+		// file layout (the original .ts source comments themselves do not
+		// survive the bundling step at all, so no separate check for those is
+		// meaningful here).
+		expect(html).not.toContain("//#region");
+		expect(html).not.toContain("//#endregion");
 
-	// Deliberate exception: the public SameView source-branding comment
-	// (src/lib/comparison-artifact-scaffold.ts `SOURCE_BRANDING_COMMENT`) —
-	// intentional public content, not internal information, and must
-	// survive unaffected by the checks above.
-	const brandingOccurrences = html.match(/Hey, you found the source!/g) ?? [];
-	expect(brandingOccurrences.length).toBe(1);
-	expect(html).toMatch(/<html lang="en">\n<!--\n {2}\u{1F44B} Hey/u);
-	expect(html).toContain("\u{1F44B}");
-});
+		// The embedded favicon is a base64 data: URI — decode it to check the
+		// actual SVG content, not just the opaque encoded string.
+		const faviconMatch = html.match(
+			/href="data:image\/svg\+xml;base64,([^"]+)"/,
+		);
+		expect(faviconMatch).not.toBeNull();
+		const decodedFavicon = Buffer.from(
+			faviconMatch?.[1] ?? "",
+			"base64",
+		).toString("utf8");
+		expect(decodedFavicon).not.toMatch(/Inkscape/i);
+		expect(decodedFavicon).not.toContain("<metadata");
+		expect(decodedFavicon).not.toMatch(/display:\s*none/);
+
+		// The document's own declared language matches the locale active at
+		// generation time.
+		expect(html).toContain(`<html lang="${locale}">`);
+
+		// Deliberate exception: the public SameView source-branding comment
+		// (src/lib/comparison-artifact-scaffold.ts
+		// `SOURCE_BRANDING_COMMENT_BY_LOCALE`) — intentional public content,
+		// not internal information, and must survive unaffected by the checks
+		// above, in the language matching `locale`.
+		const brandingOccurrences =
+			html.match(new RegExp(expectedBranding.openingLine, "g")) ?? [];
+		expect(brandingOccurrences.length).toBe(1);
+		expect(html).toMatch(
+			new RegExp(
+				`<html lang="${locale}">\\n<!--\\n[ \\t]*\\u{1F44B} ${expectedBranding.openingLine}`,
+				"u",
+			),
+		);
+		expect(html).toContain("\u{1F44B}");
+		expect(html).toContain(expectedBranding.createdWith);
+		expect(html).toContain(expectedBranding.discover);
+		expect(html).toContain(expectedBranding.closing);
+
+		// The other language's comment must never leak in alongside it.
+		expect(html).not.toContain(otherBranding.openingLine);
+		expect(html).not.toContain(otherBranding.createdWith);
+		expect(html).not.toContain(otherBranding.discover);
+	});
+}
 
 // Confirmed regression fix (src/components/OutputInspector.tsx
 // `runGeneration`): the "Starting download" progress phase used to be set
@@ -919,21 +995,31 @@ test("generating the Static Microsite downloads sameview-comparison.zip with exa
 	expect(micrositeFavicon).not.toMatch(/display:\s*none/);
 
 	// Deliberate exception: the public SameView source-branding comment
-	// (src/lib/comparison-artifact-scaffold.ts `SOURCE_BRANDING_COMMENT`) —
-	// intentional public content, must survive in the packaged `index.html`
-	// unaffected by the checks above, exactly once, immediately after
-	// `<html lang="en">`.
+	// (src/lib/comparison-artifact-scaffold.ts
+	// `SOURCE_BRANDING_COMMENT_BY_LOCALE`) — intentional public content, must
+	// survive in the packaged `index.html` unaffected by the checks above,
+	// exactly once, immediately after `<html lang="en">` (English is the
+	// default locale — no language switch happened in this test).
 	const micrositeIndexHtml = readFileSync(
 		join(extractDir, "index.html"),
 		"utf8",
 	);
+	expect(micrositeIndexHtml).toContain('<html lang="en">');
 	const brandingOccurrences =
-		micrositeIndexHtml.match(/Hey, you found the source!/g) ?? [];
+		micrositeIndexHtml.match(/Hey there, you found the source!/g) ?? [];
 	expect(brandingOccurrences.length).toBe(1);
 	expect(micrositeIndexHtml).toMatch(
-		/<html lang="en">\n<!--\n {2}\u{1F44B} Hey/u,
+		/<html lang="en">\n<!--\n[ \t]*\u{1F44B} Hey there, you found the source!/u,
 	);
 	expect(micrositeIndexHtml).toContain("\u{1F44B}");
+	expect(micrositeIndexHtml).toContain("Created with https://web.sameview.app");
+	expect(micrositeIndexHtml).toContain(
+		"Discover SameView and get the Android app at https://sameview.app",
+	);
+	expect(micrositeIndexHtml).toContain("Enjoy!");
+	expect(micrositeIndexHtml).not.toContain(
+		BRANDING_COMMENT_BY_LOCALE.de.openingLine,
+	);
 
 	const micrositePage = await context.newPage();
 	await micrositePage.route("**/*", (route) => {
@@ -982,6 +1068,49 @@ async function downloadAndExtractMicrosite(
 	await zipReader.close();
 	return join(extractDir, "index.html");
 }
+
+// Locale coverage for the Static Microsite (see the equivalent Standalone
+// HTML loop above): the full ZIP-structure/offline-serving assertions are
+// already covered in English by the structure test above — this test adds
+// only the language-specific ones for German, via `downloadAndExtractMicrosite`,
+// to avoid duplicating the rest of that test's scope.
+test('generating the Static Microsite after switching to German produces an index.html with <html lang="de"> and the German source-branding comment, never the English one', async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await switchToGerman(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+
+	const indexHtmlPath = await downloadAndExtractMicrosite(
+		page,
+		"sameview-microsite-de-",
+	);
+	const micrositeIndexHtml = readFileSync(indexHtmlPath, "utf8");
+
+	const expectedBranding = BRANDING_COMMENT_BY_LOCALE.de;
+	const otherBranding = BRANDING_COMMENT_BY_LOCALE.en;
+
+	expect(micrositeIndexHtml).toContain('<html lang="de">');
+	const brandingOccurrences =
+		micrositeIndexHtml.match(new RegExp(expectedBranding.openingLine, "g")) ??
+		[];
+	expect(brandingOccurrences.length).toBe(1);
+	expect(micrositeIndexHtml).toMatch(
+		new RegExp(
+			`<html lang="de">\\n<!--\\n[ \\t]*\\u{1F44B} ${expectedBranding.openingLine}`,
+			"u",
+		),
+	);
+	expect(micrositeIndexHtml).toContain("\u{1F44B}");
+	expect(micrositeIndexHtml).toContain(expectedBranding.createdWith);
+	expect(micrositeIndexHtml).toContain(expectedBranding.discover);
+	expect(micrositeIndexHtml).toContain(expectedBranding.closing);
+
+	expect(micrositeIndexHtml).not.toContain(otherBranding.openingLine);
+	expect(micrositeIndexHtml).not.toContain(otherBranding.createdWith);
+	expect(micrositeIndexHtml).not.toContain(otherBranding.discover);
+});
 
 test("the Static Microsite's generated Handle visual matches the Live Preview's actually rendered size, for Branded and Standard branding alike", async ({
 	page,
