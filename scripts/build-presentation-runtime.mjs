@@ -30,6 +30,22 @@ import { build } from "vite";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 
+// Rollup (via `minify: false` above) inserts its own `//#region <path>` /
+// `//#endregion` module-boundary comments into the bundled output, one pair
+// per source module it concatenates — the *original* .ts source files' own
+// developer comments do not themselves survive this build at all. Left
+// alone, these auto-inserted markers are the only comments in the output,
+// and they reveal this project's internal `src/lib/*.ts` file layout inside
+// a distributed artifact (this script's own result is embedded/copied
+// verbatim by src/lib/comparison-artifact-assets.ts into both Standalone
+// HTML and the Static Microsite). Anchored to the start of a line so it can
+// never touch a genuine `//` occurring elsewhere (e.g. inside a string
+// literal such as a URL) — actual code never starts a line with
+// `//#region`/`//#endregion`.
+function stripBundlerRegionMarkers(code) {
+	return code.replace(/^[ \t]*\/\/#(?:region|endregion).*\n?/gm, "");
+}
+
 export async function buildPresentationRuntimeCode() {
 	const result = await build({
 		root: projectRoot,
@@ -63,7 +79,7 @@ export async function buildPresentationRuntimeCode() {
 	if (!chunk || !("code" in chunk)) {
 		throw new Error("Presentation runtime build produced no output chunk");
 	}
-	return chunk.code;
+	return stripBundlerRegionMarkers(chunk.code);
 }
 
 // CLI entry point — `pnpm build:runtime`, wired into `pnpm build` only (see

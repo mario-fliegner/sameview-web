@@ -393,6 +393,60 @@ test("generating the Standalone HTML downloads sameview-comparison.html, shows n
 	expect(secondBytes.equals(firstBytes)).toBe(true);
 });
 
+// Confirmed regression fix (src/lib/comparison-artifact-scaffold.ts
+// `composeArtifactCss`; scripts/build-presentation-runtime.mjs
+// `stripBundlerRegionMarkers`; public/favicon.svg itself): the embedded CSS
+// and JS used to carry full developer comments — including internal
+// `docs/`/`src/` paths and design-tool export metadata — verbatim into a
+// publicly downloadable artifact. Reads the actually-downloaded HTML file's
+// real bytes, not a reconstruction, so this proves the real generation path
+// is clean, not just the unit-level building blocks.
+test("the downloaded Standalone HTML contains no internal developer comments, source paths, or design-tool metadata, but does contain the public source-branding comment exactly once", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const html = readFileSync(await download.path(), "utf8");
+
+	// CSS comments (would have carried docs/COMPARISON_PRESENTATION.md,
+	// src/lib/canvas-geometry.ts, src/components/WorkspaceActive.tsx, etc.).
+	expect(html).not.toMatch(/\/\*[\s\S]*?docs\//);
+	expect(html).not.toMatch(/\/\*[\s\S]*?src\/(lib|components)\//);
+
+	// Bundler-inserted JS region markers revealing internal src/lib/*.ts
+	// file layout (the original .ts source comments themselves do not
+	// survive the bundling step at all, so no separate check for those is
+	// meaningful here).
+	expect(html).not.toContain("//#region");
+	expect(html).not.toContain("//#endregion");
+
+	// The embedded favicon is a base64 data: URI — decode it to check the
+	// actual SVG content, not just the opaque encoded string.
+	const faviconMatch = html.match(/href="data:image\/svg\+xml;base64,([^"]+)"/);
+	expect(faviconMatch).not.toBeNull();
+	const decodedFavicon = Buffer.from(
+		faviconMatch?.[1] ?? "",
+		"base64",
+	).toString("utf8");
+	expect(decodedFavicon).not.toMatch(/Inkscape/i);
+	expect(decodedFavicon).not.toContain("<metadata");
+	expect(decodedFavicon).not.toMatch(/display:\s*none/);
+
+	// Deliberate exception: the public SameView source-branding comment
+	// (src/lib/comparison-artifact-scaffold.ts `SOURCE_BRANDING_COMMENT`) —
+	// intentional public content, not internal information, and must
+	// survive unaffected by the checks above.
+	const brandingOccurrences = html.match(/Hey, you found the source!/g) ?? [];
+	expect(brandingOccurrences.length).toBe(1);
+	expect(html).toMatch(/<html lang="en">\n<!--\n {2}\u{1F44B} Hey/u);
+	expect(html).toContain("\u{1F44B}");
+});
+
 // Confirmed regression fix (src/components/OutputInspector.tsx
 // `runGeneration`): the "Starting download" progress phase used to be set
 // and immediately overwritten by the "ready" phase within the same
@@ -835,6 +889,51 @@ test("generating the Static Microsite downloads sameview-comparison.zip with exa
 		await writeFile(destination, bytes);
 	}
 	await zipReader.close();
+
+	// Confirmed regression fix (src/lib/comparison-artifact-scaffold.ts
+	// `composeArtifactCss`; scripts/build-presentation-runtime.mjs
+	// `stripBundlerRegionMarkers`; public/favicon.svg itself): none of the
+	// packaged files may carry internal developer comments, source paths, or
+	// design-tool export metadata — checked against the actually-unpacked
+	// files, not a reconstruction.
+	const micrositeCss = readFileSync(
+		join(extractDir, "css/sameview-comparison.css"),
+		"utf8",
+	);
+	expect(micrositeCss).not.toMatch(/\/\*[\s\S]*?docs\//);
+	expect(micrositeCss).not.toMatch(/\/\*[\s\S]*?src\/(lib|components)\//);
+
+	const micrositeJs = readFileSync(
+		join(extractDir, "js/sameview-comparison.js"),
+		"utf8",
+	);
+	expect(micrositeJs).not.toContain("//#region");
+	expect(micrositeJs).not.toContain("//#endregion");
+
+	const micrositeFavicon = readFileSync(
+		join(extractDir, "favicon.svg"),
+		"utf8",
+	);
+	expect(micrositeFavicon).not.toMatch(/Inkscape/i);
+	expect(micrositeFavicon).not.toContain("<metadata");
+	expect(micrositeFavicon).not.toMatch(/display:\s*none/);
+
+	// Deliberate exception: the public SameView source-branding comment
+	// (src/lib/comparison-artifact-scaffold.ts `SOURCE_BRANDING_COMMENT`) —
+	// intentional public content, must survive in the packaged `index.html`
+	// unaffected by the checks above, exactly once, immediately after
+	// `<html lang="en">`.
+	const micrositeIndexHtml = readFileSync(
+		join(extractDir, "index.html"),
+		"utf8",
+	);
+	const brandingOccurrences =
+		micrositeIndexHtml.match(/Hey, you found the source!/g) ?? [];
+	expect(brandingOccurrences.length).toBe(1);
+	expect(micrositeIndexHtml).toMatch(
+		/<html lang="en">\n<!--\n {2}\u{1F44B} Hey/u,
+	);
+	expect(micrositeIndexHtml).toContain("\u{1F44B}");
 
 	const micrositePage = await context.newPage();
 	await micrositePage.route("**/*", (route) => {

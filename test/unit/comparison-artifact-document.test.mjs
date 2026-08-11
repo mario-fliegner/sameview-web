@@ -142,6 +142,37 @@ describe("the final composed Standalone HTML document", () => {
 		);
 	});
 
+	// Deliberate public branding content (src/lib/comparison-artifact-scaffold.ts
+	// `SOURCE_BRANDING_COMMENT`) — the one exception to every other test in
+	// this file asserting internal information is stripped. Shared by both
+	// output types through this single document builder, so one assertion
+	// here covers both Standalone HTML and Static Microsite.
+	test('contains the public SameView source-branding comment exactly once, immediately after <html lang="en">, with the wave emoji intact', () => {
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+		});
+		const occurrences = html.match(/Hey, you found the source!/g) ?? [];
+		assert.equal(
+			occurrences.length,
+			1,
+			"expected the source-branding comment exactly once",
+		);
+		assert.match(
+			html,
+			/<html lang="en">\n<!--\n {2}\u{1F44B} Hey, you found the source!/u,
+		);
+		assert.match(html, /Created with web\.sameview\.app/);
+		assert.match(
+			html,
+			/Discover SameView and get the Android app at sameview\.app/,
+		);
+		assert.ok(
+			html.includes("\u{1F44B}"),
+			"expected the literal wave emoji character to be present",
+		);
+	});
+
 	test("contains no XHTML-style self-closing slash on meta/link/img", () => {
 		const html = buildDocument({
 			runtimeScriptText: "console.log('ok');",
@@ -280,6 +311,63 @@ describe("the final composed Standalone HTML document", () => {
 		assert.doesNotMatch(html, /property="og:url"/);
 		assert.doesNotMatch(html, /property="og:image"/);
 		assert.doesNotMatch(html, /rel="canonical"/);
+	});
+
+	// Confirmed regression fix (src/lib/comparison-artifact-scaffold.ts
+	// `composeArtifactCss` now strips CSS block comments at this exact
+	// distribution boundary): the raw `?raw`-imported stylesheets carry
+	// extensive developer comments — including docs/COMPARISON_PRESENTATION.md,
+	// docs/IMPLEMENTATION_PLAN_V1.md, src/lib/canvas-geometry.ts,
+	// src/components/WorkspaceActive.tsx references — that must never reach a
+	// publicly downloadable artifact. Reads the real on-disk stylesheets, not
+	// a synthetic fixture, so this only passes if the actual files' actual
+	// comments are actually removed.
+	test("the embedded CSS contains no developer comments (no docs/ or src/ references, no /* */ blocks at all)", () => {
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+		});
+		const styleMatch = html.match(/<style>\n([\s\S]*?)\n<\/style>/);
+		assert.ok(styleMatch, "expected an embedded <style> block");
+		const css = styleMatch[1];
+		assert.doesNotMatch(
+			css,
+			/\/\*/,
+			"embedded CSS still contains a comment opening",
+		);
+		assert.doesNotMatch(css, /docs\//);
+		assert.doesNotMatch(css, /src\/(lib|components)\//);
+		// Sanity: real rules from both source files still made it through —
+		// this isn't accidentally asserting against an empty string.
+		assert.match(css, /\.presentation-canvas\s*\{/);
+		assert.match(css, /#sameview-output-frame\s*\{/);
+	});
+
+	// Confirmed regression fix (public/favicon.svg itself, cleaned at the
+	// source since this design-tool export metadata has no maintenance value
+	// — unlike the CSS/JS developer comments, which stay in their source
+	// files and are only stripped at the distribution boundary above).
+	test("the embedded favicon contains no design-tool export metadata or invisible dead layers", () => {
+		const svgSource = fs.readFileSync(
+			path.join(ROOT, "public/favicon.svg"),
+			"utf8",
+		);
+		assert.doesNotMatch(svgSource, /Inkscape/i);
+		assert.doesNotMatch(svgSource, /<metadata/);
+		assert.doesNotMatch(svgSource, /display:\s*none/);
+
+		// Round-trip through the actual document composition: the embedded
+		// data: URI must be exactly this same cleaned content, byte for byte.
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+		});
+		const hrefMatch = html.match(
+			/<link rel="icon"[^>]*href="data:image\/svg\+xml;base64,([^"]+)">/,
+		);
+		assert.ok(hrefMatch, "expected an embedded favicon data: URI");
+		const decoded = Buffer.from(hrefMatch[1], "base64").toString("utf8");
+		assert.equal(decoded, svgSource);
 	});
 
 	for (const includeOpenGraph of [false, true]) {

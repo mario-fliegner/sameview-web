@@ -282,6 +282,15 @@ describe("astro dev serves the Comparison Presentation runtime without depending
 				code.includes(RUNTIME_CODE_MARKER),
 				`runtime asset response did not contain the expected compiled marker\nstdout:\n${stdout}\nstderr:\n${stderr}`,
 			);
+			// Confirmed regression fix (scripts/build-presentation-runtime.mjs
+			// `stripBundlerRegionMarkers`): Rollup's own auto-inserted
+			// `//#region <path>`/`//#endregion` module-boundary comments used to
+			// reveal this project's internal src/lib/*.ts file layout inside a
+			// publicly downloadable artifact.
+			assert.ok(
+				!code.includes("//#region") && !code.includes("//#endregion"),
+				"runtime asset response still contains bundler region-marker comments revealing internal src/lib paths",
+			);
 		} finally {
 			await killProcessTree(child);
 			removeGeneratedDir();
@@ -373,6 +382,14 @@ describe("pnpm build still produces the real static runtime asset, without the d
 			const distRuntimeCode = readFileSync(distRuntimePath, "utf8");
 			assert.ok(distRuntimeCode.length > 0);
 			assert.ok(distRuntimeCode.includes(RUNTIME_CODE_MARKER));
+			// Confirmed regression fix (scripts/build-presentation-runtime.mjs
+			// `stripBundlerRegionMarkers`) against the real production build
+			// output, not just the dev-server-served response above.
+			assert.ok(
+				!distRuntimeCode.includes("//#region") &&
+					!distRuntimeCode.includes("//#endregion"),
+				"dist/client/generated/comparison-presentation-runtime.js still contains bundler region-marker comments revealing internal src/lib paths",
+			);
 
 			// The dev-only plugin (scripts/vite-plugin-presentation-runtime-dev.mjs)
 			// must never end up inside the shipped artifact — `apply: "serve"`
