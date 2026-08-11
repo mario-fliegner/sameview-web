@@ -107,22 +107,88 @@ function removeGeneratedDir() {
 	rmSync(generatedDir, { recursive: true, force: true });
 }
 
-// See module header comment: kills the *entire* process tree a
-// `shell: true` spawn produces, not just the immediate `cmd.exe`/shell
-// wrapper `child` itself refers to on Windows.
-function killProcessTree(child) {
+// `process.kill(pid, 0)` sends no actual signal — it only probes whether a
+// process with this pid still exists (throws ESRCH/EPERM otherwise). Used
+// below to confirm an already-signaled process has genuinely exited, since
+// a signal only requests termination and returns immediately regardless of
+// whether the target has actually stopped running yet.
+function isAlive(pid) {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function waitUntilDead(pid, { timeoutMs, intervalMs = 100 } = {}) {
+	return new Promise((resolve) => {
+		const deadline = Date.now() + timeoutMs;
+		function check() {
+			if (!isAlive(pid)) {
+				resolve(true);
+				return;
+			}
+			if (Date.now() >= deadline) {
+				resolve(false);
+				return;
+			}
+			setTimeout(check, intervalMs);
+		}
+		check();
+	});
+}
+
+// Confirmed regression fix: on Linux CI, this used to fire `child.kill
+// ("SIGTERM")` and return immediately, without waiting for the signaled
+// process to actually exit. Node's test runner then started the next
+// subtest right away, sometimes while the previous `astro dev` process was
+// still alive — Astro's own project-wide `.astro/dev.json` lock file (see
+// node_modules/astro/dist/core/dev/lockfile.js `checkExistingServer`) still
+// pointed at that live pid, so the next `astro dev` invocation aborted with
+// "Another astro dev server is already running" and never bound its own
+// port, which `waitForRuntimeAsset()` then timed out waiting for. This
+// function now blocks until the process it itself started is confirmed
+// gone (SIGTERM, then SIGKILL only if still alive after a short grace
+// period) before returning, exactly like the Windows branch's `spawnSync`
+// already does by construction.
+//
+// Kills the *entire* process tree a `shell: true` spawn produces, not just
+// the immediate `cmd.exe`/shell wrapper `child` itself refers to on
+// Windows, and (see spawnCommand()'s `detached: true` on non-Windows) not
+// just the immediate `sh -c "…"` wrapper there either — `pnpm exec astro
+// dev`/`pnpm build` can spawn further child processes (astro, vite,
+// esbuild helpers) under the same process group, and only the group as a
+// whole is guaranteed to be gone once this resolves.
+async function killProcessTree(child) {
 	if (!child.pid) return;
 	if (process.platform === "win32") {
 		spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
 			stdio: "ignore",
 		});
-	} else {
-		try {
-			child.kill("SIGTERM");
-		} catch {
-			// Already exited — nothing to do.
-		}
+		return;
 	}
+	const pid = child.pid;
+	const SIGTERM_GRACE_MS = 5_000;
+	const SIGKILL_CONFIRM_MS = 3_000;
+	try {
+		// Negative pid: signals the whole process group `spawnCommand()`'s
+		// `detached: true` made `pid` the leader of — never an unrelated,
+		// pre-existing process outside the group this test itself started.
+		process.kill(-pid, "SIGTERM");
+	} catch {
+		// Already exited (or never got its own group) — nothing to do.
+		return;
+	}
+	if (await waitUntilDead(pid, { timeoutMs: SIGTERM_GRACE_MS })) {
+		return;
+	}
+	try {
+		process.kill(-pid, "SIGKILL");
+	} catch {
+		return;
+	}
+	await waitUntilDead(pid, { timeoutMs: SIGKILL_CONFIRM_MS });
 }
 
 // Races the child's own `exit` event against a hard deadline, force-killing
@@ -136,7 +202,10 @@ function waitForExit(child, timeoutMs) {
 		const timer = setTimeout(() => {
 			if (settled) return;
 			settled = true;
-			killProcessTree(child);
+			// Not awaited here: this timeout path already ends in `reject()`,
+			// and every caller's own `finally` block separately awaits its own
+			// `killProcessTree(child)` call, which fully covers cleanup.
+			killProcessTree(child).catch(() => {});
 			reject(new Error(`process did not exit within ${timeoutMs}ms`));
 		}, timeoutMs);
 		child.once("exit", (code) => {
@@ -162,6 +231,14 @@ function spawnCommand(commandLine, extraEnv) {
 	return spawn(commandLine, {
 		cwd: repoRoot,
 		shell: true,
+		// Non-Windows only: makes the spawned process the leader of its own
+		// new process group (pgid === pid), so killProcessTree() can signal
+		// the entire group — including whatever `sh -c "…"` itself spawns
+		// (pnpm, astro, vite, esbuild helpers, …) — via a single negative-pid
+		// kill, not just the immediate shell wrapper. Windows has no
+		// equivalent concept; `taskkill /T /F` already walks the real PID
+		// tree there regardless of this flag.
+		detached: process.platform !== "win32",
 		env: {
 			...process.env,
 			// See playwright.config.ts's own identical override: Astro 7
@@ -206,7 +283,7 @@ describe("astro dev serves the Comparison Presentation runtime without depending
 				`runtime asset response did not contain the expected compiled marker\nstdout:\n${stdout}\nstderr:\n${stderr}`,
 			);
 		} finally {
-			killProcessTree(child);
+			await killProcessTree(child);
 			removeGeneratedDir();
 		}
 	});
@@ -247,7 +324,7 @@ describe("astro dev serves the Comparison Presentation runtime without depending
 			const afterDeleteBody = await afterDeleteResponse.text();
 			assert.ok(afterDeleteBody.includes(RUNTIME_CODE_MARKER));
 		} finally {
-			killProcessTree(child);
+			await killProcessTree(child);
 			removeGeneratedDir();
 		}
 	});
@@ -311,7 +388,7 @@ describe("pnpm build still produces the real static runtime asset, without the d
 				);
 			}
 		} finally {
-			killProcessTree(child);
+			await killProcessTree(child);
 			rmSync(distDir, { recursive: true, force: true });
 			removeGeneratedDir();
 		}
