@@ -343,10 +343,9 @@ first place.
 - This assumes Plesk starts the Node process with its working directory set to the Application Root, since
   `process.loadEnvFile(".env")` resolves relative to `process.cwd()`. Verify this once after the first deploy; if the
   app cannot find `DATABASE_URL` once it actually needs it, this is the first thing to check.
-- The homepage's smoke test (see [Smoke test](#smoke-test-homepage) below) does import `src/db/client.ts`, but only
-  lazily and inside its own error handling — the app still starts and serves the homepage correctly with no
-  `.env`/`DATABASE_URL` present at all, it just reports "DATABASE_URL configured: no" instead of attempting a
-  connection (verified locally).
+- No current V1 page or route imports `src/db/client.ts` (see [Smoke test](#smoke-test-homepage) below) — the app
+  starts and serves V1 correctly with no `.env`/`DATABASE_URL` present at all; this file only matters once a route
+  that actually needs the database is added (planned Version 2 Hosted Publication).
 
 ## Local vs. production database
 
@@ -357,8 +356,7 @@ first place.
 - Local development/test data is **not** transferred to production automatically, ever. There is no script or
   workflow step that does this.
 - For `v0.0.1`, an empty `comparisons` table in production is the expected, correct state — no seed data ships with
-  this release. The smoke test on the homepage (see below) treats a row count of `0` as a successful result, not an
-  error.
+  this release.
 - If specific data is ever deliberately wanted in production later (not routine, not automatic), that would be a
   one-off, manual export/import of chosen rows (e.g. via phpMyAdmin's own "Export"/"Import" tabs, selecting specific
   rows or a `WHERE`-filtered result) — a completely separate action from schema migration, never bundled with it.
@@ -426,39 +424,19 @@ file used in Variant A.
 
 ## Smoke test (homepage)
 
-The homepage (`src/pages/index.astro`, via `src/lib/db-health.ts`) runs a read-only check on every request, so that
-after a deploy and restart it's immediately visible whether the whole chain — Astro/Node runtime → `DATABASE_URL` →
-MySQL → `comparisons` table — actually works, without needing a separate tool:
+The homepage (`src/pages/index.astro`) no longer performs or displays a database check on the user-facing V1 page
+— removed per `docs/IMPLEMENTATION_PLAN_V1.md` Phase 1 ("Stop invoking and presenting the database smoke check as
+part of the user-facing V1 page"). `src/lib/db-health.ts`'s `checkDbHealth()` still exists as dormant, unused code
+kept as a prepared foundation for planned Version 2 Hosted Publication, but nothing on the current V1 homepage
+calls it.
 
-1. Is `DATABASE_URL` configured at all.
-2. If so: can a connection be opened and does `SELECT 1` succeed.
-3. Does the `comparisons` table exist (checked via `information_schema.tables`, not by guessing from an error).
-4. If it exists: `SELECT COUNT(*)` on it.
+The V1 smoke test therefore requires neither `DATABASE_URL` nor a database connection. After a deploy and restart,
+verify only:
 
-Guarantees, verified locally in all three states (DB working, DB unreachable, `DATABASE_URL` unset):
-
-- Always renders the page with HTTP 200 — a failed or skipped check never turns into a 500. `checkDbHealth()` catches
-  every error itself and returns a plain status value; it never throws.
-- Never writes, deletes, or migrates anything — read-only queries only.
-- A row count of `0` is displayed as a normal, successful result (expected for `v0.0.1`, see
-  [Local vs. production database](#local-vs-production-database)), not hidden or treated as an error.
-- No connection string, host, credentials, SQL text, or stack trace is ever sent to the browser. Errors are logged
-  server-side only (`console.error`, visible in Plesk's own Node.js logs) for operators to diagnose — never in the
-  HTML response.
-
-**Expected output after a healthy deploy** (migration already applied, database reachable):
-
-```text
-Database check
-DATABASE_URL configured: yes
-Database connection: ok (SELECT 1 succeeded)
-Table "comparisons" exists: yes
-Row count in "comparisons": 0
-```
-
-A row count of `0` here is correct and expected for `v0.0.1` — it is not an error. Before the first migration has been
-applied (see [Migrations](#migrations)), the third and fourth lines instead read `Table "comparisons" exists: no`,
-with no row-count line — also not an error, just not yet migrated.
+- `https://web.sameview.app` responds with HTTP 200 — no 502 Bad Gateway and no "Web application could not be
+  started".
+- The page renders the SameView Web V1 `No Workspace` import UI.
+- Static assets (favicon, built JS/CSS bundles) load without errors.
 
 ## Restart (manual)
 
@@ -472,7 +450,7 @@ The workflow never restarts the app itself. After every successful deploy:
    [Why `standalone` mode is not used](#why-standalone-mode-is-not-used)).
 4. Click "Restart App".
 5. Manually check `https://web.sameview.app` against the
-   [expected smoke test output](#smoke-test-homepage).
+   [smoke test](#smoke-test-homepage).
 
 No automatic restart or automatic post-deploy healthcheck is implemented — the workflow cannot know the app is
 actually serving again until the manual restart has happened, so making the upload job depend on a live healthcheck
