@@ -51,7 +51,6 @@ For Hosted Publication in Version 2, the server always validates, decodes, strip
 Current Version 1:
 
 /
- /new
 
 Planned for Hosted Publication in Version 2:
 

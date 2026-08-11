@@ -1,7 +1,6 @@
 // Implements docs/APPLICATION_LAYOUT.md's "Import Section" and "Import
 // States" for State A (`No Workspace`), and the transient green
-// "Import Succeeded" confirmation with its automatic scroll into the
-// workspace. State B (`Workspace Active`) itself is
+// "Import Succeeded" confirmation. State B (`Workspace Active`) itself is
 // src/components/WorkspaceActive.tsx (docs/FEATURE_SPECIFICATION.md F-002) —
 // this component only decides which of the two states to render.
 //

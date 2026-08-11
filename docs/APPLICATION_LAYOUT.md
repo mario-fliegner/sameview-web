@@ -427,8 +427,6 @@ The surrounding layout should not need to change.
 
 # Fullscreen Mode
 
-Deferred to a later iteration.
-
 Fullscreen is the only enlarging function for the comparison. No separate preview function, no lightbox, no additional page and no additional browser tab exists alongside it.
 
 Fullscreen is started from a compact icon button inside the Reserved Control Area, a small, permanently reserved area at the top-right of the Presentation Preview. The Reserved Control Area belongs to the Presentation Preview and to the application UI. It is explicitly not part of the Presentation Canvas (see docs/COMPARISON_PRESENTATION.md "Presentation Canvas") and never appears in a generated output. It permanently reserves its own place in the layout, has no visible background, no border and no separating line, and exists solely to hold the Fullscreen button or the Close button.

@@ -36,7 +36,7 @@ export interface PresentationFontAsset {
 	// Relative to `public/fonts/`; the exact license filename each family
 	// actually ships (docs/BRAND_GUIDE.md: SIL Open Font License 1.1 for all
 	// three) — copied into the Static Microsite's `fonts/` folder unchanged,
-	// and its full text is embedded as an invisible HTML comment in
+	// and its full text is embedded inert inside a <template> element in
 	// Standalone HTML.
 	readonly licensePath: string;
 	readonly licenseFileName: string;
