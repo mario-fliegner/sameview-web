@@ -32,6 +32,7 @@
 // component's own reference to them for a future `Download again` click.
 
 import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useLocale } from "../i18n/LocaleContext";
 import type { ComparisonPresentation } from "../lib/comparison-presentation";
 import {
@@ -59,6 +60,25 @@ interface OutputInspectorProps {
 }
 
 type Phase = "idle" | "generating" | "ready" | "error";
+
+// Yields across exactly two real browser animation frames rather than a
+// fixed delay or a microtask-only `await Promise.resolve()` (which never
+// guarantees an actual paint): the outer callback fires once the
+// "starting-download" state React committed via flushSync (below) is about
+// to be painted; the inner callback, scheduled from within it, only runs on
+// the *following* frame — after that paint has already been presented. This
+// is the smallest render-cycle boundary that is technically meaningful here;
+// it is not tuned for, or lengthened to accommodate, any test's ability to
+// observe it. Used once, below, so the "Starting download" progress phase
+// (docs/APPLICATION_LAYOUT.md "Progress") has actually been committed and
+// painted at least once before the Completion state replaces it.
+function waitForNextPaint(): Promise<void> {
+	return new Promise((resolve) => {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => resolve());
+		});
+	});
+}
 
 // docs/BRAND_GUIDE.md Brand Identity Color — the same dark background used
 // throughout this application; the generated artifact's own `theme-color`.
@@ -143,7 +163,16 @@ export default function OutputInspector({
 			return;
 		}
 
-		setProgressPhase("starting-download");
+		// flushSync forces this specific update to commit to the DOM
+		// immediately and on its own, rather than risk React's automatic
+		// batching folding it into the "ready" update three lines below (both
+		// occur in the same async continuation, with no React-visible event
+		// boundary between them) — empirically confirmed necessary: without
+		// it, "starting-download" was never actually painted even once,
+		// batched-away regardless of the waitForNextPaint() delay that
+		// follows.
+		flushSync(() => setProgressPhase("starting-download"));
+		await waitForNextPaint();
 		artifactRef.current = result.value;
 		triggerDownload(result.value);
 		setPhase("ready");
@@ -343,6 +372,7 @@ export default function OutputInspector({
 				<div
 					className="output-inspector__progress"
 					data-testid="output-progress"
+					data-phase={progressPhase}
 					aria-live="polite"
 				>
 					<span className="output-inspector__progress-bar" aria-hidden="true" />

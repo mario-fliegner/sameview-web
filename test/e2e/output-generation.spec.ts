@@ -393,6 +393,82 @@ test("generating the Standalone HTML downloads sameview-comparison.html, shows n
 	expect(secondBytes.equals(firstBytes)).toBe(true);
 });
 
+// Confirmed regression fix (src/components/OutputInspector.tsx
+// `runGeneration`): the "Starting download" progress phase used to be set
+// and immediately overwritten by the "ready" phase within the same
+// synchronous continuation, so React's automatic batching coalesced both
+// updates into a single commit and the phase was never actually painted.
+// `flushSync` now forces that commit to happen on its own; a minimal
+// double `requestAnimationFrame` guarantees it has actually been painted
+// before the "ready" transition that immediately follows replaces it. That
+// committed state is real but genuinely brief (well under one frame in
+// this app's actual generation flow) — deliberately not lengthened just to
+// make it easier to observe (a product behavior must not be slowed down to
+// suit a test). Waiting for it via Playwright's normal locator polling is
+// therefore unreliable by construction. Instead, a `MutationObserver` is
+// installed in the page *before* generation starts, so every `data-phase`
+// attribute change on the (persistent, only its attribute changes)
+// `output-progress` element is captured immediately as it happens, via the
+// browser's own microtask-timed mutation callback — independent of
+// Playwright's external polling cadence. This proves the phase genuinely
+// occurred in the DOM during this generation, via the locale-independent
+// `data-phase` attribute, never translated text.
+test("the Starting download progress phase actually occurs in the DOM during generation, before the download/completion step", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	await page.evaluate(() => {
+		const observedPhases: string[] = [];
+		(window as unknown as { __observedPhases: string[] }).__observedPhases =
+			observedPhases;
+		const root = document.querySelector('[data-testid="output-inspector"]');
+		if (!root) throw new Error("output-inspector not found");
+		const observer = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				if (
+					mutation.type === "attributes" &&
+					mutation.attributeName === "data-phase" &&
+					mutation.target instanceof Element
+				) {
+					const value = mutation.target.getAttribute("data-phase");
+					if (value) observedPhases.push(value);
+				}
+			}
+		});
+		observer.observe(root, {
+			attributes: true,
+			attributeFilter: ["data-phase"],
+			subtree: true,
+		});
+	});
+
+	let downloadCount = 0;
+	page.on("download", () => {
+		downloadCount++;
+	});
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(download.suggestedFilename()).toBe("sameview-comparison.html");
+
+	// Progress UI disappears again once generation completes
+	// (docs/APPLICATION_LAYOUT.md "Completion") and the primary action
+	// becomes interactive again — asserted structurally, not via text.
+	await expect(page.getByTestId("output-progress")).toHaveCount(0);
+	await expect(page.getByTestId("output-primary-action")).toBeEnabled();
+
+	const observedPhases = await page.evaluate(
+		() =>
+			(window as unknown as { __observedPhases: string[] }).__observedPhases,
+	);
+	expect(observedPhases).toContain("starting-download");
+	expect(downloadCount).toBe(1);
+});
+
 test("the downloaded Standalone HTML opens fully offline (file://) and renders the comparison interactively", async ({
 	page,
 	context,
