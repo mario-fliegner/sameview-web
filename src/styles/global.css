@@ -1842,11 +1842,6 @@ html:has(.workspace-active__preview--fullscreen) {
 	background: rgba(79, 140, 255, 0.12);
 }
 
-.output-inspector__card--disabled {
-	opacity: 0.6;
-	cursor: default;
-}
-
 .output-inspector__card-name {
 	display: flex;
 	align-items: center;
@@ -1858,6 +1853,53 @@ html:has(.workspace-active__preview--fullscreen) {
 .output-inspector__card-description {
 	color: #c7ccd6;
 	font-size: 0.8125rem;
+}
+
+.output-inspector__card-select {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	width: 100%;
+	padding: 0;
+	border: none;
+	background: none;
+	color: inherit;
+	text-align: start;
+	font: inherit;
+	cursor: pointer;
+}
+
+.output-inspector__platform-selector {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.25rem;
+}
+
+.output-inspector__platform-label {
+	color: #c7ccd6;
+	font-size: 0.75rem;
+}
+
+.output-inspector__platform-option {
+	padding: 0.125rem 0.625rem;
+	border: 1px solid #3a4658;
+	border-radius: 999px;
+	background: transparent;
+	color: #ffffff;
+	font: inherit;
+	font-size: 0.75rem;
+	cursor: pointer;
+}
+
+.output-inspector__platform-option--selected {
+	border-color: #4f8cff;
+	background: rgba(79, 140, 255, 0.12);
+}
+
+.output-inspector__platform-option:disabled {
+	opacity: 0.5;
+	cursor: default;
 }
 
 .output-inspector__card-badge {

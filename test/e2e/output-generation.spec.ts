@@ -127,7 +127,7 @@ const BRANDING_COMMENT_BY_LOCALE = {
 	},
 } as const;
 
-test("Create Output opens the Output Inspector with Standalone HTML selected, Remove Embedded Location Data on, and CMS Package shown but not selectable", async ({
+test("Create Output opens the Output Inspector with Standalone HTML selected, Remove Embedded Location Data on, and Embed in website shown as a third, selectable card with a visible-but-disabled WordPress platform selector", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -157,12 +157,157 @@ test("Create Output opens the Output Inspector with Standalone HTML selected, Re
 		page.getByTestId("output-remove-location-data-switch"),
 	).toHaveAccessibleName(/\S/);
 
-	const cmsCard = page.getByTestId("output-card-cms-package");
-	await expect(cmsCard).toBeVisible();
-	await expect(cmsCard).toHaveAttribute("aria-disabled", "true");
-	// A plain <div>, not a <button> — genuinely unclickable, not just visually
-	// disabled.
-	await expect(cmsCard).not.toHaveJSProperty("tagName", "BUTTON");
+	// docs/APPLICATION_LAYOUT.md "Output Cards": exactly three output cards.
+	await expect(page.getByTestId("output-card-standalone-html")).toBeVisible();
+	await expect(page.getByTestId("output-card-static-microsite")).toBeVisible();
+	const embedCard = page.getByTestId("output-card-embed-in-website");
+	await expect(embedCard).toBeVisible();
+
+	// The historical CMS Package placeholder must be gone from the runtime UI
+	// entirely (docs/IMPLEMENTATION_PLAN_V1.md Phase 9 "Not included": "since
+	// superseded by the approved Embed in website output").
+	await expect(page.getByTestId("output-card-cms-package")).toHaveCount(0);
+	await expect(page.getByText("CMS Package")).toHaveCount(0);
+	await expect(page.getByText("Coming Soon")).toHaveCount(0);
+
+	// Embed in website is genuinely selectable — a real radio button, not a
+	// disabled placeholder (docs/EMBED_IN_WEBSITE.md "Output Inspector
+	// Behavior").
+	await expect(embedCard).toHaveAttribute("aria-checked", "false");
+	await expect(embedCard).not.toHaveAttribute("aria-disabled", "true");
+	await expect(embedCard).toBeEnabled();
+	expect(await embedCard.evaluate((element) => element.tagName)).toBe("BUTTON");
+	await expect(embedCard).toContainText("Embed in website");
+	await expect(embedCard).toContainText(
+		"Add this comparison to your website through WordPress.",
+	);
+
+	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "shown directly on
+	// its Output Inspector card rather than only after the card is selected
+	// ... Platform controls may be disabled when Embed in website is not the
+	// selected output, but they remain visible."
+	const platformSelector = page.getByTestId("output-platform-wordpress");
+	await expect(platformSelector).toBeVisible();
+	await expect(platformSelector).toBeDisabled();
+	await expect(platformSelector).toHaveAttribute("aria-checked", "true");
+	await expect(platformSelector).toHaveAccessibleName("WordPress");
+
+	// WordPress is the only platform offered (docs/EMBED_IN_WEBSITE.md
+	// "Supported Platforms").
+	await expect(page.getByText(/joomla/i)).toHaveCount(0);
+	await expect(page.getByText(/webflow/i)).toHaveCount(0);
+	await expect(page.getByText(/squarespace/i)).toHaveCount(0);
+});
+
+test("selecting Embed in website enables its WordPress platform selector, hides the primary action entirely, keeps the shared output settings interactive, and never changes the Workspace Preview", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const canvasBefore = await page.locator(".presentation-canvas").boundingBox();
+
+	const embedCard = page.getByTestId("output-card-embed-in-website");
+	const platformSelector = page.getByTestId("output-platform-wordpress");
+	await embedCard.click();
+
+	await expect(embedCard).toHaveAttribute("aria-checked", "true");
+	await expect(platformSelector).toBeEnabled();
+	await expect(platformSelector).toHaveAttribute("aria-checked", "true");
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 12 "Not included": no working
+	// Generate action yet — the primary action must be entirely absent, not a
+	// disabled button or a "Coming Soon" placeholder.
+	await expect(page.getByTestId("output-primary-action")).toHaveCount(0);
+
+	// F-005: "available identically for Standalone HTML, Static Microsite and
+	// Embed in website once an output type has been selected."
+	const sliderPositionSwitch = page.getByTestId(
+		"output-use-current-slider-position-switch",
+	);
+	const locationSwitch = page.getByTestId("output-remove-location-data-switch");
+	await expect(sliderPositionSwitch).toBeEnabled();
+	await expect(locationSwitch).toBeEnabled();
+	await sliderPositionSwitch.click();
+	await expect(sliderPositionSwitch).toHaveAttribute("aria-checked", "true");
+
+	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": selecting Embed
+	// (and changing its settings) "does not change ... the Workspace Preview."
+	const canvasAfter = await page.locator(".presentation-canvas").boundingBox();
+	expect(canvasAfter?.width).toBeCloseTo(canvasBefore?.width ?? 0, 0);
+	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
+});
+
+test("switching from Standalone HTML to Embed in website hides the primary action, and switching back restores the normal Standalone HTML action requiring a fresh generation", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const [htmlDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(htmlDownload.suggestedFilename()).toBe("sameview-comparison.html");
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+
+	// docs/APPLICATION_LAYOUT.md "Completion": switching output type
+	// invalidates the already-generated artifact for repeat download — Embed
+	// has no primary action at all to revert to, so it must simply disappear.
+	await page.getByTestId("output-card-embed-in-website").click();
+	await expect(page.getByTestId("output-primary-action")).toHaveCount(0);
+
+	await page.getByTestId("output-card-standalone-html").click();
+	await expect(primaryAction).toHaveText(/download html/i);
+
+	const [freshDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	expect(freshDownload.suggestedFilename()).toBe("sameview-comparison.html");
+});
+
+test("the Embed card's output-type radio and its WordPress platform selector are two separate, non-nested controls", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const embedCard = page.getByTestId("output-card-embed-in-website");
+	const platformSelector = page.getByTestId("output-platform-wordpress");
+
+	await expect(embedCard).toHaveAttribute("role", "radio");
+	await expect(platformSelector).toHaveAttribute("role", "radio");
+	await expect(platformSelector).toHaveAccessibleName(/\S/);
+
+	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": the platform
+	// selector is a separate control, never nested inside the radio that
+	// selects the output type itself.
+	const isNestedInsideRadio = await embedCard.evaluate(
+		(element) =>
+			element.querySelector('[data-testid="output-platform-wordpress"]') !==
+			null,
+	);
+	expect(isNestedInsideRadio).toBe(false);
+});
+
+test("Embed in website's card name, description and platform selector render in German after switching locale", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await switchToGerman(page);
+	await openOutputInspector(page);
+
+	const embedCard = page.getByTestId("output-card-embed-in-website");
+	await expect(embedCard).toContainText("In Website einbetten");
+	await expect(embedCard).toContainText(
+		"Diese Vergleichsansicht per WordPress in Ihre Website einbinden.",
+	);
+	// WordPress remains untranslated in both locales.
+	await expect(page.getByTestId("output-platform-wordpress")).toHaveText(
+		"WordPress",
+	);
 });
 
 test("the Presentation Preview stays visible and unchanged while the Output Inspector is open", async ({

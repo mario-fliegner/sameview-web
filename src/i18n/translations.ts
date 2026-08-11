@@ -188,9 +188,9 @@ export interface Translations {
 		readonly standaloneDescription: string;
 		readonly micrositeName: string;
 		readonly micrositeDescription: string;
-		readonly cmsName: string;
-		readonly cmsDescription: string;
-		readonly comingSoonBadge: string;
+		readonly embedName: string;
+		readonly embedDescription: string;
+		readonly embedPlatformLabel: string;
 		readonly useCurrentSliderPositionLabel: string;
 		readonly useCurrentSliderPositionHint: string;
 		readonly removeLocationDataLabel: string;
@@ -377,9 +377,10 @@ export const translations: Record<Locale, Translations> = {
 			micrositeName: "Static Microsite",
 			micrositeDescription:
 				"A ZIP with an index.html and local assets, ready for static webspace.",
-			cmsName: "CMS Package",
-			cmsDescription: "Coming soon.",
-			comingSoonBadge: "Coming Soon",
+			embedName: "Embed in website",
+			embedDescription:
+				"Add this comparison to your website through WordPress.",
+			embedPlatformLabel: "Platform",
 			useCurrentSliderPositionLabel: "Use current slider position",
 			useCurrentSliderPositionHint:
 				"Starts the output at the slider position currently shown in the preview.",
@@ -572,9 +573,10 @@ export const translations: Record<Locale, Translations> = {
 			micrositeName: "Statische Microsite",
 			micrositeDescription:
 				"Ein ZIP mit index.html und lokalen Assets, bereit für statischen Webspace.",
-			cmsName: "CMS-Paket",
-			cmsDescription: "Demnächst verfügbar.",
-			comingSoonBadge: "Demnächst",
+			embedName: "In Website einbetten",
+			embedDescription:
+				"Diese Vergleichsansicht per WordPress in Ihre Website einbinden.",
+			embedPlatformLabel: "Plattform",
 			useCurrentSliderPositionLabel: "Aktuelle Slider-Position verwenden",
 			useCurrentSliderPositionHint:
 				"Startet die Ausgabe mit der aktuell in der Vorschau eingestellten Slider-Position.",

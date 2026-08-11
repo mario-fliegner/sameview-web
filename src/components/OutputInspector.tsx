@@ -61,6 +61,25 @@ interface OutputInspectorProps {
 
 type Phase = "idle" | "generating" | "ready" | "error";
 
+// Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md "Embed in Website Output
+// Selection"): the Output Inspector's own selectable output-type set is
+// wider than what generation currently supports (`OutputType`, from
+// generate-comparison-output.ts) — Embed in website is selectable and
+// configurable here but has no working Generate action yet
+// (docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "this phase adds
+// selection UI only"). Kept as a separate type so generateComparisonOutput's
+// own OutputType union never has to widen for a state runGeneration already
+// guards against below.
+type SelectableOutputType = OutputType | "embed-in-website";
+
+// docs/WORDPRESS_INTEGRATION.md: WordPress is the only Embed platform
+// currently implemented (docs/EMBED_IN_WEBSITE.md "Supported Platforms" —
+// Joomla/Webflow/Squarespace are approved product scope but not planned by
+// this phase). No member is added here speculatively; this type exists to
+// establish the state boundary the specification requires, not to predict
+// future platforms.
+type EmbedPlatform = "wordpress";
+
 // Yields across exactly two real browser animation frames rather than a
 // fixed delay or a microtask-only `await Promise.resolve()` (which never
 // guarantees an actual paint): the outer callback fires once the
@@ -91,7 +110,15 @@ export default function OutputInspector({
 	getCurrentSliderPosition,
 }: OutputInspectorProps) {
 	const { locale, t } = useLocale();
-	const [outputType, setOutputType] = useState<OutputType>("standalone-html");
+	const [outputType, setOutputType] =
+		useState<SelectableOutputType>("standalone-html");
+	// Embed's own platform selection (docs/EMBED_IN_WEBSITE.md "Output
+	// Inspector Behavior"): explicit state rather than derived from "the only
+	// option", per the same document's "Changing the selected platform
+	// changes only the target/packaging of the next generated outcome" — a
+	// real, if currently single-valued, piece of output-specific state.
+	const [embedPlatform, setEmbedPlatform] =
+		useState<EmbedPlatform>("wordpress");
 	// Output-specific only (docs/COMPARISON_PRESENTATION.md "Use Current
 	// Slider Position"): never part of Current Working State, never affects
 	// the Workspace Preview, resets to its default whenever this component
@@ -112,6 +139,11 @@ export default function OutputInspector({
 		currentWorkingState.presentationVisibility.location;
 
 	async function runGeneration() {
+		// Phase 12 never renders the primary action while Embed is selected
+		// (below), so this never actually fires for it; this guard exists so
+		// `outputType` narrows to `OutputType` for generateComparisonOutput
+		// below without generateComparisonOutput's own union ever widening.
+		if (outputType === "embed-in-website") return;
 		setPhase("generating");
 		setProgressPhase("preparing-comparison");
 		// Snapshotted here, once, at the moment Generate is pressed — never
@@ -193,9 +225,19 @@ export default function OutputInspector({
 		artifactRef.current = null;
 	}
 
-	function selectOutputType(next: OutputType) {
+	function selectOutputType(next: SelectableOutputType) {
 		if (next === outputType) return;
 		setOutputType(next);
+		invalidateGeneratedArtifact();
+	}
+
+	// Same invalidation rule as selectOutputType and the two settings toggles
+	// below (docs/APPLICATION_LAYOUT.md "Completion") — even though Phase 12
+	// exposes only one value and this branch can never actually be reached by
+	// a user today (WordPress is the only rendered platform option).
+	function selectEmbedPlatform(next: EmbedPlatform) {
+		if (next === embedPlatform) return;
+		setEmbedPlatform(next);
 		invalidateGeneratedArtifact();
 	}
 
@@ -294,20 +336,64 @@ export default function OutputInspector({
 						{t.outputInspector.micrositeDescription}
 					</span>
 				</button>
+				{/* The platform selector below is a second, separate interactive
+				    control and must not nest inside the radio button that selects
+				    this output type (docs/EMBED_IN_WEBSITE.md "Output Inspector
+				    Behavior"); this wrapper div carries the card's visual styling
+				    instead, exactly as the plain <button> does for the two cards
+				    above. */}
 				<div
-					className="output-inspector__card output-inspector__card--disabled"
-					data-testid="output-card-cms-package"
-					aria-disabled="true"
+					className={`output-inspector__card${
+						outputType === "embed-in-website"
+							? " output-inspector__card--selected"
+							: ""
+					}`}
 				>
-					<span className="output-inspector__card-name">
-						{t.outputInspector.cmsName}
-						<span className="output-inspector__card-badge">
-							{t.outputInspector.comingSoonBadge}
+					{/* biome-ignore lint/a11y/useSemanticElements: see the comment on the two cards above */}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={outputType === "embed-in-website"}
+						className="output-inspector__card-select"
+						data-testid="output-card-embed-in-website"
+						onClick={() => selectOutputType("embed-in-website")}
+						disabled={isGenerating}
+					>
+						<span className="output-inspector__card-name">
+							{t.outputInspector.embedName}
 						</span>
-					</span>
-					<span className="output-inspector__card-description">
-						{t.outputInspector.cmsDescription}
-					</span>
+						<span className="output-inspector__card-description">
+							{t.outputInspector.embedDescription}
+						</span>
+					</button>
+					<div
+						className="output-inspector__platform-selector"
+						role="radiogroup"
+						aria-label={t.outputInspector.embedPlatformLabel}
+					>
+						<span className="output-inspector__platform-label">
+							{t.outputInspector.embedPlatformLabel}
+						</span>
+						{/* WordPress is currently the only Embed platform
+						    (docs/EMBED_IN_WEBSITE.md "Supported Platforms"); no Joomla,
+						    Webflow or Squarespace option is offered. */}
+						{/* biome-ignore lint/a11y/useSemanticElements: see the comment on the two radiogroups above */}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={embedPlatform === "wordpress"}
+							className={`output-inspector__platform-option${
+								embedPlatform === "wordpress"
+									? " output-inspector__platform-option--selected"
+									: ""
+							}`}
+							data-testid="output-platform-wordpress"
+							onClick={() => selectEmbedPlatform("wordpress")}
+							disabled={outputType !== "embed-in-website" || isGenerating}
+						>
+							WordPress
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -393,17 +479,23 @@ export default function OutputInspector({
 				</div>
 			)}
 
-			<button
-				type="button"
-				className="output-inspector__primary-button"
-				data-testid="output-primary-action"
-				onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
-				disabled={isGenerating}
-			>
-				{phase === "ready"
-					? t.outputInspector.downloadAgainButton
-					: primaryLabel}
-			</button>
+			{/* Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md "Embed in Website Output
+			    Selection"): Embed in website has no working Generate action yet, so
+			    the primary action is absent entirely while it is selected — no
+			    disabled button, no "Coming Soon" placeholder, no invented copy. */}
+			{outputType !== "embed-in-website" && (
+				<button
+					type="button"
+					className="output-inspector__primary-button"
+					data-testid="output-primary-action"
+					onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
+					disabled={isGenerating}
+				>
+					{phase === "ready"
+						? t.outputInspector.downloadAgainButton
+						: primaryLabel}
+				</button>
+			)}
 		</aside>
 	);
 }
