@@ -204,7 +204,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Not included:** Hosted output, URL, QR/iframe code, upload or management; CMS Package remains visible as a non-selectable "Coming Soon" Output Card and is not implemented as a functioning output.
 - **Risks/open decisions:** None remaining at the product/contract level — filenames, both artifact contracts, the shared-scaffold principle and the download/completion behavior are decided above. Resolved (download detection): neither the HTML nor the Fetch/File APIs define a completion or blocked event for a `Blob` + anchor `download` attribute click — confirmed against MDN's `HTMLAnchorElement.download`/`Window.showSaveFilePicker()` documentation; the only genuinely Promise-based success/cancel signal, the File System Access API's `showSaveFilePicker()`, is Chromium-only (Chrome/Edge/Opera) with no Firefox or Safari support on any platform, which is why this phase deliberately does not use it and instead relies on an always-available `Download again` action rather than detection. The concrete module/function boundary implementing the shared scaffold, and the exact wording/formatting of the embedded font license comment, are ordinary implementation-time choices within that contract, not open product decisions.
 
-### Phase 10 – V1 Integration and Release Readiness
+### Phase 10 – (Completed) V1 Integration and Release Readiness
 
 - **Goal:** Verify the complete browser-local journey and quality gates without broadening scope.
 - **Specs/features:** F-001–F-005; User Workflow; engineering guide; deployment contract.
