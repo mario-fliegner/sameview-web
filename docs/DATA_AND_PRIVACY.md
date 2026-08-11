@@ -12,6 +12,14 @@ Imported Source Data and the Current Working State remain full-fidelity and loca
 
 For Hosted Publication planned in Version 2, publishing sends only the explicit outcome allowlist; Source Data and the complete Current Working State are never uploaded.
 
+## Embed in Website
+
+Embed in website ([docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md)) is an approved Version 1 output, not yet implemented. It is generated and downloaded from SameView Web like Standalone HTML and Static Microsite; Source Data and the complete Current Working State are never uploaded to the server for this output either.
+
+Once installed on a target platform, an Embed integration is a third kind of data residency, distinct from the two already described above: not local to the user's browser, and not stored by SameView Web's own server. It is stored entirely by the target platform, under the control of whoever operates that platform, with no runtime dependency on SameView servers or SameView services. This is independent of, and does not change, Source Data's and the Current Working State's own local-to-the-browser handling in SameView Web itself.
+
+Embed in website does not introduce telemetry, usage analytics, remote error reporting or similar reporting. Any future telemetry capability requires its own explicit product, privacy, consent and technical specification.
+
 ## Stored Data
 
 The following data may be stored for Hosted Publication in Version 2:
@@ -38,7 +46,7 @@ Session metadata in `metadata.json` is distinct from metadata embedded in image 
 
 Source Data and the Current Working State preserve supported and unknown session metadata locally for compatibility. For Hosted Publication in Version 2, image processing removes embedded EXIF, XMP, IPTC and GPS metadata from published images.
 
-For Version 1, embedded location metadata (e.g. EXIF GPS, or location fields within XMP or IPTC) in the reference and capture images may optionally be removed before a comparison image is included in a generated Standalone HTML or Static Microsite output — see FEATURE_SPECIFICATION.md F-005 "Remove Embedded Location Data". Only embedded location information is removed; other embedded metadata is preserved. This is independent of, and never exposes, `captureLocation` or `referenceLocation`.
+For Version 1, embedded location metadata (e.g. EXIF GPS, or location fields within XMP or IPTC) in the reference and capture images may optionally be removed before a comparison image is included in a generated Standalone HTML, Static Microsite or Embed in website output — see FEATURE_SPECIFICATION.md F-005 "Remove Embedded Location Data". Only embedded location information is removed; other embedded metadata is preserved. This is independent of, and never exposes, `captureLocation` or `referenceLocation`.
 
 ## Image Processing (Version 2 Hosted Publication)
 

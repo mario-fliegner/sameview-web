@@ -427,6 +427,8 @@ The surrounding layout should not need to change.
 
 # Fullscreen Mode
 
+Fullscreen is a capability of the Presentation Preview within SameView Web's own application UI. No generated output type — Standalone HTML, Static Microsite or Embed in website ([docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md)) — implements a Fullscreen mode of its own; each renders the complete Presentation within its own container instead (see docs/COMPARISON_PRESENTATION.md "Preview Scaling" for how each output type otherwise fills its available space).
+
 Fullscreen is the only enlarging function for the comparison. No separate preview function, no lightbox, no additional page and no additional browser tab exists alongside it.
 
 Fullscreen is started from a compact icon button inside the Reserved Control Area, a small, permanently reserved area at the top-right of the Presentation Preview. The Reserved Control Area belongs to the Presentation Preview and to the application UI. It is explicitly not part of the Presentation Canvas (see docs/COMPARISON_PRESENTATION.md "Presentation Canvas") and never appears in a generated output. It permanently reserves its own place in the layout, has no visible background, no border and no separating line, and exists solely to hold the Fullscreen button or the Close button.
@@ -493,7 +495,7 @@ Version 1 provides three output cards:
 
 - Standalone HTML (available)
 - Static Microsite (available)
-- CMS Package (Coming Soon)
+- Embed in website (approved, specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md); availability follows that specification's own implementation state)
 
 Hosted Comparison is not presented in Version 1.
 
@@ -501,9 +503,9 @@ Each card contains:
 
 - output name
 - short explanation
-- optional status badge (Coming Soon)
+- optional status badge
 
-Standalone HTML and Static Microsite can be selected. CMS Package cannot be selected.
+Standalone HTML and Static Microsite can be selected. Once available, Embed in website can be selected the same way; its own card layout, including its inline target-platform selector, is defined in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Output Inspector Behavior".
 
 ## Standalone HTML
 

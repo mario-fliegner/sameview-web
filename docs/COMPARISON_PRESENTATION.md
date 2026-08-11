@@ -113,6 +113,31 @@ vary between one interactive rendering of the presentation and another.
 
 
 
+## Multiple Instances and Host Isolation
+
+An interactive rendering of the presentation must support more than one
+fully independent instance existing at the same time within the same host
+document, even when multiple instances present the same comparison.
+
+Each instance has its own independent interaction state — slider position,
+tooltip state, focus and any other temporary UI state. Moving one
+instance's slider, opening one instance's tooltip, or otherwise interacting
+with one instance never affects another. No instance's identifiers, event
+handling or other behavior collide with another's.
+
+Where an interactive rendering shares a host document with content it does
+not itself control, isolation applies in both directions: host content must
+never unintentionally alter or break the presentation, and the presentation
+must never leak its own styling, scripting, identifiers or other behavior
+into that surrounding host content. This isolation holds regardless of how
+many instances share the host document.
+
+This is a property of the presentation model itself, not of any one output
+type. [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) defines the first
+approved output type that actually requires more than one simultaneous
+instance and a shared, uncontrolled host document; the requirement itself
+is defined here, once.
+
 ## Workspace Preview
 
 The Workspace Preview is the authoritative live representation of the Current

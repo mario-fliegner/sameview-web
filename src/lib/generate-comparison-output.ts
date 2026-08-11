@@ -18,10 +18,7 @@ import {
 	generateStaticMicrosite,
 	STATIC_MICROSITE_FILENAME,
 } from "./generate-static-microsite.ts";
-import {
-	createOutcomeSnapshot,
-	type OutcomeSnapshot,
-} from "./outcome-snapshot.ts";
+import { createOutcomeSnapshot } from "./outcome-snapshot.ts";
 import {
 	type ProcessComparisonImagesError,
 	processComparisonImages,
@@ -72,29 +69,27 @@ export type GenerateComparisonOutputResult =
 	| { readonly ok: true; readonly value: GeneratedArtifact }
 	| { readonly ok: false; readonly error: GenerateComparisonOutputError };
 
-function withProcessedImages(
-	snapshot: OutcomeSnapshot,
-	referenceImageBytes: Uint8Array,
-	captureImageBytes: Uint8Array,
-): OutcomeSnapshot {
-	return { ...snapshot, referenceImageBytes, captureImageBytes };
-}
-
 export async function generateComparisonOutput(
 	options: GenerateComparisonOutputOptions,
 ): Promise<GenerateComparisonOutputResult> {
 	options.onPhase?.("preparing-comparison");
-	const snapshot = createOutcomeSnapshot(
-		options.currentWorkingState,
-		options.locale,
-		options.presentationOptions,
-		options.initialSliderPosition,
-	);
 
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 11: the Outcome Fingerprint must
+	// describe the *final* allowlisted outcome content, including the final
+	// comparison image bytes — so Phase 8's image processing runs first,
+	// directly on the Current Working State's own bytes, and its result is
+	// handed to createOutcomeSnapshot() as `finalImages`. This keeps
+	// createOutcomeSnapshot() the single, sole construction point for a
+	// complete OutcomeSnapshot: it is called exactly once, only once every
+	// fingerprint-relevant input (including these bytes) is already final.
 	options.onPhase?.("processing-images");
-	const processedImages = processComparisonImages(snapshot, {
-		removeEmbeddedLocationData: options.removeEmbeddedLocationData,
-	});
+	const processedImages = processComparisonImages(
+		{
+			referenceImageBytes: options.currentWorkingState.files.referenceBytes,
+			captureImageBytes: options.currentWorkingState.files.captureBytes,
+		},
+		{ removeEmbeddedLocationData: options.removeEmbeddedLocationData },
+	);
 	if (!processedImages.ok) {
 		return {
 			ok: false,
@@ -102,14 +97,16 @@ export async function generateComparisonOutput(
 		};
 	}
 
-	const processedSnapshot = withProcessedImages(
-		snapshot,
-		processedImages.value.referenceImageBytes,
-		processedImages.value.captureImageBytes,
+	const snapshot = await createOutcomeSnapshot(
+		options.currentWorkingState,
+		options.locale,
+		options.presentationOptions,
+		options.initialSliderPosition,
+		processedImages.value,
 	);
 
 	const generatorOptions = {
-		snapshot: processedSnapshot,
+		snapshot,
 		locale: options.locale,
 		copy: options.copy,
 		titleText: options.titleText,

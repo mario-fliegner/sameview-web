@@ -138,6 +138,10 @@ comparisons/<internal-id>/
 
 Original ZIP files are not stored.
 
+### Embed Platform Storage
+
+Embed in website ([docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md)) is generated and downloaded from SameView Web exactly like Standalone HTML and Static Microsite. Once downloaded, its persistent storage exists entirely inside the target platform's own infrastructure (for example a customer's WordPress installation), never inside SameView Web's own database or filesystem. The hard constraints above — no S3 or other external object storage, one Netcup MySQL database, no persistent upload directory used by the browser-local V1 workflow — govern SameView Web's own infrastructure and do not apply to a target platform's storage, which is outside SameView Web's control. Platform-specific storage models are defined in the relevant platform integration document, for example [docs/WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md).
+
 ## Backup
 
 The following backup requirements apply to the prepared database and persistent image storage used by Hosted Publication in Version 2:

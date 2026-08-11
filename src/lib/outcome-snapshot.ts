@@ -31,16 +31,45 @@
 // (src/components/OutputInspector.tsx), exactly like every other
 // caller-resolved value this module accepts (locale, options).
 //
-// No React, no DOM, no async: pure and synchronous, mirroring every other
-// derivation module this one composes.
+// session (docs/IMPORTED_COMPARISON_V1.md "Comparison Identity (`session.id`)",
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 11): sourced exclusively from
+// `cws.sessionDirectory`, the archive-directory identity already resolved and
+// established as authoritative at import time (src/lib/import-resolve.ts,
+// src/lib/import-source-data.ts) — never from `cws.metadata.sessionId`, the
+// informational, non-authoritative `session.id`/`sessionId` field that may be
+// present in imported metadata (docs/IMPORTED_COMPARISON_V1.md "Session
+// Identity"). The two must never be conflated.
+//
+// outcomeFingerprint (docs/IMPORTED_COMPARISON_V1.md "Outcome Fingerprint"):
+// computed by src/lib/outcome-fingerprint.ts from the authoritative,
+// locale/timezone-independent raw inputs this function already has in hand —
+// see that module's own header comment for the exact input set and why. Must
+// describe the *final* allowlisted outcome content, including the final
+// comparison image bytes after Phase 8's `Remove Embedded Location Data`
+// processing (docs/FEATURE_SPECIFICATION.md F-005) — so this function accepts
+// those final bytes as an optional `finalImages` override instead of always
+// deriving them from `cws.files` itself. This keeps this function the single,
+// sole construction point for a complete OutcomeSnapshot: it is never called
+// twice, and there is never an intermediate snapshot whose outcomeFingerprint
+// could go stale relative to its own image bytes. When `finalImages` is
+// omitted, `cws.files.referenceBytes`/`captureBytes` are used unchanged,
+// exactly as before this field existed — every direct caller/test that does
+// not go through Phase 8 image processing needs no new argument.
+//
+// No React, no DOM: still synchronous in spirit, but `outcomeFingerprint`
+// requires the async Web Crypto digest (src/lib/outcome-fingerprint.ts), so
+// this function itself is `async` — the one deliberate exception to this
+// module's original "no async" design, scoped narrowly to that one need.
 
 import type { Locale } from "../i18n/translations";
 import { type HandleBranding, resolveHandleBranding } from "./branding.ts";
+import { getReferenceDateValue } from "./comparison-edit.ts";
 import {
 	type ComparisonPresentation,
 	type DeriveComparisonPresentationOptions,
 	deriveComparisonPresentation,
 } from "./comparison-presentation.ts";
+import { computeOutcomeFingerprint } from "./outcome-fingerprint.ts";
 import type {
 	CurrentWorkingState,
 	PresentationConfiguration,
@@ -55,6 +84,9 @@ import type {
 export const DEFAULT_INITIAL_SLIDER_POSITION = 0.5;
 
 export interface OutcomeSnapshot {
+	// docs/IMPORTED_COMPARISON_V1.md "Comparison Identity (`session.id`)" —
+	// see this file's own header comment for the authoritative source.
+	readonly session: { readonly id: string };
 	readonly presentation: ComparisonPresentation;
 	readonly visibility: PresentationVisibility;
 	readonly configuration: PresentationConfiguration;
@@ -67,6 +99,15 @@ export interface OutcomeSnapshot {
 	readonly captureImageBytes: Uint8Array;
 	// docs/COMPARISON_PRESENTATION.md Part 2 "Initial Slider Position".
 	readonly initialSliderPosition: number;
+	// docs/IMPORTED_COMPARISON_V1.md "Outcome Fingerprint" — see this file's
+	// own header comment for what participates and why.
+	readonly outcomeFingerprint: string;
+}
+
+// See this file's own header comment ("outcomeFingerprint").
+export interface FinalComparisonImages {
+	readonly referenceImageBytes: Uint8Array;
+	readonly captureImageBytes: Uint8Array;
 }
 
 // Defensive copies: an Outcome Snapshot must remain a true point-in-time
@@ -85,24 +126,55 @@ function cloneOptionalBytes(
 	return bytes === undefined ? undefined : bytes.slice();
 }
 
-export function createOutcomeSnapshot(
+export async function createOutcomeSnapshot(
 	cws: CurrentWorkingState,
 	locale: Locale,
 	options: DeriveComparisonPresentationOptions,
 	initialSliderPosition: number = DEFAULT_INITIAL_SLIDER_POSITION,
-): OutcomeSnapshot {
+	finalImages?: FinalComparisonImages,
+): Promise<OutcomeSnapshot> {
 	const branding = resolveHandleBranding(cws);
+	const presentation = deriveComparisonPresentation(
+		cws.metadata,
+		locale,
+		options,
+	);
+	const brandingAssetBytes =
+		branding.kind === "asset"
+			? cloneOptionalBytes(cws.files.brandingHandleBytes)
+			: undefined;
+	const referenceImageBytes = cloneBytes(
+		finalImages?.referenceImageBytes ?? cws.files.referenceBytes,
+	);
+	const captureImageBytes = cloneBytes(
+		finalImages?.captureImageBytes ?? cws.files.captureBytes,
+	);
+
+	const outcomeFingerprint = await computeOutcomeFingerprint({
+		title: presentation.title,
+		description: presentation.description,
+		location: presentation.location,
+		referenceDateRaw: getReferenceDateValue(cws) || undefined,
+		captureTimestampMs: cws.metadata.captureTimestampMs,
+		visibility: cws.presentationVisibility,
+		configuration: cws.presentationConfiguration,
+		initialSliderPosition,
+		branding,
+		brandingAssetBytes,
+		referenceImageBytes,
+		captureImageBytes,
+	});
+
 	return {
-		presentation: deriveComparisonPresentation(cws.metadata, locale, options),
+		session: { id: cws.sessionDirectory },
+		presentation,
 		visibility: { ...cws.presentationVisibility },
 		configuration: { ...cws.presentationConfiguration },
 		branding,
-		brandingAssetBytes:
-			branding.kind === "asset"
-				? cloneOptionalBytes(cws.files.brandingHandleBytes)
-				: undefined,
-		referenceImageBytes: cloneBytes(cws.files.referenceBytes),
-		captureImageBytes: cloneBytes(cws.files.captureBytes),
+		brandingAssetBytes,
+		referenceImageBytes,
+		captureImageBytes,
 		initialSliderPosition,
+		outcomeFingerprint,
 	};
 }

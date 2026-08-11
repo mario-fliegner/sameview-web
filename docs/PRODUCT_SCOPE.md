@@ -48,9 +48,9 @@ Currently supported in Version 1:
 - Standalone HTML
 - Static Microsite
 
-Visible in the Output Inspector as Coming Soon, not implemented in Version 1:
+Approved for Version 1, not yet implemented:
 
-- CMS Package
+- Embed in website — placing a Comparison inside an existing website/CMS through a persistent, platform-native integration. Specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md); platform-specific technical contracts (e.g. WordPress) are specified separately, for example [docs/WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md). Supported target platforms are implemented, tested and released independently of one another.
 
 Planned for Version 2:
 
@@ -58,7 +58,7 @@ Planned for Version 2:
 - QR code
 - iframe embed code
 
-SameView Web is designed to support multiple comparison output types generated from the same comparison. Version 1 supports Standalone HTML and Static Microsite, both produced from the same shared presentation and interaction source and differing only in packaging. CMS Package is shown as Coming Soon but has no Version 1 implementation. Version 2 is planned to add Hosted Comparison, QR code and iframe embed code. Further comparison output types may be added in the future.
+SameView Web is designed to support multiple comparison output types generated from the same comparison. Version 1 supports Standalone HTML and Static Microsite, both produced from the same shared presentation and interaction source and differing only in packaging. Embed in website is an approved third Version 1 output type, produced from the same shared presentation and interaction source, not yet implemented. Version 2 is planned to add Hosted Comparison, QR code and iframe embed code. Further comparison output types may be added in the future.
 
 ## Out of Scope (V1)
 

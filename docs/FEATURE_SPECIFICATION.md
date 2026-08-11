@@ -183,6 +183,7 @@ After editing:
 - Removing a value is different from hiding the information.
 - Presentation visibility defined by this feature is independent of the preserved imported `additional.visibility` metadata field.
 - Session Branding is configured only through Feature F-004.
+- A target platform for a generated Embed in website output is not an alternative editor for this feature's editable properties — see [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Editing Boundary".
 - Detailed value formats, validation, metadata semantics and outcome snapshot behavior remain defined by the existing specifications.
 - Implementation details and user interface layout are outside the scope of this feature.
 - No product behavior beyond the behavior defined by the approved specifications and this feature is introduced.
@@ -266,7 +267,7 @@ The currently supported Version 1 output types are:
 - Standalone HTML
 - Static Microsite
 
-CMS Package is visible as a Coming Soon output type but is not implemented in Version 1.
+Embed in website is an approved Version 1 output type, not yet implemented, specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md); platform-specific technical contracts are specified separately, for example [docs/WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md).
 
 The output type planned for Version 2 is:
 
@@ -308,7 +309,7 @@ Generation and browser download form one continuous user action.
 
 ### Use Current Slider Position
 
-Use Current Slider Position is a shared output-specific setting, available identically for Standalone HTML and Static Microsite once an output type has been selected. It is not part of the Current Working State and has no effect on the Workspace Preview.
+Use Current Slider Position is a shared output-specific setting, available identically for Standalone HTML, Static Microsite and Embed in website once an output type has been selected. It is not part of the Current Working State and has no effect on the Workspace Preview.
 
 Default: Off.
 
@@ -316,11 +317,11 @@ When Off, the generated output's Comparison Stage divider starts at the exact mi
 
 When On, the divider instead starts at the Workspace Preview's own current interactive slider position, read exactly once, at the moment generation is triggered, and carried into the Outcome Snapshot like every other captured value. The generated output is fully independent afterwards: its divider remains fully interactive, and later Workspace Preview slider movement never changes an already-generated output.
 
-Standalone HTML and Static Microsite always use the same value for this setting, and the same resulting starting position, for a given outcome; no output-type-specific value exists.
+Standalone HTML, Static Microsite and Embed in website always use the same value for this setting, and the same resulting starting position, for a given outcome; no output-type-specific value exists.
 
 ### Remove Embedded Location Data
 
-Remove Embedded Location Data is a shared output-specific setting, available identically for Standalone HTML and Static Microsite once an output type has been selected. It is not part of the Current Working State and has no effect on the Workspace Preview.
+Remove Embedded Location Data is a shared output-specific setting, available identically for Standalone HTML, Static Microsite and Embed in website once an output type has been selected. It is not part of the Current Working State and has no effect on the Workspace Preview.
 
 Default: On.
 
@@ -330,7 +331,7 @@ This setting affects only metadata embedded within the two comparison image file
 
 This setting is fully independent of the visible, user-editable Location value and its `Show Location` visibility (F-003; COMPARISON_PRESENTATION.md Part 3). Changing one never changes the other. When this setting is On and Show Location is also currently On, the Output Inspector displays a neutral informational hint that the visible location remains part of the comparison and that this setting removes only embedded image metadata. The hint never blocks generation and never changes either setting.
 
-Standalone HTML and Static Microsite always use the same value for this setting for a given outcome; no output-type-specific value exists.
+Standalone HTML, Static Microsite and Embed in website always use the same value for this setting for a given outcome; no output-type-specific value exists.
 
 ### Result
 

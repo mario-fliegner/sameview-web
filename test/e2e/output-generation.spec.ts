@@ -7,6 +7,7 @@
 // uses, so the generated artifacts always have a real title/description/
 // location/date to render and assert against.
 
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -1564,4 +1565,83 @@ test("changing Remove Embedded Location Data after a successful generation rever
 	]);
 	expect(secondDownload.suggestedFilename()).toBe("sameview-comparison.html");
 	await expect(primaryAction).toHaveText(/download again/i);
+});
+
+function sha256Hex(bytes: Uint8Array | Buffer): string {
+	return createHash("sha256").update(bytes).digest("hex");
+}
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 11: session.id/outcomeFingerprint are
+// additive Outcome Snapshot fields that must never change generated
+// Standalone HTML or Static Microsite bytes. These hashes were captured from
+// the real, actually-downloaded artifact for this fixture's default
+// generation settings *before* Phase 11 was implemented — never update them
+// merely to make this test pass; a mismatch means some change (Phase 11 or
+// otherwise) altered output that must stay byte-for-byte identical.
+test("Standalone HTML bytes for the default fixture configuration remain byte-for-byte unchanged across unrelated Outcome Snapshot changes (Phase 11 regression guard)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const bytes = readFileSync(await download.path());
+	expect(sha256Hex(bytes)).toBe(
+		"7b42fdc5e83e8856475d3949228657b25dd310457877c1e24bdf0c965336c2c2",
+	);
+});
+
+// Compares each Static Microsite ZIP entry's own decompressed content bytes,
+// not the raw .zip container bytes: @zip.js/zip.js embeds a per-entry
+// last-modified timestamp that defaults to the real generation wall-clock
+// time, so the container itself is not byte-stable across separate
+// generation runs even without any code change — the entries' actual content
+// is the outcome's own allowlisted content, and is what must stay stable.
+test("Static Microsite entry contents for the default fixture configuration remain byte-for-byte unchanged across unrelated Outcome Snapshot changes (Phase 11 regression guard)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-static-microsite").click();
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	const zipBytes = new Uint8Array(readFileSync(await download.path()));
+	const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	const entries = await zipReader.getEntries();
+	const hashes: Record<string, string> = {};
+	for (const entry of [...entries].sort((a, b) =>
+		a.filename.localeCompare(b.filename),
+	)) {
+		if (entry.directory) continue;
+		const content = await entry.getData(new Uint8ArrayWriter());
+		hashes[entry.filename] = sha256Hex(content);
+	}
+	await zipReader.close();
+
+	expect(hashes).toEqual({
+		"css/sameview-comparison.css":
+			"9684cd9ec3123f1dbda7860ea7a43b08a8f91f8ce2ec6047da52cb2fb0f6b646",
+		"favicon.svg":
+			"b6cb258303f8f2152872f2d8be876c68b814b88ee5815a29df3de6ac932e430e",
+		"fonts/InterVariable.woff2":
+			"693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+		"fonts/LICENSE.txt":
+			"262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+		"images/branding.png":
+			"5b3509644714449696e358c63208577ef242728257f186b14eff645ca9a0d392",
+		"images/capture.jpg":
+			"923cd17ea10e2c6f298c9fbff21445a8d06af63bb52fb55e6f0a62961f492dde",
+		"images/reference.jpg":
+			"2b44c9683150071c833cb3c4d616cd1085eb08e504122d6879baaa973f3a2668",
+		"index.html":
+			"3b0dd723677a238fc1f9d2c399f92af1b50d57e4734eeeeb9beccde07188fbc1",
+		"js/sameview-comparison.js":
+			"fcd969a577744aa1332c020af34f491f94d37c30b81d020a0a11aeae953ccd51",
+	});
 });

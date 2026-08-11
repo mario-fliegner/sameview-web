@@ -4,7 +4,7 @@
 
 This plan translates the approved specifications and the current repository baseline into an executable order for the remaining Version 1 work. It is not a product specification and does not replace one. If this plan conflicts with an approved specification, the specification remains authoritative.
 
-Version 1 ends with a browser-local workflow whose two outputs are downloadable Standalone HTML and a downloadable Static Microsite ZIP, both generated from the same shared presentation and interaction source. Hosted Publication and its infrastructure are not implementation steps in this plan.
+The browser-local workflow whose two outputs are downloadable Standalone HTML and a downloadable Static Microsite ZIP, both generated from the same shared presentation and interaction source, is complete (Phases 1–10 below). Version 1 scope has since expanded to include a third output, `Embed in website` — see [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs", [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) and [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md). `Embed in website` is approved Version 1 scope, not yet implemented; this plan does not duplicate its normative contract, only the executable order to build it. WordPress is the only Embed platform planned here (Phases 11–18); Joomla, Webflow and Squarespace are approved product scope but require their own feasibility research and platform-specific technical contracts before they can be planned — see Section 8. Hosted Publication and its infrastructure remain out of scope for this plan.
 
 ## 2. Current Baseline
 
@@ -201,7 +201,7 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Dependencies:** Phases 7–8b (all completed).
 - **Definition of Done:** Downloaded Standalone HTML opens without network/server access as `sameview-comparison.html`; a downloaded `sameview-comparison.zip`, once unpacked, works the same way on ordinary static webspace with exactly the file/folder structure above and no unneeded files; both present the snapshot interactively and accessibly from the same shared HTML/Presentation document scaffold, contain only allowlisted data and the one actually selected Presentation Font (with its license text/file included), and remain unchanged after workspace edits; the Completion state never asserts a successful save, and `Download again` reliably re-downloads the identical already-generated artifact without a new generation cycle for as long as the selected output configuration is unchanged since that generation; a generation failure never triggers any download and always reaches the specified error state instead.
 - **Tests/manual:** Unit tests for escaping, allowlist serialization, the font-ID-to-asset-file(s) map (only the selected font's file(s) and license are ever included), and deterministic document/package structure (including the "no unneeded file" rule); build/typecheck/lint; automated Playwright E2E tests for download, offline execution (Standalone HTML) and unpack-and-serve execution (Static Microsite), and responsive/keyboard checks inside each artifact; manual spot checks in additional real browsers/devices.
-- **Not included:** Hosted output, URL, QR/iframe code, upload or management; CMS Package remains visible as a non-selectable "Coming Soon" Output Card and is not implemented as a functioning output.
+- **Not included:** Hosted output, URL, QR/iframe code, upload or management; the third Output Card was not implemented as a functioning output at the time of this phase (then a placeholder labeled "CMS Package"; since superseded by the approved `Embed in website` output — see Phases 11–18 below and `EMBED_IN_WEBSITE.md`).
 - **Risks/open decisions:** None remaining at the product/contract level — filenames, both artifact contracts, the shared-scaffold principle and the download/completion behavior are decided above. Resolved (download detection): neither the HTML nor the Fetch/File APIs define a completion or blocked event for a `Blob` + anchor `download` attribute click — confirmed against MDN's `HTMLAnchorElement.download`/`Window.showSaveFilePicker()` documentation; the only genuinely Promise-based success/cancel signal, the File System Access API's `showSaveFilePicker()`, is Chromium-only (Chrome/Edge/Opera) with no Firefox or Safari support on any platform, which is why this phase deliberately does not use it and instead relies on an always-available `Download again` action rather than detection. The concrete module/function boundary implementing the shared scaffold, and the exact wording/formatting of the embedded font license comment, are ordinary implementation-time choices within that contract, not open product decisions.
 
 ### Phase 10 – (Completed) V1 Integration and Release Readiness
@@ -216,6 +216,126 @@ The repository is not an empty Astro starter. The following is present and verif
 - **Tests/manual:** Full `test`, `typecheck`, `lint`, `build` and the automated Playwright E2E suite from Phases 3–9; manual regression sweep limited to the supplementary checks defined in `AI_ENGINEERING_GUIDE.md`'s Testing section.
 - **Not included:** Any deferred work below.
 - **Risks/open decisions:** None; the testing strategy is settled (see Section 6).
+
+## 4a. Embed in Website – WordPress Implementation Phases
+
+Phases 11–18 deliver the WordPress platform for the approved `Embed in website` output ([EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md), [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md)). They follow, and do not reopen, the completed browser-local V1 work in Phases 1–10.
+
+These phases span two deliverables that must not be conflated: SameView Web's own generation code (this repository, Astro/React/TypeScript, extending the existing Standalone HTML/Static Microsite generation architecture) and the WordPress plugin itself (a separate PHP/WordPress deliverable — see the repository-location decision gate in Phase 14). Phases below state explicitly which deliverable each belongs to.
+
+None of these phases duplicate the normative contracts in `EMBED_IN_WEBSITE.md`/`WORDPRESS_INTEGRATION.md`; each cross-references the relevant section instead of restating it, per `AI_ENGINEERING_GUIDE.md` "Specification Discipline".
+
+### Phase 11 – SameView Web: Comparison Identity and Outcome Fingerprint
+
+- **Goal:** Extend the Outcome Snapshot with the two new fields every persistent Embed platform needs, without changing Standalone HTML or Static Microsite behavior.
+- **Deliverable:** SameView Web (this repository).
+- **Specs/features:** `IMPORTED_COMPARISON_V1.md` "Comparison Identity (`session.id`)" and "Outcome Fingerprint"; "Outcome and Publication Data" allowlist.
+- **Existing basis:** `src/lib/outcome-snapshot.ts` already builds the Outcome Snapshot from Current Working State; `sessionDirectory` is already resolved at import time (`src/lib/import-resolve.ts`, `src/lib/workspace-state.ts`) but not currently carried into the snapshot.
+- **Implement:** Carry the already-resolved, authoritative session directory identity into the Outcome Snapshot as `session.id`, per `IMPORTED_COMPARISON_V1.md`. Add a deterministically generated Outcome Fingerprint to the Outcome Snapshot, computed from the same allowlisted content already captured there. Both fields are additive to the existing snapshot shape; Standalone HTML and Static Microsite continue to ignore them.
+- **Likely areas:** `src/lib/outcome-snapshot.ts` and its existing unit tests.
+- **Dependencies:** None beyond the completed Phase 7 (Outcome Snapshot).
+- **Definition of Done:** Every generated Outcome Snapshot carries `session.id` and an Outcome Fingerprint; regenerating an outcome from unchanged Current Working State produces the same fingerprint; regenerating after any allowlisted-content change produces a different one; Standalone HTML and Static Microsite output is unchanged byte-for-byte from before this phase.
+- **Tests/manual:** Unit tests for `session.id` carry-through and fingerprint determinism/change-sensitivity; existing Standalone HTML/Static Microsite tests remain green unmodified.
+- **Not included:** Any WordPress-facing packaging, the Output Inspector UI (Phase 12), the concrete fingerprint algorithm choice beyond "deterministic and change-sensitive" (implementation-time detail, not a product decision).
+- **Risks/open decisions:** None; `IMPORTED_COMPARISON_V1.md` already resolves the identity-terminology question this phase depends on.
+
+### Phase 12 – SameView Web: Embed in Website Output Selection
+
+- **Goal:** Add the `Embed in website` Output Inspector card with an inline platform selector, WordPress the only selectable platform, without changing Standalone HTML/Static Microsite behavior.
+- **Deliverable:** SameView Web (this repository).
+- **Specs/features:** `EMBED_IN_WEBSITE.md` "Output Inspector Behavior", "Supported Platforms"; `APPLICATION_LAYOUT.md` "Output Cards"; `FEATURE_SPECIFICATION.md` F-005.
+- **Existing basis:** `src/components/OutputInspector.tsx` already renders output-type cards and the two shared output-specific settings (Use Current Slider Position, Remove Embedded Location Data) for Standalone HTML and Static Microsite.
+- **Implement:** Add the `Embed in website` card with its target-platform selector shown inline (not only after the card is selected), per `EMBED_IN_WEBSITE.md`. Only WordPress is selectable; other platforms are not offered, since they are not yet planned (see Section 8). Changing the selected platform changes only the next generated outcome's target, never the Current Working State, Workspace Preview or shared output-setting state. The two existing output-specific settings apply unchanged.
+- **Likely areas:** `src/components/OutputInspector.tsx` and related Output Inspector state.
+- **Dependencies:** Phase 11 (a `session.id`/fingerprint-bearing snapshot must exist before any Embed package can be meaningfully generated in Phase 15).
+- **Definition of Done:** The Output Inspector shows three cards; selecting `Embed in website` shows WordPress as the only platform option; switching between output types and platforms never mutates the Current Working State; Standalone HTML/Static Microsite selection and generation are unaffected.
+- **Tests/manual:** Automated Playwright E2E tests for card/platform-selector visibility and state-preservation across switches; existing Standalone HTML/Static Microsite E2E tests remain green.
+- **Not included:** Actual WordPress package generation (Phase 15) or post-generation installation guidance content (Phase 15) — this phase adds selection UI only, no working "Generate" action yet for `Embed in website`.
+- **Risks/open decisions:** None for this phase's own scope; the primary action's behavior once "Generate" is pressed depends on the artifact-format decision gate in Phase 15.
+
+### Phase 13 – Shared Runtime Multiple-Instance Safety
+
+- **Goal:** Make the shared Presentation markup/runtime safe for more than one simultaneous instance in one host document, per `COMPARISON_PRESENTATION.md` "Multiple Instances and Host Isolation", without changing Standalone HTML or Static Microsite behavior (both remain single-instance consumers).
+- **Deliverable:** SameView Web (this repository) — shared foundation code also used by the already-shipped outputs.
+- **Specs/features:** `COMPARISON_PRESENTATION.md` "Multiple Instances and Host Isolation"; `EMBED_IN_WEBSITE.md` "Independent Instance State", "Accessibility".
+- **Existing basis:** `src/lib/comparison-presentation-runtime.ts` and `src/lib/comparison-artifact-markup.ts` currently assume exactly one instance per document: fixed literal `id="sameview-*"` values and a single unconditional `initComparisonPresentation()` call per script load — confirmed by prior repository analysis as a real but bounded, mechanical gap, not a redesign.
+- **Implement:** Scope element lookups and generated identifiers to each rendered instance's own root (for example, one `init` call per `.presentation-canvas` root found in a given document/root, resolving elements relative to that root rather than via global `document` lookups) so multiple independent instances can coexist with no colliding IDs, ARIA relationships or shared interaction state, per `COMPARISON_PRESENTATION.md`. Standalone HTML and Static Microsite, which only ever render one instance, must continue to behave identically after this change.
+- **Likely areas:** `src/lib/comparison-presentation-runtime.ts`, `src/lib/comparison-artifact-markup.ts`, `src/lib/overflow-tooltip.ts` (its own document-level portal/outside-click handling needs the same root-awareness).
+- **Dependencies:** None beyond completed Phase 9. Independent of Phases 11–12.
+- **Definition of Done:** Two or more instances of the shared runtime can run in the same document with fully independent slider/tooltip/focus state and no ID collisions; all existing Standalone HTML and Static Microsite Playwright E2E tests (`test/e2e/output-generation.spec.ts` and related) pass unmodified, proving no regression to the already-shipped, single-instance outputs.
+- **Tests/manual:** New unit/Playwright coverage for genuine multi-instance behavior on one page; full existing Standalone HTML/Static Microsite regression suite green.
+- **Not included:** Host CSS/JS isolation itself (Phase 17) — this phase only removes the multi-instance blocker in the shared runtime; it does not isolate that runtime from an uncontrolled host page.
+- **Risks/open decisions:** None; scope and bound already established by prior repository analysis.
+
+### Phase 14 – WordPress Plugin Foundation (Repository, Storage, Lifecycle)
+
+- **Goal:** Establish where the WordPress plugin's own code lives and its basic persistent-integration lifecycle and storage model, with no Comparison-facing functionality yet.
+- **Deliverable:** WordPress plugin (separate codebase — see decision gate below).
+- **Specs/features:** `WORDPRESS_INTEGRATION.md` "Persistent Integration", "Storage Model", "Supported WordPress Versions".
+- **Existing basis:** A working proof of concept (temporary, isolated, already removed) confirmed a WordPress Block Editor block can reuse SameView Web's precompiled Presentation/runtime code and that `wp-env` is adequate for real-instance verification; no production plugin code exists yet.
+- **Implement:** Plugin skeleton with activation/deactivation/uninstall covering only data lifecycle at this stage (deactivation preserves data; uninstall removes all SameView-owned data) — not yet the Comparison seed-bootstrap (Phase 15). Custom Post Type + Post Meta storage for Comparison metadata; a SameView-owned, non-Media-Library uploads subdirectory for Comparison assets; native WordPress capability registration for the administrative Comparison-library actions, per `WORDPRESS_INTEGRATION.md` "Storage Model" and "Permissions and Security".
+- **Likely areas:** New WordPress plugin codebase (location per the decision gate below); no `sameview-web` application code.
+- **Dependencies:** None from Phases 11–13; independent groundwork.
+- **Definition of Done:** A plugin can be installed on a real `wp-env` WordPress instance, activated and deactivated without error, with no Comparison-facing behavior yet; its storage model (CPT + Post Meta + private uploads directory) exists and is exercised by at least a manually inserted test row; uninstall removes all of it.
+- **Tests/manual:** Real, disposable WordPress instance (`wp-env`) verification of activation/deactivation/uninstall and storage presence/removal; no mocked environment.
+- **Not included:** First installation/seed bootstrap, Add comparison, placement, frontend rendering, host isolation.
+- **Risks/open decisions:** **Decision gate — where WordPress plugin source lives is not yet decided.** Neither `EMBED_IN_WEBSITE.md` nor `WORDPRESS_INTEGRATION.md` specifies a repository/tooling structure for the plugin (a distinct PHP/WordPress codebase, not an Astro/TypeScript application — see `ARCHITECTURE.md`'s existing "no microservices, no monorepo" scope, which governs `sameview-web` and does not by itself answer where a genuinely separate platform-integration codebase belongs). This must be decided — a new repository is the most likely fit given the existing architecture's own boundaries, but this is a repository-structure decision, not a specification requirement, and is not made by this plan. See Section 9.
+
+### Phase 15 – WordPress First Installation and Comparison Lifecycle
+
+- **Goal:** Deliver the complete Add/Update/no-op Comparison lifecycle and the first-installation bootstrap.
+- **Deliverable:** Both — SameView Web's WordPress package generation (this repository, extends Phase 12) and the WordPress plugin's own Add-comparison/activation handling (separate codebase, extends Phase 14).
+- **Specs/features:** `EMBED_IN_WEBSITE.md` "First Installation", "Comparison Lifecycle", "Atomic Updates", "Asset Replacement", "Already-Loaded Pages", "Import Validation"; `WORDPRESS_INTEGRATION.md` "First Installation".
+- **Existing basis:** Phase 11's `session.id`/Outcome Fingerprint, Phase 12's Output Inspector selection, Phase 14's storage model and plugin skeleton.
+- **Implement:** On the SameView Web side, complete the `Embed in website` → WordPress "Generate" action, producing a real downloadable package once the artifact-format decision below is resolved. On the WordPress side, implement the `Add comparison` admin workflow (unknown `session.id` → add; changed Outcome Fingerprint → atomic update; unchanged → no-op, with the specified neutral message) and the first-installation bootstrap that makes a freshly installed plugin's bundled Comparison available without a second manual import, per `WORDPRESS_INTEGRATION.md` "First Installation". Atomic updates, asset replacement (including removal of superseded image variants) and rejected-import handling per `EMBED_IN_WEBSITE.md`.
+- **Likely areas:** SameView Web: a new `generate-*` module alongside the existing `generate-standalone-html.ts`/`generate-static-microsite.ts`. WordPress plugin: the Add-comparison admin screen, activation handling, import validation.
+- **Dependencies:** Phases 11, 12, 14.
+- **Definition of Done:** Installing a freshly generated package on a WordPress site with no prior SameView plugin makes the bundled Comparison available with no second import step; adding a second, different Comparison via `Add comparison` succeeds; re-adding an unchanged Comparison is a no-op that rewrites nothing; re-adding a changed Comparison atomically updates it and preserves existing placements (verified once placements exist, from Phase 16 onward — this phase verifies the lifecycle mechanics against a plugin with no placements yet); an invalid/incompatible artifact is rejected without side effects.
+- **Tests/manual:** Real `wp-env` instance verification of install → activate → first Comparison available; Add/Update/no-op detection; rejected-import atomicity; no mocked environment, per `AI_ENGINEERING_GUIDE.md` "Testing".
+- **Not included:** Placement (Phase 16), frontend rendering, host isolation.
+- **Risks/open decisions:** **Decision gate — the exact Comparison-package artifact format produced by SameView Web is not yet decided.** `EMBED_IN_WEBSITE.md`/`WORDPRESS_INTEGRATION.md` deliberately leave this as an implementation-time design decision. This phase cannot complete its SameView Web side until that format is chosen (what a "Generate for WordPress" download actually contains, and how it relates to the smaller `Add comparison` package format). This is an implementation-time design decision to make when this phase begins, not a product decision to make now. See Section 9.
+
+### Phase 16 – WordPress Block Editor Placement
+
+- **Goal:** Place an existing Comparison via a native Block Editor block, with a shortcode compatibility path, reusing the shared Presentation/Interaction source with no PHP rendering clone.
+- **Deliverable:** WordPress plugin (separate codebase).
+- **Specs/features:** `EMBED_IN_WEBSITE.md` "Placement", "Placement Behavior After Deletion", "Presentation and Interaction Parity", "Accessibility"; `WORDPRESS_INTEGRATION.md` "Placement".
+- **Existing basis:** A completed proof of concept confirmed a Block Editor block can render a fully interactive Comparison by reusing SameView Web's precompiled markup/runtime, including inside the Block Editor's own (possibly iframed) canvas, without a PHP reimplementation. Phase 13's multi-instance-safe runtime; Phase 15's stored Comparisons.
+- **Implement:** The native block as the primary placement mechanism, selecting only an existing Comparison (no Presentation controls at placement level); an interactive editor preview reusing the same Presentation/Interaction source, falling back to a static preview only where a live preview is not reliably achievable; a shortcode compatibility path rendered through the same underlying renderer as the block, for contexts without Block Editor support. The missing-Comparison editor state and public missing-placement behavior per `EMBED_IN_WEBSITE.md` "Placement Behavior After Deletion". Full accessibility parity (keyboard-operable slider, focus, ARIA, no colliding identifiers across multiple placements) as part of this phase's own Definition of Done, not deferred.
+- **Likely areas:** WordPress plugin's block registration, editor script, shortcode handler, frontend render path.
+- **Dependencies:** Phases 13, 14, 15.
+- **Definition of Done:** The block can be inserted and shows a genuine, interactive Comparison preview in the editor; the same Comparison can be placed multiple times on one page and on multiple pages, each instance fully independent (Phase 13); the shortcode renders the same output via the same renderer; a deleted Comparison's placements show the specified missing states; accessibility behavior matches `EMBED_IN_WEBSITE.md` "Accessibility" for single and multiple placements.
+- **Tests/manual:** Real `wp-env` + Playwright verification: block insertion, editor preview, multi-placement and multi-Comparison rendering on one page, independent interaction state, shortcode rendering, missing-Comparison states, keyboard/accessibility checks.
+- **Not included:** Host CSS/JS isolation from the surrounding theme (Phase 17); conditional/performance-optimized asset loading (Phase 17).
+- **Risks/open decisions:** None new; depends on Phase 13's multi-instance safety and Phase 15's lifecycle already being in place.
+
+### Phase 17 – WordPress Frontend Delivery and Host Isolation
+
+- **Goal:** Load SameView assets only where needed, keep updates reliably visible, and isolate the rendered Comparison from the host theme in both directions.
+- **Deliverable:** WordPress plugin (separate codebase).
+- **Specs/features:** `EMBED_IN_WEBSITE.md` "Local/Self-Contained Resources", "Performance and Resource Loading", "Caching and Updates", "Host Isolation"; `COMPARISON_PRESENTATION.md` "Multiple Instances and Host Isolation"; `WORDPRESS_INTEGRATION.md` "Frontend Delivery", "Host Isolation".
+- **Existing basis:** Phase 16's placement rendering; Phase 13's multi-instance-safe runtime.
+- **Implement:** Local, self-contained asset delivery (no third-party CDN); conditional loading limited to pages that actually contain a SameView placement, including placements outside ordinary singular post content; asset/cache versioning so a Comparison update is reliably reflected on new page loads. Host isolation bound by the mandatory outcome already defined in `COMPARISON_PRESENTATION.md`, using whichever concrete mechanism is chosen per the decision gate below.
+- **Likely areas:** WordPress plugin's asset enqueue logic, cache-busting/versioning, the isolation boundary around rendered placements.
+- **Dependencies:** Phases 13, 16.
+- **Definition of Done:** SameView assets load only on pages with an actual placement; a Comparison update is visible on the next page load without a manual cache-clear (for caching under the plugin's own control); the rendered Comparison is unaffected by injected host theme CSS/JS resets in verification testing, and the rendered Comparison's own CSS/JS/identifiers do not leak into the surrounding page.
+- **Tests/manual:** Real `wp-env` instance with a theme deliberately carrying aggressive CSS resets, verifying isolation holds in both directions; asset-loading-only-where-needed verification; cache/versioning verification.
+- **Not included:** Any integration with third-party WordPress full-page-caching plugins' own purge APIs — explicitly not part of Version 1, per `WORDPRESS_INTEGRATION.md` "Frontend Delivery". A site relying on full-page caching may need to purge it manually after a Comparison update; this is a documented, accepted limitation, not a defect to fix in this phase.
+- **Risks/open decisions:** **Decision gate — the concrete host-isolation mechanism is not yet approved.** Shadow DOM is the preferred technical candidate based on completed research, but is explicitly not yet an approved implementation mechanism (`WORDPRESS_INTEGRATION.md` "Host Isolation"). This phase cannot be completed until that mechanism is approved; the mandatory outcome (bidirectional isolation) is already settled and does not change regardless of which mechanism is chosen. See Section 9.
+
+### Phase 18 – WordPress Real-Platform Integration and Release Readiness
+
+- **Goal:** Verify the complete real WordPress customer workflow and quality gates before WordPress is offered as a supported Embed platform, mirroring Phase 10's role for the original browser-local scope.
+- **Deliverable:** WordPress plugin + SameView Web, verified together.
+- **Specs/features:** `EMBED_IN_WEBSITE.md` "Real-Platform Verification and Release Criteria"; `WORDPRESS_INTEGRATION.md` "Testing"; `AI_ENGINEERING_GUIDE.md` "Testing".
+- **Existing basis:** Phases 11–17 complete.
+- **Implement:** Close integration defects across the complete real workflow: generate → install → activate → first Comparison available → add another → Add/Update/no-op → place → render → update-preserves-placements → reject invalid atomically → delete → editor/public missing states → re-import restores placements → multiple Comparisons/instances on one page → independent interaction state → responsive sizing → accessibility → English/German localization with English fallback → local/self-contained assets → resource loading only where required → cache/update behavior → deactivation persistence → full uninstall cleanup — the complete list in `EMBED_IN_WEBSITE.md` "Real-Platform Verification and Release Criteria".
+- **Likely areas:** Both deliverables; no new architectural layer.
+- **Dependencies:** Phases 11–17.
+- **Definition of Done:** The complete list in `EMBED_IN_WEBSITE.md` "Real-Platform Verification and Release Criteria" passes against a real, disposable WordPress instance covering the currently supported WordPress major version and the immediately previous major version (`WORDPRESS_INTEGRATION.md` "Supported WordPress Versions"); WordPress can be offered as a supported Embed platform.
+- **Tests/manual:** Full real-instance Playwright verification across both supported WordPress versions; `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` for the SameView Web side.
+- **Not included:** Joomla, Webflow, Squarespace (see Section 8); any Version 2 work.
+- **Risks/open decisions:** Inherits the decision gates from Phases 14, 15 and 17 if not already resolved by the time this phase begins; none new at this phase itself.
 
 ## 5. Recommended Iteration Order
 
@@ -238,6 +358,19 @@ The repository is not an empty Astro starter. The following is present and verif
 17. **Run the complete V1 integration pass:** error recovery, accessibility, responsiveness, offline output and repository quality gates. Predecessor: 1–16.
 
 Each iteration has one primary result, avoids V2 preparation and should remain independently reviewable and deployable when its predecessor state is present.
+
+### WordPress Embed Iteration Order (Phases 11–18)
+
+This list is intentionally separate from 1–17 above: it follows the completed V1 baseline but numbers its own sequence, referencing phase numbers directly rather than continuing the count above, to avoid implying a single combined 1–25 sequence that does not exist.
+
+1. **Carry Comparison Identity and Outcome Fingerprint into the Outcome Snapshot** (Phase 11): additive `session.id`/fingerprint fields, no change to existing outputs. Predecessor: the completed V1 baseline (1–17 above).
+2. **Add the `Embed in website` Output Inspector card and WordPress platform selection** (Phase 12): selection UI only, no working generation yet. Predecessor: 1.
+3. **Make the shared Presentation runtime/markup multi-instance-safe** (Phase 13): container-scoped identifiers, no regression to Standalone HTML/Static Microsite. Predecessor: the completed V1 baseline; independent of 1–2.
+4. **Establish the WordPress plugin foundation** (Phase 14): repository-location decision, activation/deactivation/uninstall lifecycle, Custom Post Type + Post Meta storage, private uploads directory. Predecessor: independent groundwork; no predecessor within this list.
+5. **Deliver WordPress first installation and the Add/Update/no-op Comparison lifecycle** (Phase 15): artifact-format decision, atomic updates, asset replacement. Predecessor: 1, 2, 4.
+6. **Implement WordPress Block Editor placement and the shortcode compatibility path** (Phase 16): interactive editor preview, multi-placement/multi-instance rendering, accessibility parity. Predecessor: 3, 4, 5.
+7. **Deliver WordPress frontend delivery and host isolation** (Phase 17): conditional loading, cache/versioning, bidirectional isolation once its mechanism is approved. Predecessor: 3, 6.
+8. **Run the complete WordPress real-platform integration pass** (Phase 18): the full customer workflow from `EMBED_IN_WEBSITE.md` "Real-Platform Verification and Release Criteria" against a real WordPress instance. Predecessor: 1–7.
 
 ## 6. Test Strategy
 
@@ -269,7 +402,8 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 - Anonymous-publishing abuse protection
 - Multiple active or managed workspaces
 - Automatic Android-to-web transfer
-- CMS Package (visible as Coming Soon, not implemented) and all further output types beyond Standalone HTML and Static Microsite
+- Joomla, Webflow and Squarespace Embed platforms — approved product scope (`EMBED_IN_WEBSITE.md` "Supported Platforms") but not planned here; each requires its own feasibility research and platform-specific technical contract, analogous to `WORDPRESS_INTEGRATION.md`, before implementation planning
+- Any further comparison output type beyond Standalone HTML, Static Microsite and Embed in website (WordPress)
 
 ## 9. Open Decisions and Specification Conflicts
 
@@ -283,8 +417,11 @@ Each iteration has one primary result, avoids V2 preparation and should remain i
 | Presentation Font catalog | Resolved: Version 1 offers exactly three Presentation Fonts — Inter (default), Manrope and Space Grotesk — selected via a Font dropdown in the Edit Inspector's Presentation → Typography group, applied only to the Comparison Presentation's own text elements (COMPARISON_PRESENTATION.md Part 3 "Typography"), never to the application UI. Resolved: Inter and Space Grotesk each ship as their official variable WOFF2 file (`public/fonts/inter/InterVariable.woff2`, `public/fonts/spacegrotesk/SpaceGrotesk-Variable.woff2`); Manrope, which has no official prebuilt variable WOFF2, ships as three static WOFF2 instances at exactly the needed weights — 400/500/600 (`public/fonts/manrope/Manrope-{Regular,Medium,SemiBold}.woff2`). | Iteration 14 | Self-hosted, no CDN; only the weights and formats actually required are bundled; licensing verified for local web embedding (SIL Open Font License 1.1 for all three); no artificial glyph-coverage restriction. |
 | Standalone image profile | Resolved: the reference and capture images keep their original JPEG format, pixel dimensions and quality for V1 — no resize, crop, stretch or quality-driven re-encoding. Embedded location metadata (EXIF/XMP/IPTC) is optionally, selectively removed via `Remove Embedded Location Data` (F-005) with no other metadata removed; a structure that cannot be safely, selectively edited fails generation atomically rather than falling back to broader removal or lossy re-encoding. The branding asset's format is already fixed by Phase 6 and is not part of this decision. | Iteration 13 | 40 MP input limit, local processing, no upload; selective metadata removal must never fall back to full-segment/field-group deletion, non-location removal or lossy decode/re-encode. |
 | Standalone and microsite artifact contract | Resolved: filenames `sameview-comparison.html` and `sameview-comparison.zip`; both render from one shared HTML/Presentation document scaffold with clearly separable sections (head/meta, favicon, fonts, Presentation markup, CSS, JS, closing license/attribution comments) — see Phase 9 above for the complete Standalone HTML self-containment rules and the exact Static Microsite ZIP file/folder structure, including font and font-license packaging. | Iteration 14 | Fully browser-generated, offline-capable, safe text handling, immutable snapshot shared by Standalone HTML and Static Microsite; no independent slider/tooltip/branding/presentation implementation per output type. |
+| WordPress plugin repository location | Open. Neither `EMBED_IN_WEBSITE.md` nor `WORDPRESS_INTEGRATION.md` specifies where the WordPress plugin's own PHP/JS codebase lives; it is a distinct technology stack from this repository's Astro/React/TypeScript application. Not yet decided. | WordPress Embed iteration 4 (Phase 14) | Must not silently become part of this repository as an unplanned monorepo addition; `ARCHITECTURE.md`'s existing "no microservices, no monorepo" framing governs this repository, not a separate platform-integration codebase. |
+| Comparison-package artifact format (WordPress) | Open, and deliberately left open by `EMBED_IN_WEBSITE.md`/`WORDPRESS_INTEGRATION.md` as an implementation-time design decision — not a product decision. What a "Generate for WordPress" download contains, and how it relates to the smaller `Add comparison` package format. | WordPress Embed iteration 5 (Phase 15) | Must satisfy `EMBED_IN_WEBSITE.md` "First Installation"/"Comparison Lifecycle" and `WORDPRESS_INTEGRATION.md` "First Installation" without SameView Web ever needing to ask or infer first-vs-later Comparison status. |
+| WordPress host-isolation mechanism | Open. Shadow DOM is the preferred technical candidate based on completed research, but is explicitly not yet an approved implementation mechanism (`WORDPRESS_INTEGRATION.md` "Host Isolation"). | WordPress Embed iteration 7 (Phase 17) | Must satisfy `COMPARISON_PRESENTATION.md` "Multiple Instances and Host Isolation" (bidirectional isolation) regardless of which mechanism is chosen. |
 
-These decisions need narrow technical or product clarification in their named iteration; they do not justify advance infrastructure.
+These decisions need narrow technical or product clarification in their named iteration; they do not justify advance infrastructure. The three WordPress-track rows above are additionally implementation-time technical decisions (repository structure and concrete mechanism), not open product questions — `EMBED_IN_WEBSITE.md` and `WORDPRESS_INTEGRATION.md` already settle every product-level requirement they must satisfy.
 
 ### Evaluated conflicts
 
@@ -295,7 +432,11 @@ These decisions need narrow technical or product clarification in their named it
 
 ## 10. Completion Criteria
 
-Version 1 is complete when:
+### Browser-Local Scope (Complete)
+
+This scope — Phases 1–10 — is complete; the criteria below describe the state already achieved, not a remaining target.
+
+Version 1's browser-local scope is complete when:
 
 - a user can import a valid SameView ZIP within all archive, metadata and referenced-file rules, while invalid or cancelled imports cannot damage an active workspace;
 - exactly one active workspace contains immutable Source Data and a separate Current Working State, all kept locally in the browser;
@@ -308,3 +449,7 @@ Version 1 is complete when:
 - editing or regenerating never changes Source Data or previously generated outcomes;
 - focused automated tests pass together with `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`, and the defined manual browser/download/accessibility checks pass;
 - none of the Deferred Work or preventative publication infrastructure has been implemented as part of V1.
+
+### Embed in Website – WordPress Scope (Not Yet Complete)
+
+Version 1 scope has since expanded to include `Embed in website` ([PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs"). This is approved Version 1 scope that is **not yet implemented**. WordPress, the only Embed platform currently planned (Phases 11–18 above), is complete when the complete list in [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Real-Platform Verification and Release Criteria" passes against a real WordPress instance, per Phase 18's own Definition of Done above. Joomla, Webflow and Squarespace remain outside implementation scope (Section 8) until each has its own feasibility research and platform-specific technical contract.

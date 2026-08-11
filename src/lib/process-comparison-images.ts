@@ -6,17 +6,25 @@
 // This is the only file in Phase 8 that knows about `OutcomeSnapshot`; every
 // module it calls operates on plain bytes only.
 //
-// `OutcomeSnapshot` required no changes for this contract: it already
-// carries exactly `referenceImageBytes`/`captureImageBytes` as defensive
-// copies (src/lib/outcome-snapshot.ts), which is all this function reads.
-// `removeEmbeddedLocationData` is an output-specific setting, not a Snapshot
-// field — USER_WORKFLOW.md's "Generate the Outcome" step combines the
-// Snapshot with "the configuration of the selected outcome" as two
-// separate inputs, which is exactly this function's own two parameters.
+// Takes only `referenceImageBytes`/`captureImageBytes` — the two fields this
+// function has ever read — rather than a full `OutcomeSnapshot`
+// (src/lib/outcome-snapshot.ts): docs/IMPLEMENTATION_PLAN_V1.md Phase 11
+// requires the Outcome Fingerprint to describe the *final*, post-processing
+// image bytes, which means image processing must now run *before* a complete
+// OutcomeSnapshot exists (src/lib/generate-comparison-output.ts calls this
+// function directly on the Current Working State's own bytes, then passes
+// the result into `createOutcomeSnapshot`'s `finalImages` parameter) — no
+// full snapshot is available yet at this call site to pass in even if this
+// function still asked for one. `ProcessedComparisonImages` below already had
+// exactly this shape as this function's own return type, so no new type was
+// needed. `removeEmbeddedLocationData` is an output-specific setting, not a
+// Snapshot field — USER_WORKFLOW.md's "Generate the Outcome" step combines
+// the comparison images with "the configuration of the selected outcome" as
+// two separate inputs, which is exactly this function's own two parameters.
 // `branding`, `brandingAssetBytes`, `presentation`, `visibility`,
 // `configuration` and `initialSliderPosition` are never read here and never
-// appear in this function's return value — this module performs no
-// branding processing of any kind, per the approved Phase 8 scope.
+// appear in this function's return value — this module performs no branding
+// processing of any kind, per the approved Phase 8 scope.
 //
 // Off is a pure identity pass-through of the Snapshot's own already-final
 // bytes (no re-copy: Phase 7 already guarantees they are never mutated) and
@@ -27,7 +35,6 @@
 
 import type { LocationMetadataRemovalError } from "./jpeg-location-metadata.ts";
 import { removeEmbeddedLocationData } from "./jpeg-location-metadata.ts";
-import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
 
 export interface ProcessComparisonImagesOptions {
 	readonly removeEmbeddedLocationData: boolean;
@@ -53,21 +60,21 @@ export type ProcessComparisonImagesResult =
 	| { readonly ok: false; readonly error: ProcessComparisonImagesError };
 
 export function processComparisonImages(
-	snapshot: OutcomeSnapshot,
+	images: ProcessedComparisonImages,
 	options: ProcessComparisonImagesOptions,
 ): ProcessComparisonImagesResult {
 	if (!options.removeEmbeddedLocationData) {
 		return {
 			ok: true,
 			value: {
-				referenceImageBytes: snapshot.referenceImageBytes,
-				captureImageBytes: snapshot.captureImageBytes,
+				referenceImageBytes: images.referenceImageBytes,
+				captureImageBytes: images.captureImageBytes,
 			},
 		};
 	}
 
 	const referenceResult = removeEmbeddedLocationData(
-		snapshot.referenceImageBytes,
+		images.referenceImageBytes,
 	);
 	if (!referenceResult.ok) {
 		return {
@@ -79,7 +86,7 @@ export function processComparisonImages(
 		};
 	}
 
-	const captureResult = removeEmbeddedLocationData(snapshot.captureImageBytes);
+	const captureResult = removeEmbeddedLocationData(images.captureImageBytes);
 	if (!captureResult.ok) {
 		return {
 			ok: false,

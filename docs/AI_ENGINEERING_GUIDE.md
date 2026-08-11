@@ -101,6 +101,7 @@ This document defines engineering quality standards for the project.
 - Functional and workflow tests verify behavior through stable `data-testid` attributes, not through translated labels, button copy, headings, status messages or other mutable UI text, and not through presentational CSS classes. A copy or translation change must never break an otherwise unchanged functional test.
 - Dedicated copy/localization tests may intentionally assert visible wording; dedicated accessibility tests may use roles, accessible names and other accessibility APIs where the test is specifically about accessibility. Keep these responsibilities separate from functional/workflow tests.
 - Use the smallest reasonable number of `data-testid` attributes; they complement, not replace, semantic HTML and accessibility.
+- A platform integration (e.g. [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md)) is not considered verified by unit tests, artifact tests or a mocked/approximated host environment alone — its real customer workflow must be verified against a real instance of the target platform. See the relevant platform integration document (e.g. [docs/WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md)) for the concrete target-platform test environment.
 
 ## Browser Compatibility
 - Stable APIs

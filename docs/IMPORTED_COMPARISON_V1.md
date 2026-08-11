@@ -43,6 +43,20 @@ Only fields defined as mutable by this specification may differ from Source Data
 
 An Outcome Snapshot contains the values derived or selected when an outcome is generated. Later changes to the Current Working State do not modify an existing Outcome Snapshot.
 
+### Comparison Identity (`session.id`)
+
+For a generated outcome, `session.id` is the authoritative stable identity of the underlying Comparison. It is derived from the authoritative session identity already established during import (see "Session Identity" below) and is carried unchanged into the Outcome Snapshot.
+
+This outcome-level `session.id` is distinct from the similarly named field that may be present in imported session metadata. That imported metadata field remains non-authoritative and is never used to resolve identity, at import or at outcome generation — see "Session Identity" below. Only the identity SameView Web itself establishes during import is ever carried into an outcome as `session.id`.
+
+Changes to metadata, images, Presentation, branding, output options or other editable state never change a Comparison's `session.id`, as long as its underlying imported session identity remains the same. A different underlying session identity represents a different Comparison.
+
+### Outcome Fingerprint
+
+An Outcome Fingerprint is a value included in the Outcome Snapshot that changes if and only if the outcome's own allowlisted content changes. It is generated deterministically by SameView Web at outcome-generation time.
+
+A persistent target integration that stores generated outcomes (see [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md)) may compare a newly received outcome's fingerprint against a previously stored one for the same `session.id` to determine whether the outcome is new, changed or identical, without independently recomputing or interpreting its meaning. The concrete fingerprint mechanism is an implementation detail, not defined by this specification.
+
 ## Supported Metadata Versions
 
 SameView Web Version 1 accepts valid SameView session metadata versions 2 through 6 inclusive, declared in the top-level `version` field (JSON integer; matches `SessionStorage.METADATA_VERSION` and `SessionScanner.SUPPORTED_VERSIONS` in the SameView Android source). `metadata.json` is UTF-8 encoded, without a byte-order mark.
@@ -90,6 +104,8 @@ The Android reader (`SessionScanner.kt`) itself never validates a `session.id` o
 Metadata-level parsing therefore does not require or validate a session identity value. Resolving the archive directory name — and, when `session.id` is present, confirming it matches — is a ZIP/archive-resolution-level concern, defined together with the file and archive validation rules in [ARCHITECTURE.md](ARCHITECTURE.md), not a metadata-parsing-level concern.
 
 A SameView export archive may legitimately contain more than one session directory (Android's own multi-session backup export produces exactly this structure). Because Version 1 supports exactly one active workspace, SameView Web does not select, merge or otherwise automatically resolve multiple session directories in a single import archive. An archive containing more than one valid session directory is rejected as a distinct import failure, as defined in [ARCHITECTURE.md](ARCHITECTURE.md) and [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-001.
+
+This archive-directory-name identity, once resolved at import, is the sole basis for the outcome-level Comparison Identity carried into a generated outcome — see "Comparison Identity (`session.id`)" below. That outcome-level identity is a distinct concept from the imported metadata field discussed above: the metadata field remains informational only and is never itself the basis for identity resolution, at import or at outcome generation.
 
 ## Metadata Preservation
 
@@ -302,8 +318,10 @@ A published outcome uses an explicit allowlist. It may include, when required by
 - user-authored location fields,
 - branding configuration,
 - the branding asset,
-- required comparison images, and
-- required outcome configuration.
+- required comparison images,
+- required outcome configuration,
+- the Comparison Identity (`session.id`), when the outcome type requires a stable identity, and
+- the Outcome Fingerprint, when the outcome type requires exact-duplicate detection.
 
 A publication must not include:
 

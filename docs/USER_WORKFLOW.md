@@ -169,6 +169,8 @@ Version 1 currently provides two available outcome types:
 - Standalone HTML
 - Static Microsite
 
+Embed in website is an approved additional Version 1 outcome type, not yet available, specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md).
+
 Additional outcome types may be introduced in future versions without changing the overall workflow model.
 
 ### Download
@@ -176,6 +178,8 @@ Additional outcome types may be introduced in future versions without changing t
 For both the Standalone HTML and Static Microsite outcomes, generation and browser download form one continuous user action.
 
 The workflow cycle concludes when the generated artifact — a single HTML file for Standalone HTML, a ZIP archive for Static Microsite — has been handed to the browser for download.
+
+For Embed in website, generation and browser download likewise form one continuous user action, and the workflow cycle concludes the same way, at download. What the user subsequently does with the downloaded artifact on the target platform is outside this workflow's scope — see [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md).
 
 The workspace remains available for further editing or additional outcome generation.
 
