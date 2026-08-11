@@ -190,6 +190,8 @@ The repository is not an empty Astro starter. The following is present and verif
 
   No file or folder is generated unless actually needed by the snapshot being packaged (no `images/branding.png` without an active branding asset, no font family other than the one actually selected). `favicon.svg` is a separate, independently replaceable file, not inlined into the microsite's own HTML.
 
+  `css/sameview-comparison.css` and `js/sameview-comparison.js` are packaged in minified form, built from the same shared presentation and interaction source as Standalone HTML; `index.html` remains readable and unminified. Standalone HTML is not affected by this packaging rule and remains readable and unminified as specified above.
+
   Static Microsite alone additionally carries Open Graph metadata in its `index.html` — `og:type` fixed to `website`, `og:title` and `og:description` set to the exact same already-resolved values as `<title>` and `<meta name="description">`, through the same escaping — since this output type, unlike Standalone HTML, may end up hosted at a shareable URL. No `og:url`, `og:image` or canonical link.
 
   The branding asset is embedded via Base64 for Standalone HTML and copied as a local asset file for Static Microsite, in both cases never re-encoded or reprocessed; prevent user text from executing as markup in both. Drive the Output Inspector's progress indicator through its generation phases (preparing the comparison, processing images, building the output, starting the download) while workspace interactions stay temporarily disabled.

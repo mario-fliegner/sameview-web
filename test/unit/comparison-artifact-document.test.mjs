@@ -395,6 +395,36 @@ describe("the final composed Standalone HTML document", () => {
 		assert.match(css, /#sameview-output-frame\s*\{/);
 	});
 
+	// Confirmed guard for this iteration (docs/IMPLEMENTATION_PLAN_V1.md Phase
+	// 9's minified-Microsite-assets rule): Standalone HTML must not pick up
+	// Static Microsite's minified CSS/JS pipeline through this shared document
+	// scaffold. Structural, not size-based — proves the embedded CSS is still
+	// written the same readable way as its on-disk source, not collapsed onto
+	// one line.
+	test("Standalone HTML's embedded CSS remains readable — real newlines and tab-indented declarations, never minified", () => {
+		const html = buildDocument({
+			runtimeScriptText: "console.log('ok');",
+			licenseText: realLicenseText,
+		});
+		const styleMatch = html.match(/<style>\n([\s\S]*?)\n<\/style>/);
+		assert.ok(styleMatch, "expected an embedded <style> block");
+		const css = styleMatch[1];
+		assert.ok(
+			css.split("\n").length > 50,
+			"expected the embedded CSS to still span many lines, like its readable on-disk source",
+		);
+		assert.match(
+			css,
+			/\n\t/,
+			"expected at least one tab-indented declaration line, like the readable on-disk source",
+		);
+		// The dynamic per-font @font-face rule must keep its own readable
+		// multi-line format too (src/lib/presentation-font-assets.ts
+		// `buildFontFaceCss` default, `compact` never passed by Standalone
+		// HTML) — not the Static-Microsite-only single-line form.
+		assert.match(css, /@font-face \{\n\tfont-family:/);
+	});
+
 	// Confirmed regression fix (public/favicon.svg itself, cleaned at the
 	// source since this design-tool export metadata has no maintenance value
 	// — unlike the CSS/JS developer comments, which stay in their source
@@ -440,4 +470,51 @@ describe("the final composed Standalone HTML document", () => {
 			}
 		});
 	}
+});
+
+// Coverage for src/lib/presentation-font-assets.ts `buildFontFaceCss`'s
+// `compact` option — used exclusively by src/lib/generate-static-microsite.ts
+// so the finished `css/sameview-comparison.css` never contains a
+// newline-formatted `@font-face` rule sitting next to the otherwise fully
+// minified static CSS. Not a minifier: both branches are explicit,
+// independently written templates for the same known values, never a
+// regex transform of an existing string (docs/IMPLEMENTATION_PLAN_V1.md
+// Phase 9).
+describe("buildFontFaceCss compact option", () => {
+	test("default (no options) is byte-identical to calling with compact: false — Standalone HTML's own format is unaffected by this option existing", () => {
+		const resolveUrl = () => "../fonts/InterVariable.woff2";
+		assert.equal(
+			buildFontFaceCss("inter", resolveUrl),
+			buildFontFaceCss("inter", resolveUrl, { compact: false }),
+		);
+		assert.match(
+			buildFontFaceCss("inter", resolveUrl),
+			/@font-face \{\n\tfont-family: "Inter Variable";\n\tsrc: url\("\.\.\/fonts\/InterVariable\.woff2"\) format\("woff2"\);\n\tfont-weight: 100 900;\n\tfont-style: normal;\n\tfont-display: swap;\n\}/,
+		);
+	});
+
+	test("compact: true produces a single-line rule with the exact same semantic values (font family, URL, format, weight range)", () => {
+		const resolveUrl = () => "../fonts/InterVariable.woff2";
+		const compact = buildFontFaceCss("inter", resolveUrl, { compact: true });
+		assert.equal(
+			compact,
+			'@font-face{font-family:"Inter Variable";src:url("../fonts/InterVariable.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}',
+		);
+		assert.doesNotMatch(compact, /\n/);
+		assert.doesNotMatch(compact, /\t/);
+		assert.doesNotMatch(compact, / \{/);
+	});
+
+	test("compact: true for a multi-file family (Manrope) emits one compact rule per file, each with its own per-file weight, concatenated with no separator", () => {
+		const resolveUrl = (file) => `../fonts/${file.path.split("/").pop()}`;
+		const compact = buildFontFaceCss("manrope", resolveUrl, {
+			compact: true,
+		});
+		assert.equal(
+			compact,
+			'@font-face{font-family:"Manrope";src:url("../fonts/Manrope-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}' +
+				'@font-face{font-family:"Manrope";src:url("../fonts/Manrope-Medium.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}' +
+				'@font-face{font-family:"Manrope";src:url("../fonts/Manrope-SemiBold.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}',
+		);
+	});
 });

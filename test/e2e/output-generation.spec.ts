@@ -979,12 +979,48 @@ test("generating the Static Microsite downloads sameview-comparison.zip with exa
 	expect(micrositeCss).not.toMatch(/\/\*[\s\S]*?docs\//);
 	expect(micrositeCss).not.toMatch(/\/\*[\s\S]*?src\/(lib|components)\//);
 
+	// Confirmed regression fix for this iteration
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 9's minified-Microsite-assets
+	// rule; scripts/build-presentation-runtime.mjs `buildPresentationCssCode`;
+	// src/lib/presentation-font-assets.ts `buildFontFaceCss` `compact`
+	// option): the final packaged CSS — including the dynamically generated
+	// `@font-face` rule — is genuinely minified, not just comment-free.
+	// Structural, not size-based: no comment openings at all (minification
+	// strips comments as a side effect), no readable multi-line/tab-indented
+	// declarations, and the known selectors collapse onto a compact form.
+	expect(micrositeCss).not.toMatch(/\/\*/);
+	expect(micrositeCss).not.toMatch(/\n\t/);
+	expect(micrositeCss).toMatch(/\.presentation-canvas\{/);
+	expect(micrositeCss).toMatch(/#sameview-output-frame\{/);
+	// The dynamic per-font @font-face rule (compact form, not the readable
+	// multi-line form Standalone HTML still uses).
+	expect(micrositeCss).toMatch(/@font-face\{font-family:/);
+	expect(micrositeCss).not.toMatch(/@font-face \{\n/);
+	// Fixed composition order preserved end to end: @font-face, then
+	// Presentation CSS, then Frame CSS (src/lib/generate-static-microsite.ts;
+	// scripts/build-presentation-runtime.mjs `buildPresentationCssCode`).
+	const fontFaceIndex = micrositeCss.indexOf("@font-face{");
+	const presentationIndex = micrositeCss.indexOf(".presentation-canvas{");
+	const frameIndex = micrositeCss.indexOf("#sameview-output-frame{");
+	expect(fontFaceIndex).toBeGreaterThanOrEqual(0);
+	expect(presentationIndex).toBeGreaterThan(fontFaceIndex);
+	expect(frameIndex).toBeGreaterThan(presentationIndex);
+
 	const micrositeJs = readFileSync(
 		join(extractDir, "js/sameview-comparison.js"),
 		"utf8",
 	);
 	expect(micrositeJs).not.toContain("//#region");
 	expect(micrositeJs).not.toContain("//#endregion");
+
+	// Confirmed regression fix for this iteration: the packaged runtime
+	// script is genuinely minified (scripts/build-presentation-runtime.mjs
+	// `buildPresentationRuntimeCode({ minify: true })`), not merely
+	// region-marker-free. Structural, not size-based: esbuild's minifier
+	// collapses the whole IIFE onto a handful of lines with no tab-indented
+	// declarations, unlike the readable source it is built from.
+	expect(micrositeJs.split("\n").length).toBeLessThan(20);
+	expect(micrositeJs).not.toMatch(/\n\t/);
 
 	const micrositeFavicon = readFileSync(
 		join(extractDir, "favicon.svg"),

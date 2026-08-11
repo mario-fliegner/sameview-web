@@ -1,17 +1,23 @@
 // Bundles src/lib/comparison-presentation-runtime-entry.ts (and every module
 // it imports) into one self-contained, dependency-free plain-JS file — the
 // script Standalone HTML/Static Microsite embed/copy at generation time
-// (src/lib/comparison-artifact-assets.ts).
+// (src/lib/comparison-artifact-assets.ts). Also builds the shared
+// Presentation CSS (src/styles/comparison-presentation.css and
+// src/styles/comparison-artifact-frame.css) into a minified variant used
+// exclusively by Static Microsite — Standalone HTML keeps consuming those
+// same two files unminified via its own existing `?raw` imports, untouched
+// by this script.
 //
-// `buildPresentationRuntimeCode()` below is the *only* place this bundling
-// happens — the single shared source for both consumers:
+// `buildPresentationRuntimeCode()` and `buildPresentationCssCode()` below are
+// the *only* places this bundling happens — the single shared source for
+// both consumers:
 // - the CLI entry point further down (`pnpm build:runtime`, part of
-//   `pnpm build`): writes the result to `public/generated/comparison-presentation-runtime.js`,
-//   a real static asset for production, served by the Node adapter exactly
-//   like `public/fonts/**`.
+//   `pnpm build`): writes the results to `public/generated/`, real static
+//   assets for production, served by the Node adapter exactly like
+//   `public/fonts/**`.
 // - scripts/vite-plugin-presentation-runtime-dev.mjs (dev-only): serves the
-//   same function's result directly from memory, so `astro dev` never
-//   depends on that static file existing at all — see that plugin's own
+//   same functions' results directly from memory, so `astro dev` never
+//   depends on those static files existing at all — see that plugin's own
 //   header comment for why (a real incident: a deleted `public/generated/`
 //   left an already-running dev server permanently 404ing on this exact
 //   path, since nothing was watching that directory).
@@ -22,8 +28,12 @@
 // inside Astro's own Vite dev server) can never recursively load
 // astro.config.mjs or otherwise re-enter the outer server's own config.
 //
-// Uses Vite's own JS build API (already a project devDependency — no new
-// package).
+// Uses Vite's own JS/CSS build API (already a project devDependency — no new
+// package). CSS minification goes through Vite's `cssMinify: "esbuild"`
+// option — the same esbuild already resolved as Vite's own peer dependency
+// for the JS build below, never imported directly by this project (verified:
+// esbuild is not a direct dependency and is not otherwise reachable from
+// application code — only Vite's own internal `build()` machinery uses it).
 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "vite";
@@ -46,7 +56,12 @@ function stripBundlerRegionMarkers(code) {
 	return code.replace(/^[ \t]*\/\/#(?:region|endregion).*\n?/gm, "");
 }
 
-export async function buildPresentationRuntimeCode() {
+// `minify`: false (default) produces the existing readable variant embedded
+// by Standalone HTML and copied unminified nowhere else; true produces the
+// Static-Microsite-only minified variant — same entry, same module graph,
+// the only difference is this one Vite/esbuild build option. No second
+// runtime implementation exists.
+export async function buildPresentationRuntimeCode({ minify = false } = {}) {
 	const result = await build({
 		root: projectRoot,
 		configFile: false,
@@ -66,12 +81,17 @@ export async function buildPresentationRuntimeCode() {
 				entry: "src/lib/comparison-presentation-runtime-entry.ts",
 				name: "SameViewComparisonPresentationRuntime",
 				formats: ["iife"],
-				fileName: () => "comparison-presentation-runtime.js",
+				fileName: () =>
+					minify
+						? "comparison-presentation-runtime.min.js"
+						: "comparison-presentation-runtime.js",
 			},
-			// A tiny, focused script — readable output is more useful than the
-			// last few bytes saved, and this never ships as part of the app's own
-			// bundle (it is only ever fetched as inert text to re-embed).
-			minify: false,
+			// Readable by default — this is a tiny, focused script where readable
+			// output is more useful than the last few bytes saved, and it never
+			// ships as part of the app's own bundle (it is only ever fetched as
+			// inert text to re-embed). `minify: true` is used exclusively to
+			// produce the separate Static-Microsite-only variant above.
+			minify,
 		},
 	});
 	const output = Array.isArray(result) ? result[0] : result;
@@ -80,6 +100,69 @@ export async function buildPresentationRuntimeCode() {
 		throw new Error("Presentation runtime build produced no output chunk");
 	}
 	return stripBundlerRegionMarkers(chunk.code);
+}
+
+// Builds the Static-Microsite-only minified variant of the two shared,
+// unmodified Presentation CSS source files
+// (src/styles/comparison-presentation.css, src/styles/comparison-artifact-frame.css)
+// via the same isolated, `configFile: false` Vite build already used for the
+// runtime script above, using Vite's own `cssMinify: "esbuild"` build option
+// — empirically verified against these exact two files to produce minified,
+// comment-free CSS text in memory (`write: false`), through the same esbuild
+// Vite already resolves as its own peer dependency for the JS build, no new
+// dependency. Standalone HTML never calls this function: it keeps reading
+// these same two files unminified via its own existing `?raw` imports.
+// Concatenated in the same fixed order `composeArtifactCss` already uses for
+// these two sources: Presentation CSS, then Frame CSS. The dynamic, per-font
+// `@font-face` rule is deliberately not part of this build — it does not
+// exist as a file on disk, and is instead produced compactly at generation
+// time by src/lib/presentation-font-assets.ts `buildFontFaceCss` (`compact:
+// true`), then prepended by the Static Microsite generator.
+export async function buildPresentationCssCode() {
+	const result = await build({
+		root: projectRoot,
+		configFile: false,
+		logLevel: "warn",
+		publicDir: false,
+		build: {
+			write: false,
+			cssMinify: "esbuild",
+			rollupOptions: {
+				input: {
+					presentation: "src/styles/comparison-presentation.css",
+					frame: "src/styles/comparison-artifact-frame.css",
+				},
+			},
+		},
+	});
+	const output = Array.isArray(result) ? result[0] : result;
+	// Keyed by `originalFileName` (Rollup's own record of the actual source
+	// path each asset was built from — verified present on every emitted
+	// asset for this exact two-entry CSS build) rather than the derived
+	// `name`/`names` output-naming fields, so this stays correct even if
+	// Vite's own entry-key-to-output-name derivation ever changes.
+	const cssByOriginalFileName = new Map(
+		output.output
+			.filter((entry) => entry.type === "asset")
+			.map((entry) => [
+				entry.originalFileName,
+				typeof entry.source === "string"
+					? entry.source
+					: Buffer.from(entry.source).toString("utf8"),
+			]),
+	);
+	const presentationCss = cssByOriginalFileName.get(
+		"src/styles/comparison-presentation.css",
+	);
+	const frameCss = cssByOriginalFileName.get(
+		"src/styles/comparison-artifact-frame.css",
+	);
+	if (presentationCss === undefined || frameCss === undefined) {
+		throw new Error(
+			"Presentation CSS build did not produce the expected comparison-presentation.css/comparison-artifact-frame.css assets",
+		);
+	}
+	return `${presentationCss}\n${frameCss}`;
 }
 
 // CLI entry point — `pnpm build:runtime`, wired into `pnpm build` only (see
@@ -91,8 +174,22 @@ const isMainModule =
 if (isMainModule) {
 	const { mkdir, writeFile } = await import("node:fs/promises");
 	const { join } = await import("node:path");
-	const code = await buildPresentationRuntimeCode();
+	const [readableCode, minifiedCode, cssCode] = await Promise.all([
+		buildPresentationRuntimeCode(),
+		buildPresentationRuntimeCode({ minify: true }),
+		buildPresentationCssCode(),
+	]);
 	const outDir = join(projectRoot, "public", "generated");
 	await mkdir(outDir, { recursive: true });
-	await writeFile(join(outDir, "comparison-presentation-runtime.js"), code);
+	await Promise.all([
+		writeFile(
+			join(outDir, "comparison-presentation-runtime.js"),
+			readableCode,
+		),
+		writeFile(
+			join(outDir, "comparison-presentation-runtime.min.js"),
+			minifiedCode,
+		),
+		writeFile(join(outDir, "comparison-presentation.min.css"), cssCode),
+	]);
 }

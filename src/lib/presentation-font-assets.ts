@@ -113,16 +113,32 @@ const FONT_WEIGHT_RANGES: Record<PresentationFontId, string> = {
 // differs from the live Preview's (src/styles/comparison-presentation.css
 // itself never references a font file — see that file's own header
 // comment).
+//
+// `options.compact` (default false) selects a second, already-compact
+// single-line-per-rule template for exactly the same semantic values (font
+// family, URL, format, weight range) — used exclusively by
+// src/lib/generate-static-microsite.ts, so the finished
+// `css/sameview-comparison.css` never contains a newline-formatted
+// `@font-face` rule sitting next to otherwise-minified CSS. This is not a
+// minifier: no existing string is parsed or stripped, only a second,
+// equally explicit template producing the same values. Every caller that
+// omits `options` (Standalone HTML) keeps the exact byte-identical readable
+// output already produced before this option existed.
 export function buildFontFaceCss(
 	id: PresentationFontId,
 	resolveUrl: (file: PresentationFontFile) => string,
+	options?: { readonly compact?: boolean },
 ): string {
+	const compact = options?.compact ?? false;
 	const asset = getPresentationFontAsset(id);
 	return asset.files
 		.map((file) => {
 			const weightRange =
 				asset.files.length === 1 ? FONT_WEIGHT_RANGES[id] : String(file.weight);
+			if (compact) {
+				return `@font-face{font-family:${asset.fontFamily};src:url("${resolveUrl(file)}") format("${file.format}");font-weight:${weightRange};font-style:normal;font-display:swap}`;
+			}
 			return `@font-face {\n\tfont-family: ${asset.fontFamily};\n\tsrc: url("${resolveUrl(file)}") format("${file.format}");\n\tfont-weight: ${weightRange};\n\tfont-style: normal;\n\tfont-display: swap;\n}`;
 		})
-		.join("\n\n");
+		.join(compact ? "" : "\n\n");
 }

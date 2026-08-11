@@ -7,7 +7,12 @@
 // and `fonts/<only the selected Presentation Font's own file(s)>` plus its
 // license file. Shares every actual rendering/behavior source with
 // src/lib/generate-standalone-html.ts — the two differ only in how each
-// section's content is packaged (external file vs. inline).
+// section's content is packaged (external file vs. inline), and in that
+// `css/sameview-comparison.css`/`js/sameview-comparison.js` are packaged in
+// already-minified form (docs/IMPLEMENTATION_PLAN_V1.md Phase 9) — built
+// from that exact same shared source via
+// scripts/build-presentation-runtime.mjs, never a second implementation.
+// `index.html` itself stays readable, exactly like Standalone HTML.
 
 import {
 	TextReader,
@@ -16,10 +21,9 @@ import {
 	ZipWriter,
 } from "@zip.js/zip.js";
 import type { Locale } from "../i18n/translations.ts";
-import frameCssRaw from "../styles/comparison-artifact-frame.css?raw";
-import presentationCssRaw from "../styles/comparison-presentation.css?raw";
 import {
 	fetchFaviconBytes,
+	fetchPresentationCssMinified,
 	fetchPresentationFontAsset,
 	fetchPresentationRuntimeScript,
 } from "./comparison-artifact-assets.ts";
@@ -27,10 +31,7 @@ import {
 	buildComparisonArtifactMarkup,
 	type ComparisonArtifactCopy,
 } from "./comparison-artifact-markup.ts";
-import {
-	buildArtifactDocument,
-	composeArtifactCss,
-} from "./comparison-artifact-scaffold.ts";
+import { buildArtifactDocument } from "./comparison-artifact-scaffold.ts";
 import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
 import { buildFontFaceCss } from "./presentation-font-assets.ts";
 import { resolvePresentationFontFamily } from "./presentation-fonts.ts";
@@ -70,20 +71,30 @@ export async function generateStaticMicrosite(
 	} = options;
 	const fontId = snapshot.configuration.presentationFont;
 
-	const [fontAsset, faviconBytes, runtimeScriptText] = await Promise.all([
-		fetchPresentationFontAsset(fontId),
-		fetchFaviconBytes(),
-		fetchPresentationRuntimeScript(),
-	]);
+	const [fontAsset, faviconBytes, runtimeScriptText, presentationCssMinified] =
+		await Promise.all([
+			fetchPresentationFontAsset(fontId),
+			fetchFaviconBytes(),
+			fetchPresentationRuntimeScript("minified"),
+			fetchPresentationCssMinified(),
+		]);
 
 	// Relative from `css/sameview-comparison.css` up to the zip-root-level
 	// `fonts/` folder — see this module's own header comment for the exact
-	// packaged structure.
+	// packaged structure. `compact: true` keeps this dynamically generated
+	// rule consistent with the already-minified `presentationCssMinified`
+	// fetched above (src/lib/comparison-artifact-assets.ts
+	// `fetchPresentationCssMinified`, built by
+	// scripts/build-presentation-runtime.mjs `buildPresentationCssCode`) —
+	// same fixed order as the shared `composeArtifactCss` uses for Standalone
+	// HTML: `@font-face` first, then Presentation CSS, then Frame CSS (already
+	// concatenated in that order inside `presentationCssMinified` itself).
 	const fontFaceCss = buildFontFaceCss(
 		fontId,
 		(file) => `../fonts/${basename(file.path)}`,
+		{ compact: true },
 	);
-	const css = composeArtifactCss(fontFaceCss, presentationCssRaw, frameCssRaw);
+	const css = `${fontFaceCss}\n${presentationCssMinified}`;
 
 	const hasBrandingAsset =
 		snapshot.branding.kind === "asset" &&

@@ -60,10 +60,53 @@ const runtimeAssetPath = join(
 	"comparison-presentation-runtime.js",
 );
 const RUNTIME_ROUTE = "/generated/comparison-presentation-runtime.js";
+const MIN_RUNTIME_ROUTE = "/generated/comparison-presentation-runtime.min.js";
+const CSS_ROUTE = "/generated/comparison-presentation.min.css";
 // A real, stable identifier from inside the bundled module graph
-// (src/lib/adaptive-text-size.ts) — proves the response is genuinely the
-// compiled runtime, not merely "some 200 response" or a stale placeholder.
+// (src/lib/adaptive-text-size.ts) — proves the readable response is
+// genuinely the compiled runtime, not merely "some 200 response" or a stale
+// placeholder. Only usable against the *readable* variant: esbuild's
+// `minify: true` (scripts/build-presentation-runtime.mjs
+// `buildPresentationRuntimeCode({ minify: true })`) mangles every local
+// identifier in this no-exports IIFE, so this exact function name does not
+// survive minification — empirically confirmed against the real minified
+// build output before writing this test, not assumed.
 const RUNTIME_CODE_MARKER = "computeWrappedLineCount";
+// A real, stable *string literal* the runtime reads via
+// `document.getElementById` (src/lib/comparison-presentation-runtime.ts
+// `requireElement<HTMLElement>("sameview-output-frame")`) — unlike
+// `RUNTIME_CODE_MARKER` above, string literals are never renamed by esbuild's
+// minifier, so this marker proves genuine compiled-runtime identity in
+// *both* the readable and minified variants.
+const MIN_RUNTIME_CODE_MARKER = "sameview-output-frame";
+// Real, stable selectors from src/styles/comparison-presentation.css and
+// src/styles/comparison-artifact-frame.css respectively — proves the CSS
+// response is genuinely both real stylesheets, concatenated in the fixed
+// Presentation-then-Frame order scripts/build-presentation-runtime.mjs
+// `buildPresentationCssCode` documents.
+const PRESENTATION_CSS_MARKER = ".presentation-canvas";
+const FRAME_CSS_MARKER = "#sameview-output-frame";
+
+// Structural (not size-based) proof of esbuild minification: readable source
+// is always written with real newlines between declarations/rules; esbuild's
+// minifier collapses a rule/statement body onto a single line with no space
+// after `{`/`:`/`;`/`,` separators it controls. Comparing against the
+// already-fetched readable sibling in the same test, rather than a fixed
+// byte-count threshold, is what keeps this assertion meaningful if either
+// source file's own size changes later.
+function assertStructurallyMinified(minifiedText, readableText, label) {
+	const minifiedLineCount = minifiedText.split("\n").length;
+	const readableLineCount = readableText.split("\n").length;
+	assert.ok(
+		minifiedLineCount < readableLineCount / 2,
+		`${label}: expected minified output to collapse onto far fewer lines than the readable variant (minified: ${minifiedLineCount} lines, readable: ${readableLineCount} lines)`,
+	);
+	assert.doesNotMatch(
+		minifiedText,
+		/\n\t/,
+		`${label}: minified output still contains tab-indented lines`,
+	);
+}
 
 function getFreePort() {
 	return new Promise((resolve, reject) => {
@@ -291,6 +334,50 @@ describe("astro dev serves the Comparison Presentation runtime without depending
 				!code.includes("//#region") && !code.includes("//#endregion"),
 				"runtime asset response still contains bundler region-marker comments revealing internal src/lib paths",
 			);
+
+			// The same already-running dev server also serves the two
+			// Static-Microsite-only minified variants (scripts/vite-plugin-presentation-runtime-dev.mjs),
+			// built from the exact same runtime source and CSS files as the
+			// readable assets already asserted above — same server, same
+			// in-memory build functions, never a second implementation.
+			const minResponse = await fetch(
+				`http://localhost:${port}${MIN_RUNTIME_ROUTE}`,
+			);
+			assert.equal(minResponse.status, 200);
+			const minCode = await minResponse.text();
+			assert.ok(
+				minCode.includes(MIN_RUNTIME_CODE_MARKER),
+				"minified runtime asset response did not contain the expected compiled marker",
+			);
+			assert.ok(
+				!minCode.includes("//#region") && !minCode.includes("//#endregion"),
+				"minified runtime asset response still contains bundler region-marker comments",
+			);
+			assertStructurallyMinified(minCode, code, "dev-served runtime JS");
+
+			const cssResponse = await fetch(`http://localhost:${port}${CSS_ROUTE}`);
+			assert.equal(cssResponse.status, 200);
+			const css = await cssResponse.text();
+			assert.ok(
+				css.includes(PRESENTATION_CSS_MARKER) && css.includes(FRAME_CSS_MARKER),
+				"minified Presentation CSS response is missing an expected selector from either source file",
+			);
+			assert.ok(
+				css.indexOf(PRESENTATION_CSS_MARKER) < css.indexOf(FRAME_CSS_MARKER),
+				"minified Presentation CSS response does not preserve the Presentation-then-Frame order",
+			);
+			assert.doesNotMatch(
+				css,
+				/\/\*/,
+				"minified Presentation CSS response still contains a comment opening",
+			);
+			assert.doesNotMatch(css, /docs\//);
+			assert.doesNotMatch(css, /src\/(lib|components)\//);
+			assert.match(
+				css,
+				/\.presentation-canvas\{/,
+				"minified Presentation CSS response does not use compact selector formatting",
+			);
 		} finally {
 			await killProcessTree(child);
 			removeGeneratedDir();
@@ -390,6 +477,64 @@ describe("pnpm build still produces the real static runtime asset, without the d
 					!distRuntimeCode.includes("//#endregion"),
 				"dist/client/generated/comparison-presentation-runtime.js still contains bundler region-marker comments revealing internal src/lib paths",
 			);
+
+			// Static-Microsite-only minified runtime — same source, same
+			// production build (scripts/build-presentation-runtime.mjs
+			// `buildPresentationRuntimeCode({ minify: true })`), written
+			// alongside the readable variant above, never a second
+			// implementation.
+			const distRuntimeMinPath = join(
+				distDir,
+				"client",
+				"generated",
+				"comparison-presentation-runtime.min.js",
+			);
+			assert.ok(
+				existsSync(distRuntimeMinPath),
+				"dist/client/generated/comparison-presentation-runtime.min.js is missing after pnpm build",
+			);
+			const distRuntimeMinCode = readFileSync(distRuntimeMinPath, "utf8");
+			assert.ok(distRuntimeMinCode.includes(MIN_RUNTIME_CODE_MARKER));
+			assert.ok(
+				!distRuntimeMinCode.includes("//#region") &&
+					!distRuntimeMinCode.includes("//#endregion"),
+				"dist/client/generated/comparison-presentation-runtime.min.js still contains bundler region-marker comments",
+			);
+			assertStructurallyMinified(
+				distRuntimeMinCode,
+				distRuntimeCode,
+				"production runtime JS",
+			);
+
+			// Static-Microsite-only minified Presentation CSS — same two source
+			// files Standalone HTML still reads unminified via its own `?raw`
+			// imports (src/lib/generate-standalone-html.ts, untouched by this
+			// change).
+			const distCssMinPath = join(
+				distDir,
+				"client",
+				"generated",
+				"comparison-presentation.min.css",
+			);
+			assert.ok(
+				existsSync(distCssMinPath),
+				"dist/client/generated/comparison-presentation.min.css is missing after pnpm build",
+			);
+			const distCssMin = readFileSync(distCssMinPath, "utf8");
+			assert.ok(
+				distCssMin.includes(PRESENTATION_CSS_MARKER) &&
+					distCssMin.includes(FRAME_CSS_MARKER),
+				"dist/client/generated/comparison-presentation.min.css is missing an expected selector from either source file",
+			);
+			assert.ok(
+				distCssMin.indexOf(PRESENTATION_CSS_MARKER) <
+					distCssMin.indexOf(FRAME_CSS_MARKER),
+				"dist/client/generated/comparison-presentation.min.css does not preserve the Presentation-then-Frame order",
+			);
+			assert.doesNotMatch(distCssMin, /\/\*/);
+			assert.doesNotMatch(distCssMin, /docs\//);
+			assert.doesNotMatch(distCssMin, /src\/(lib|components)\//);
+			assert.match(distCssMin, /\.presentation-canvas\{/);
 
 			// The dev-only plugin (scripts/vite-plugin-presentation-runtime-dev.mjs)
 			// must never end up inside the shipped artifact — `apply: "serve"`
