@@ -14,7 +14,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, test } from "@playwright/test";
-import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
+import {
+	TextWriter,
+	Uint8ArrayReader,
+	Uint8ArrayWriter,
+	ZipReader,
+} from "@zip.js/zip.js";
 
 const fixturesDir = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -199,7 +204,7 @@ test("Create Output opens the Output Inspector with Standalone HTML selected, Re
 	await expect(page.getByText(/squarespace/i)).toHaveCount(0);
 });
 
-test("selecting Embed in website enables its WordPress platform selector, hides the primary action entirely, keeps the shared output settings interactive, and never changes the Workspace Preview", async ({
+test("selecting Embed in website enables its WordPress platform selector, shows the real Generate-for-WordPress primary action, keeps the shared output settings interactive, and never changes the Workspace Preview", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -215,10 +220,12 @@ test("selecting Embed in website enables its WordPress platform selector, hides 
 	await expect(platformSelector).toBeEnabled();
 	await expect(platformSelector).toHaveAttribute("aria-checked", "true");
 
-	// docs/IMPLEMENTATION_PLAN_V1.md Phase 12 "Not included": no working
-	// Generate action yet — the primary action must be entirely absent, not a
-	// disabled button or a "Coming Soon" placeholder.
-	await expect(page.getByTestId("output-primary-action")).toHaveCount(0);
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed in website now has a
+	// real Generate action — no disabled button, no "Coming Soon" placeholder,
+	// the same primary-action pattern Standalone HTML/Static Microsite use.
+	await expect(page.getByTestId("output-primary-action")).toHaveText(
+		/generate for wordpress/i,
+	);
 
 	// F-005: "available identically for Standalone HTML, Static Microsite and
 	// Embed in website once an output type has been selected."
@@ -238,7 +245,7 @@ test("selecting Embed in website enables its WordPress platform selector, hides 
 	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
 });
 
-test("switching from Standalone HTML to Embed in website hides the primary action, and switching back restores the normal Standalone HTML action requiring a fresh generation", async ({
+test("switching from Standalone HTML to Embed in website and back invalidates the previously generated artifact each time and requires a fresh generation for the newly selected type", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -253,10 +260,21 @@ test("switching from Standalone HTML to Embed in website hides the primary actio
 	await expect(primaryAction).toHaveText(/download again/i);
 
 	// docs/APPLICATION_LAYOUT.md "Completion": switching output type
-	// invalidates the already-generated artifact for repeat download — Embed
-	// has no primary action at all to revert to, so it must simply disappear.
+	// invalidates the already-generated artifact for repeat download.
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed now has its own real
+	// primary action, so it reverts to its own normal generate state rather
+	// than disappearing.
 	await page.getByTestId("output-card-embed-in-website").click();
-	await expect(page.getByTestId("output-primary-action")).toHaveCount(0);
+	await expect(primaryAction).toHaveText(/generate for wordpress/i);
+
+	const [wordPressDownload] = await Promise.all([
+		page.waitForEvent("download"),
+		primaryAction.click(),
+	]);
+	expect(wordPressDownload.suggestedFilename()).toBe(
+		"sameview-comparisons-wordpress.zip",
+	);
+	await expect(primaryAction).toHaveText(/download again/i);
 
 	await page.getByTestId("output-card-standalone-html").click();
 	await expect(primaryAction).toHaveText(/download html/i);
@@ -308,6 +326,92 @@ test("Embed in website's card name, description and platform selector render in 
 	await expect(page.getByTestId("output-platform-wordpress")).toHaveText(
 		"WordPress",
 	);
+});
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: the Embed in website → WordPress
+// "Generate" action is now real. Verifies the exact unified package
+// structure (docs/WORDPRESS_INTEGRATION.md "First Installation": "the same
+// kind of downloadable package ... regardless") and that `comparison.json`
+// is a direct mapping of the already-approved Outcome Snapshot content
+// (test/unit/generate-wordpress-package.test.mjs covers the mapping itself
+// in isolation; this test covers the real, actually-downloaded artifact).
+test("generating for WordPress downloads sameview-comparisons-wordpress.zip containing the plugin files and a seed matching the current Comparison, then shows the install guide", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-embed-in-website").click();
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(download.suggestedFilename()).toBe(
+		"sameview-comparisons-wordpress.zip",
+	);
+	const zipPath = await download.path();
+	expect(zipPath).not.toBeNull();
+
+	const zipBytes = new Uint8Array(readFileSync(zipPath as string));
+	const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	const entries = await zipReader.getEntries();
+	const paths = entries.map((entry) => entry.filename).sort();
+
+	// The exact Phase 14 plugin files, copied verbatim, plus the seed
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 15) — same fixture as the Static
+	// Microsite test above, so branding.png is expected here too.
+	expect(paths).toEqual(
+		[
+			"sameview-comparisons/sameview-comparisons.php",
+			"sameview-comparisons/includes/post-type.php",
+			"sameview-comparisons/includes/uploads.php",
+			"sameview-comparisons/includes/capabilities.php",
+			"sameview-comparisons/includes/import.php",
+			"sameview-comparisons/includes/lifecycle.php",
+			"sameview-comparisons/includes/admin-add-comparison.php",
+			"sameview-comparisons/uninstall.php",
+			"sameview-comparisons/seed/comparison.json",
+			"sameview-comparisons/seed/reference.jpg",
+			"sameview-comparisons/seed/capture.jpg",
+			"sameview-comparisons/seed/branding.png",
+		].sort(),
+	);
+
+	const manifestEntry = entries.find(
+		(entry) =>
+			entry.filename === "sameview-comparisons/seed/comparison.json" &&
+			!entry.directory,
+	);
+	if (!manifestEntry || manifestEntry.directory) {
+		throw new Error("seed/comparison.json entry missing");
+	}
+	const manifestText = await manifestEntry.getData(new TextWriter());
+	const manifest = JSON.parse(manifestText);
+
+	expect(manifest.formatVersion).toBe(1);
+	expect(typeof manifest.sessionId).toBe("string");
+	expect(manifest.sessionId.length).toBeGreaterThan(0);
+	expect(typeof manifest.outcomeFingerprint).toBe("string");
+	expect(manifest.outcomeFingerprint.length).toBeGreaterThan(0);
+	// No rendered markup, no device paths, no raw imported metadata — only
+	// the already-approved Outcome Snapshot's own allowlisted shape.
+	expect(manifest).not.toHaveProperty("html");
+	expect(manifest).not.toHaveProperty("metadata");
+	expect(manifest.presentation).toBeTruthy();
+	expect(manifest.visibility).toBeTruthy();
+	expect(manifest.configuration).toBeTruthy();
+	expect(typeof manifest.initialSliderPosition).toBe("number");
+	expect(manifest.branding).toBeTruthy();
+
+	await zipReader.close();
+
+	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": a short
+	// installation guide, no dedicated success screen.
+	await expect(
+		page.getByTestId("output-wordpress-install-guide"),
+	).toBeVisible();
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
 });
 
 test("the Presentation Preview stays visible and unchanged while the Output Inspector is open", async ({

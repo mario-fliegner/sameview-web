@@ -197,6 +197,8 @@ export interface Translations {
 		readonly removeLocationDataHint: string;
 		readonly downloadHtmlButton: string;
 		readonly downloadZipButton: string;
+		readonly downloadWordPressButton: string;
+		readonly wordPressInstallGuide: string;
 		readonly progressPreparingComparison: string;
 		readonly progressProcessingImages: string;
 		readonly progressBuildingOutput: string;
@@ -389,6 +391,9 @@ export const translations: Record<Locale, Translations> = {
 				"Visible location stays in the comparison. Only location data embedded in the image files is removed.",
 			downloadHtmlButton: "Download HTML",
 			downloadZipButton: "Download ZIP",
+			downloadWordPressButton: "Generate for WordPress",
+			wordPressInstallGuide:
+				"Install this file through WordPress → Plugins → Add New → Upload Plugin. If SameView is already installed on the site, use SameView → Add comparison instead.",
 			progressPreparingComparison: "Preparing comparison…",
 			progressProcessingImages: "Processing images…",
 			progressBuildingOutput: "Building output…",
@@ -585,6 +590,9 @@ export const translations: Record<Locale, Translations> = {
 				"Der sichtbare Ort bleibt im Vergleich. Entfernt werden nur in den Bilddateien eingebettete Standortdaten.",
 			downloadHtmlButton: "HTML herunterladen",
 			downloadZipButton: "ZIP herunterladen",
+			downloadWordPressButton: "Für WordPress erstellen",
+			wordPressInstallGuide:
+				"Installieren Sie diese Datei über WordPress → Plugins → Installieren → Plugin hochladen. Ist SameView auf der Website bereits installiert, verwenden Sie stattdessen SameView → Vergleich hinzufügen.",
 			progressPreparingComparison: "Vergleich wird vorbereitet…",
 			progressProcessingImages: "Bilder werden verarbeitet…",
 			progressBuildingOutput: "Ausgabe wird erstellt…",

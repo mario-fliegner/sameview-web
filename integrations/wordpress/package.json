@@ -8,7 +8,7 @@
     "stop": "wp-env stop",
     "destroy": "wp-env destroy",
     "wp-env": "wp-env",
-    "test": "node --test \"tests/**/*.test.mjs\""
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\""
   },
   "devDependencies": {
     "@wordpress/env": "^11.12.0"

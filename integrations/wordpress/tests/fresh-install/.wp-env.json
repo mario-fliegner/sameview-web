@@ -1,0 +1,6 @@
+{
+  "plugins": [],
+  "mappings": {
+    "wp-content/sameview-artifact": "./artifact"
+  }
+}

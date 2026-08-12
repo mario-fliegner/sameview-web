@@ -139,11 +139,14 @@ export default function OutputInspector({
 		currentWorkingState.presentationVisibility.location;
 
 	async function runGeneration() {
-		// Phase 12 never renders the primary action while Embed is selected
-		// (below), so this never actually fires for it; this guard exists so
-		// `outputType` narrows to `OutputType` for generateComparisonOutput
-		// below without generateComparisonOutput's own union ever widening.
-		if (outputType === "embed-in-website") return;
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed in website now has a
+		// working Generate action. WordPress is the only Embed platform
+		// (`EmbedPlatform` above), so this Output Inspector selection always
+		// resolves to exactly one `OutputType` (generate-comparison-output.ts)
+		// — no branch on `embedPlatform`'s own value is needed while it has
+		// only one member.
+		const resolvedOutputType: OutputType =
+			outputType === "embed-in-website" ? "embed-wordpress" : outputType;
 		setPhase("generating");
 		setProgressPhase("preparing-comparison");
 		// Snapshotted here, once, at the moment Generate is pressed — never
@@ -172,7 +175,7 @@ export default function OutputInspector({
 					sameYear: t.workspace.durationSameYearLabel,
 				},
 			},
-			outputType,
+			outputType: resolvedOutputType,
 			removeEmbeddedLocationData,
 			copy: {
 				referenceAlt: t.workspace.referenceImageAlt,
@@ -255,7 +258,9 @@ export default function OutputInspector({
 	const primaryLabel =
 		outputType === "standalone-html"
 			? t.outputInspector.downloadHtmlButton
-			: t.outputInspector.downloadZipButton;
+			: outputType === "embed-in-website"
+				? t.outputInspector.downloadWordPressButton
+				: t.outputInspector.downloadZipButton;
 
 	const progressLabel =
 		progressPhase === "preparing-comparison"
@@ -479,22 +484,31 @@ export default function OutputInspector({
 				</div>
 			)}
 
-			{/* Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md "Embed in Website Output
-			    Selection"): Embed in website has no working Generate action yet, so
-			    the primary action is absent entirely while it is selected — no
-			    disabled button, no "Coming Soon" placeholder, no invented copy. */}
-			{outputType !== "embed-in-website" && (
-				<button
-					type="button"
-					className="output-inspector__primary-button"
-					data-testid="output-primary-action"
-					onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
-					disabled={isGenerating}
+			<button
+				type="button"
+				className="output-inspector__primary-button"
+				data-testid="output-primary-action"
+				onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
+				disabled={isGenerating}
+			>
+				{phase === "ready"
+					? t.outputInspector.downloadAgainButton
+					: primaryLabel}
+			</button>
+
+			{/* docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "After
+			    successful generation, SameView Web shows a short platform-specific
+			    installation/integration guide directly in the Output Inspector.
+			    There is no wizard, modal or separate workflow page." Deferred from
+			    Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md Phase 12 "Not included":
+			    "post-generation installation guidance content (Phase 15)"). */}
+			{phase === "ready" && outputType === "embed-in-website" && (
+				<p
+					className="output-inspector__hint"
+					data-testid="output-wordpress-install-guide"
 				>
-					{phase === "ready"
-						? t.outputInspector.downloadAgainButton
-						: primaryLabel}
-				</button>
+					{t.outputInspector.wordPressInstallGuide}
+				</p>
 			)}
 		</aside>
 	);

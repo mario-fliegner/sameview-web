@@ -123,3 +123,43 @@ export async function fetchPresentationCssMinified(): Promise<string> {
 	}
 	return response.text();
 }
+
+// The Phase 14 WordPress plugin's own static PHP files, copied verbatim at
+// SameView Web's own build time by scripts/build-wordpress-plugin-assets.mjs
+// (docs/IMPLEMENTATION_PLAN_V1.md Phase 15) — the one approved, build-time-
+// only, one-directional, content-only coupling to the isolated
+// integrations/wordpress/ area. Fetched as opaque bytes only, exactly like
+// the runtime script/fonts/favicon above; nothing here executes or
+// interprets PHP. The manifest (rather than a hardcoded file list) is what
+// that build script itself writes, so the two can never drift apart.
+export interface FetchedWordPressPluginFile {
+	readonly path: string;
+	readonly bytes: Uint8Array;
+}
+
+const WORDPRESS_PLUGIN_ASSETS_BASE = "/generated/wordpress-plugin";
+
+export async function fetchWordPressPluginFiles(): Promise<
+	readonly FetchedWordPressPluginFile[]
+> {
+	const manifestResponse = await fetch(
+		`${WORDPRESS_PLUGIN_ASSETS_BASE}/manifest.json`,
+	);
+	if (!manifestResponse.ok) {
+		throw new Error(
+			`Failed to fetch WordPress plugin manifest: ${manifestResponse.status}`,
+		);
+	}
+	const manifest: string[] = await manifestResponse.json();
+	return Promise.all(
+		manifest.map(async (path) => {
+			const response = await fetch(`${WORDPRESS_PLUGIN_ASSETS_BASE}/${path}`);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch WordPress plugin file "${path}": ${response.status}`,
+				);
+			}
+			return { path, bytes: new Uint8Array(await response.arrayBuffer()) };
+		}),
+	);
+}

@@ -18,6 +18,10 @@ import {
 	generateStaticMicrosite,
 	STATIC_MICROSITE_FILENAME,
 } from "./generate-static-microsite.ts";
+import {
+	generateWordPressPackage,
+	WORDPRESS_PACKAGE_FILENAME,
+} from "./generate-wordpress-package.ts";
 import { createOutcomeSnapshot } from "./outcome-snapshot.ts";
 import {
 	type ProcessComparisonImagesError,
@@ -26,7 +30,10 @@ import {
 import type { GeneratedArtifact } from "./trigger-download.ts";
 import type { CurrentWorkingState } from "./workspace-state.ts";
 
-export type OutputType = "standalone-html" | "static-microsite";
+export type OutputType =
+	| "standalone-html"
+	| "static-microsite"
+	| "embed-wordpress";
 
 // The Output Inspector's progress phases (docs/APPLICATION_LAYOUT.md
 // "Progress": "Preparing comparison / Processing images / Building output /
@@ -124,6 +131,21 @@ export async function generateComparisonOutput(
 				value: {
 					filename: STANDALONE_HTML_FILENAME,
 					mimeType: "text/html",
+					bytes,
+				},
+			};
+		}
+		if (options.outputType === "embed-wordpress") {
+			// No presentationMarkup/scaffold options apply here — the WordPress
+			// package transports data only, never rendered markup (this file's
+			// own header comment; src/lib/generate-wordpress-package.ts's own
+			// header comment for why).
+			const bytes = await generateWordPressPackage({ snapshot });
+			return {
+				ok: true,
+				value: {
+					filename: WORDPRESS_PACKAGE_FILENAME,
+					mimeType: "application/zip",
 					bytes,
 				},
 			};

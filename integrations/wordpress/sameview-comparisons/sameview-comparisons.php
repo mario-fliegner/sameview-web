@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: SameView Comparisons
- * Description: Persistent SameView Comparison storage foundation for WordPress. Phase 14 (docs/IMPLEMENTATION_PLAN_V1.md): plugin lifecycle and storage foundation only — no Comparison-facing behavior yet.
- * Version: 0.1.0
+ * Description: Persistent SameView Comparison storage and Add/Update lifecycle for WordPress (docs/IMPLEMENTATION_PLAN_V1.md Phase 14/15). No Comparison rendering yet (Phase 16).
+ * Version: 0.2.0
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Author: SameView
@@ -20,13 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Disallow direct access.
 }
 
-define( 'SAMEVIEW_COMPARISONS_VERSION', '0.1.0' );
+define( 'SAMEVIEW_COMPARISONS_VERSION', '0.2.0' );
 define( 'SAMEVIEW_COMPARISONS_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/post-type.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/uploads.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/capabilities.php';
+require_once SAMEVIEW_COMPARISONS_DIR . 'includes/import.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/lifecycle.php';
+require_once SAMEVIEW_COMPARISONS_DIR . 'includes/admin-add-comparison.php';
 
 register_activation_hook( __FILE__, 'sameview_activate' );
 register_deactivation_hook( __FILE__, 'sameview_deactivate' );
