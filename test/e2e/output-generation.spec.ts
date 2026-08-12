@@ -1723,6 +1723,18 @@ function sha256Hex(bytes: Uint8Array | Buffer): string {
 // generation settings *before* Phase 11 was implemented — never update them
 // merely to make this test pass; a mismatch means some change (Phase 11 or
 // otherwise) altered output that must stay byte-for-byte identical.
+//
+// Updated once, deliberately, for docs/IMPLEMENTATION_PLAN_V1.md Phase 13
+// ("Shared Runtime Multiple-Instance Safety"): the embedded Comparison
+// Presentation runtime script's own source changed (root-relative,
+// multi-instance-safe element resolution replacing global
+// `document.getElementById` lookups), which necessarily changes this single
+// file's overall hash since the script is inlined into it — verified before
+// this update that the Static Microsite's own `index.html` entry hash below
+// (identical `.presentation-canvas` markup, produced by the same
+// `buildComparisonArtifactMarkup` call) stayed byte-for-byte unchanged, so
+// the Presentation markup/content/settings embedded here are unaffected;
+// only the runtime script bytes are.
 test("Standalone HTML bytes for the default fixture configuration remain byte-for-byte unchanged across unrelated Outcome Snapshot changes (Phase 11 regression guard)", async ({
 	page,
 }) => {
@@ -1735,7 +1747,7 @@ test("Standalone HTML bytes for the default fixture configuration remain byte-fo
 	]);
 	const bytes = readFileSync(await download.path());
 	expect(sha256Hex(bytes)).toBe(
-		"7b42fdc5e83e8856475d3949228657b25dd310457877c1e24bdf0c965336c2c2",
+		"25076374b1ac3f217a6565a2161fe1877cc52dbc75ab98a616029432ce2434c3",
 	);
 });
 
@@ -1745,6 +1757,13 @@ test("Standalone HTML bytes for the default fixture configuration remain byte-fo
 // time, so the container itself is not byte-stable across separate
 // generation runs even without any code change — the entries' actual content
 // is the outcome's own allowlisted content, and is what must stay stable.
+//
+// `js/sameview-comparison.js`'s expected hash was updated once, deliberately,
+// for docs/IMPLEMENTATION_PLAN_V1.md Phase 13 ("Shared Runtime
+// Multiple-Instance Safety") — the exact same embedded-runtime-script change
+// documented on the Standalone HTML test above. Every other entry below,
+// especially `index.html`, was verified unchanged before this update and
+// must stay exactly as it was.
 test("Static Microsite entry contents for the default fixture configuration remain byte-for-byte unchanged across unrelated Outcome Snapshot changes (Phase 11 regression guard)", async ({
 	page,
 }) => {
@@ -1787,6 +1806,6 @@ test("Static Microsite entry contents for the default fixture configuration rema
 		"index.html":
 			"3b0dd723677a238fc1f9d2c399f92af1b50d57e4734eeeeb9beccde07188fbc1",
 		"js/sameview-comparison.js":
-			"fcd969a577744aa1332c020af34f491f94d37c30b81d020a0a11aeae953ccd51",
+			"5ea240e889a41cc03c49014087f53193e2c770986f7e3cfddc7ae36c57a96f44",
 	});
 });

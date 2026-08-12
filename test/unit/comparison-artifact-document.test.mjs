@@ -115,6 +115,7 @@ function buildDocument({
 		copy: COPY,
 		presentationFontFamily: resolvePresentationFontFamily(fontId),
 		initialSliderPosition: 0.5,
+		instanceMode: { kind: "single-instance-legacy" },
 	});
 
 	const faviconBytes = fs.readFileSync(path.join(ROOT, "public/favicon.svg"));

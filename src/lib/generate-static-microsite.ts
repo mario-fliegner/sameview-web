@@ -113,6 +113,10 @@ export async function generateStaticMicrosite(
 		copy,
 		presentationFontFamily: resolvePresentationFontFamily(fontId),
 		initialSliderPosition: snapshot.initialSliderPosition,
+		// Static Microsite always renders exactly one instance per document
+		// (docs/IMPLEMENTATION_PLAN_V1.md Phase 13) — preserves every existing
+		// `sameview-*` id byte-for-byte.
+		instanceMode: { kind: "single-instance-legacy" },
 	});
 
 	const html = buildArtifactDocument({

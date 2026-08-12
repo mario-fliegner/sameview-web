@@ -72,13 +72,16 @@ const CSS_ROUTE = "/generated/comparison-presentation.min.css";
 // survive minification — empirically confirmed against the real minified
 // build output before writing this test, not assumed.
 const RUNTIME_CODE_MARKER = "computeWrappedLineCount";
-// A real, stable *string literal* the runtime reads via
-// `document.getElementById` (src/lib/comparison-presentation-runtime.ts
-// `requireElement<HTMLElement>("sameview-output-frame")`) — unlike
+// A real, stable *string literal* the runtime reads via a root-relative
+// selector (src/lib/comparison-presentation-runtime.ts
+// `requireDescendant<HTMLElement>(canvas, ".comparison-slider__frame")` —
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 13 replaced the previous global
+// `document.getElementById("sameview-output-frame")` lookup this marker used
+// to target with root-relative, id-free class selectors) — unlike
 // `RUNTIME_CODE_MARKER` above, string literals are never renamed by esbuild's
 // minifier, so this marker proves genuine compiled-runtime identity in
 // *both* the readable and minified variants.
-const MIN_RUNTIME_CODE_MARKER = "sameview-output-frame";
+const MIN_RUNTIME_CODE_MARKER = "comparison-slider__frame";
 // Real, stable selectors from src/styles/comparison-presentation.css and
 // src/styles/comparison-artifact-frame.css respectively — proves the CSS
 // response is genuinely both real stylesheets, concatenated in the fixed

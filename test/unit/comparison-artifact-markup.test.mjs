@@ -57,6 +57,7 @@ function build(overrides = {}) {
 		copy: COPY,
 		presentationFontFamily: '"Inter Variable", sans-serif',
 		initialSliderPosition: 0.5,
+		instanceMode: { kind: "single-instance-legacy" },
 		...overrides,
 	});
 }
@@ -86,6 +87,25 @@ describe("buildComparisonArtifactMarkup", () => {
 			const matches = markup.match(new RegExp(`id="${id}"`, "g")) ?? [];
 			assert.equal(matches.length, 1, `expected exactly one #${id}`);
 		}
+	});
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 13 ("Shared Runtime Multiple-
+	// Instance Safety"); docs/COMPARISON_PRESENTATION.md "Multiple Instances
+	// and Host Isolation": "no instance's identifiers ... collide with
+	// another's." `multi-instance` mode emits no per-element `id` attribute
+	// at all, so two independently generated instances can never collide —
+	// verified here as a pure string-content guarantee, independent of the
+	// real-browser multi-instance behavior test/e2e/comparison-presentation-multi-instance.spec.ts
+	// covers.
+	test("multi-instance mode emits no per-element id attribute at all, unlike single-instance-legacy mode", () => {
+		const legacyMarkup = build();
+		assert.match(legacyMarkup, / id="sameview-/);
+
+		const multiInstanceMarkup = build({
+			instanceMode: { kind: "multi-instance" },
+		});
+		assert.doesNotMatch(multiInstanceMarkup, / id="sameview-/);
+		assert.doesNotMatch(multiInstanceMarkup, / id="/);
 	});
 
 	test("a hidden item renders no element at all (mirrors React's conditional rendering)", () => {

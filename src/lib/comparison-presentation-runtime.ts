@@ -24,10 +24,16 @@
 // src/lib/generate-standalone-html.ts (inline `<script>`) and
 // src/lib/generate-static-microsite.ts (`js/sameview-comparison.js`).
 //
-// Reads only the fixed `id="sameview-*"` markup contract
-// src/lib/comparison-artifact-markup.ts establishes — no data passed in
-// via globals/config objects, so the same script works unmodified for
-// either output type and needs no build-time templating of its own source.
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 13 ("Shared Runtime Multiple-Instance
+// Safety"); docs/COMPARISON_PRESENTATION.md "Multiple Instances and Host
+// Isolation": this module discovers every `.presentation-canvas` root in the
+// document and initializes each independently, resolving every descendant
+// relative to that instance's own root — never via a global `document`
+// lookup, and never by id (src/lib/comparison-artifact-markup.ts's
+// `multi-instance` mode emits none; see that module's own header comment).
+// Standalone HTML and Static Microsite still only ever render exactly one
+// instance per document, so this is additive safety, not a behavior change
+// for them.
 
 import {
 	type AdaptiveTextSize,
@@ -70,28 +76,104 @@ import {
 
 const LABEL_GAP_PX = 8;
 
-function byId<T extends Element>(id: string): T | null {
-	return document.getElementById(id) as T | null;
+// Root-relative lookups only, by class or ARIA role — never by id
+// (src/lib/comparison-artifact-markup.ts's `multi-instance` mode emits none)
+// and never via the global `document`, so the same code is correct whether
+// this root is alone in the document (Standalone HTML/Static Microsite) or
+// one of several (a future multi-Comparison host page, e.g. Phase 16
+// WordPress placement).
+function queryDescendant<T extends Element>(
+	root: ParentNode,
+	selector: string,
+): T | null {
+	return root.querySelector<T>(selector);
 }
 
-// The markup contract src/lib/comparison-artifact-markup.ts always emits
-// these elements unconditionally (unlike e.g. the Title/Description/Time/
-// Location items, which are only rendered when actually visible) — a
-// missing one here means the scaffold/runtime contract itself is out of
-// sync, a genuine bug to fail loudly on, not a legitimate optional-content
-// case. Returning a definite (non-null) type, rather than narrowing a
-// nullable `const` via an early return, is also what lets every closure
-// below (event handlers, ResizeObserver callbacks) use these directly
-// without TypeScript's closure-narrowing limitation re-widening them back
-// to `T | null` at each use site.
-function requireElement<T extends Element>(id: string): T {
-	const element = document.getElementById(id);
+// Same "always emitted unconditionally, a missing one is a genuine
+// scaffold/runtime contract bug" reasoning as the module previously
+// expressed via `requireElement("...")`; only the lookup mechanism (root-
+// relative selector, not a global id) has changed.
+function requireDescendant<T extends Element>(
+	root: ParentNode,
+	selector: string,
+): T {
+	const element = root.querySelector<T>(selector);
 	if (!element) {
 		throw new Error(
-			`Comparison Presentation runtime: missing #${id} in markup`,
+			`Comparison Presentation runtime: missing "${selector}" inside a .presentation-canvas root`,
 		);
 	}
-	return element as unknown as T;
+	return element;
+}
+
+// The two comparison images share the same `.comparison-slider__image`
+// class; only the reference (overlay) layer carries the distinguishing
+// `--overlay` modifier already used for its clip-path stacking
+// (src/lib/comparison-artifact-markup.ts) — capture is simply "the other
+// one", never resolved by array order or by id.
+function requireComparisonImages(canvas: HTMLElement): {
+	readonly captureImage: HTMLImageElement;
+	readonly referenceImage: HTMLImageElement;
+} {
+	const referenceImage = requireDescendant<HTMLImageElement>(
+		canvas,
+		".comparison-slider__image--overlay",
+	);
+	const images = canvas.querySelectorAll<HTMLImageElement>(
+		".comparison-slider__image",
+	);
+	const captureImage = Array.from(images).find(
+		(image) => image !== referenceImage,
+	);
+	if (!captureImage) {
+		throw new Error(
+			"Comparison Presentation runtime: missing capture image inside a .presentation-canvas root",
+		);
+	}
+	return { captureImage, referenceImage };
+}
+
+// The on-image left/right slider date labels share one class
+// (`.comparison-slider__label`) with no other distinguishing marker.
+// src/lib/comparison-artifact-markup.ts's `buildComparisonArtifactMarkup`
+// always emits the left label immediately before the right label,
+// unconditionally — a fixed, structural property of the markup builder
+// itself, never derived from script/runtime execution order or any counter.
+function queryLabels(canvas: HTMLElement): {
+	readonly labelLeft: HTMLElement | null;
+	readonly labelRight: HTMLElement | null;
+} {
+	const labels = canvas.querySelectorAll<HTMLElement>(
+		".comparison-slider__label",
+	);
+	return { labelLeft: labels[0] ?? null, labelRight: labels[1] ?? null };
+}
+
+// docs/COMPARISON_PRESENTATION.md Part 2: the Stage fits itself into an
+// independent, externally measured "available space" budget — it cannot
+// measure its own box for this (that would be circular: the Canvas's own
+// size is exactly what `recomputeGeometry()` below computes). The live
+// Workspace Preview establishes this same contract independently
+// (src/components/WorkspaceActive.tsx `canvasAreaRef`/
+// `.workspace-active__canvas-area`: "what the geometry ResizeObserver
+// actually measures ... Presentation Canvas's own sub-region of the
+// Presentation Preview" — deliberately a distinct element from
+// `.presentation-canvas` itself); the generated artifact scaffold
+// (src/lib/comparison-artifact-scaffold.ts `<main id="sameview-output-frame">`)
+// already provides this exact same immediate-parent relationship for
+// Standalone HTML/Static Microsite. A `.presentation-canvas` with no parent
+// element violates this already-established Presentation-model invariant —
+// a genuine markup-construction bug, not a legitimate embedding shape — and
+// fails loudly here rather than silently falling back to the canvas's own
+// box.
+function requireInstanceFrame(canvas: HTMLElement): HTMLElement {
+	const frame = canvas.parentElement;
+	if (!frame) {
+		throw new Error(
+			"Comparison Presentation runtime: .presentation-canvas has no parent element to measure available space from",
+		);
+	}
+	return frame;
 }
 
 function applyAdaptiveSize(
@@ -117,29 +199,77 @@ function applyAdaptiveSize(
 	element.classList.toggle(compactClass, size === "compact");
 }
 
-export function initComparisonPresentation(): void {
-	if (typeof document === "undefined") return;
+// A private, runtime-only bookkeeping marker — never emitted by
+// src/lib/comparison-artifact-markup.ts, never part of any generated file's
+// bytes, never read by any other module, never persisted, and set only
+// after this view happens to run (long after Phase 11's Outcome
+// Fingerprint is computed during SameView Web's own generation flow, in a
+// completely disjoint browser context) — it cannot affect fingerprint
+// semantics and needs no output-specific behavior. Set only once a root's
+// required instance structure has been fully resolved (see `initInstance`
+// below), immediately before listener/observer attachment, so a structural
+// failure never leaves a root permanently marked as initialized.
+const RUNTIME_INITIALIZED_ATTRIBUTE = "sameviewRuntimeInitialized";
 
-	const outputFrame = requireElement<HTMLElement>("sameview-output-frame");
-	const canvas = requireElement<HTMLElement>("sameview-canvas");
-	const sliderFrame = requireElement<HTMLElement>("sameview-slider-frame");
-	const captureImage = requireElement<HTMLImageElement>(
-		"sameview-capture-image",
+// Initializes exactly one discovered `.presentation-canvas` root
+// (docs/IMPLEMENTATION_PLAN_V1.md Phase 13). All interaction/geometry/
+// observer state below is declared inside this function's own closure, so
+// two calls for two different roots never share anything — the same
+// property that already made this module's original single-call body
+// instance-local by construction; this refactor only changes *how* each
+// call finds its own elements (root-relative, never global/never by id),
+// never how its own state is scoped.
+function initInstance(canvas: HTMLElement): void {
+	if (canvas.dataset[RUNTIME_INITIALIZED_ATTRIBUTE] === "true") return;
+
+	const outputFrame = requireInstanceFrame(canvas);
+	const sliderFrame = requireDescendant<HTMLElement>(
+		canvas,
+		".comparison-slider__frame",
 	);
-	const referenceImage = requireElement<HTMLImageElement>(
-		"sameview-reference-image",
+	const { captureImage, referenceImage } = requireComparisonImages(canvas);
+	const dividerLine = queryDescendant<HTMLElement>(
+		canvas,
+		".comparison-slider__divider-line",
 	);
-	const dividerLine = byId<HTMLElement>("sameview-divider-line");
-	const handle = byId<HTMLElement>("sameview-handle");
-	const handleVisual = byId<SVGElement>("sameview-handle-visual");
-	const labelLeft = byId<HTMLElement>("sameview-label-left");
-	const labelRight = byId<HTMLElement>("sameview-label-right");
-	const loading = byId<HTMLElement>("sameview-loading");
-	const infoWrapper = requireElement<HTMLElement>("sameview-info-wrapper");
-	const titleEl = byId<HTMLElement>("sameview-title");
-	const descriptionEl = byId<HTMLElement>("sameview-description");
-	const timeEl = byId<HTMLElement>("sameview-time");
-	const locationEl = byId<HTMLElement>("sameview-location");
+	const handle = queryDescendant<HTMLElement>(canvas, '[role="slider"]');
+	const handleVisual = queryDescendant<SVGElement>(
+		canvas,
+		".comparison-slider__handle-visual",
+	);
+	const { labelLeft, labelRight } = queryLabels(canvas);
+	const loading = queryDescendant<HTMLElement>(
+		canvas,
+		".comparison-slider__loading",
+	);
+	const infoWrapper = requireDescendant<HTMLElement>(
+		canvas,
+		".presentation-canvas__info-wrapper",
+	);
+	const titleEl = queryDescendant<HTMLElement>(
+		canvas,
+		".presentation-info__title",
+	);
+	const descriptionEl = queryDescendant<HTMLElement>(
+		canvas,
+		".presentation-info__description",
+	);
+	const timeEl = queryDescendant<HTMLElement>(
+		canvas,
+		".presentation-info__time",
+	);
+	const locationEl = queryDescendant<HTMLElement>(
+		canvas,
+		".presentation-info__location",
+	);
+
+	// Every required element/frame above resolved successfully — safe to mark
+	// this root as initialized now, immediately before any listener/observer
+	// attachment. If any lookup above had thrown instead, execution would
+	// never reach this line, so the root remains unmarked and a later,
+	// possibly-successful re-initialization attempt is not poisoned by this
+	// one's failure.
+	canvas.dataset[RUNTIME_INITIALIZED_ATTRIBUTE] = "true";
 
 	const presentationFontFamily =
 		getComputedStyle(canvas).getPropertyValue("--presentation-font-family") ||
@@ -461,7 +591,26 @@ export function initComparisonPresentation(): void {
 	}
 
 	// --- Overflow Tooltip: the exact same framework-independent module the
-	// live Preview already uses, attached unchanged to this document's own
-	// root. ---
+	// live Preview already uses, attached unchanged to this instance's own
+	// root — its own trigger set, tooltip element and document/window-level
+	// listeners are all closure-local to this one call
+	// (src/lib/overflow-tooltip.ts), so a second instance's own call below
+	// never shares anything with this one. No per-instance `testId`: nothing
+	// about tooltip *content* or *visibility* independence depends on it. ---
 	attachPresentationOverflowTooltips(canvas);
+}
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 13: discovers every `.presentation-canvas`
+// root currently in the document and initializes each independently — one
+// root (Standalone HTML/Static Microsite, unchanged behavior) or several (a
+// future multi-Comparison host page). Calling this function again (e.g. the
+// bundled script accidentally included twice on one page) is a safe no-op
+// for every already-initialized root, per `initInstance`'s own guard above.
+export function initComparisonPresentation(): void {
+	if (typeof document === "undefined") return;
+	for (const canvas of document.querySelectorAll<HTMLElement>(
+		".presentation-canvas",
+	)) {
+		initInstance(canvas);
+	}
 }

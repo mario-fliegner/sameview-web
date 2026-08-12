@@ -58,9 +58,50 @@ const RING_ARC_RIGHT = "M 32.406 1.568 A 26 26 0 0 1 32.406 52.432";
 const CHEVRON_LEFT = "M 22 20 L 14 27 L 22 34";
 const CHEVRON_RIGHT = "M 32 20 L 40 27 L 32 34";
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 13 ("Shared Runtime Multiple-Instance
+// Safety"); docs/COMPARISON_PRESENTATION.md "Multiple Instances and Host
+// Isolation": "No instance's identifiers ... collide with another's."
+//
+// Every caller of `buildComparisonArtifactMarkup` must explicitly choose one
+// of these two modes — there is no default, so a future caller cannot
+// silently omit the choice and end up with collision-prone output:
+//
+// - `single-instance-legacy`: emits every `id="sameview-*"` exactly as
+//   before this phase, byte-for-byte. Used only by the existing
+//   generate-standalone-html.ts/generate-static-microsite.ts generators,
+//   which only ever render exactly one instance per document — several
+//   existing Playwright tests already assert on these specific literal ids
+//   against the real generated artifact, so this mode must never change them.
+// - `multi-instance`: emits no per-element `id` attribute at all on any
+//   Presentation descendant. None of these ids carry accessibility meaning
+//   (no `aria-labelledby`/`aria-describedby`/`aria-controls` anywhere in this
+//   markup references any of them) and the one id with a real dependency
+//   (`sameview-canvas`, read only by comparison-artifact-frame.css's
+//   single-instance-only full-viewport frame rules) is irrelevant to a
+//   multi-instance embed context. Omitting them entirely is a strictly
+//   stronger non-collision guarantee than namespacing a caller-supplied
+//   string: there is nothing to collide, so no caller-provided uniqueness
+//   value, random id, module counter or execution-order-derived value is
+//   ever needed. `src/lib/comparison-presentation-runtime.ts` resolves every
+//   descendant via root-relative class/role selectors already present in
+//   this same markup regardless of mode, so it never depends on whichever
+//   mode actually produced the DOM it is initializing.
+export type MarkupInstanceMode =
+	| { readonly kind: "single-instance-legacy" }
+	| { readonly kind: "multi-instance" };
+
+// Returns a complete ` id="..."` attribute in `single-instance-legacy` mode,
+// or the empty string in `multi-instance` mode — the one place this
+// conditional is decided, so every emission site below stays a plain
+// template-literal insertion.
+function idAttr(id: string, instanceMode: MarkupInstanceMode): string {
+	return instanceMode.kind === "single-instance-legacy" ? ` id="${id}"` : "";
+}
+
 function buildHandleMarkup(
 	branding: HandleBranding,
 	brandingSrc: string | undefined,
+	instanceMode: MarkupInstanceMode,
 ): string {
 	const symbol =
 		branding.kind === "symbol"
@@ -95,7 +136,7 @@ function buildHandleMarkup(
 			? `<svg x="${symbolBox.offset}" y="${symbolBox.offset}" width="${symbolBox.side}" height="${symbolBox.side}" viewBox="${getSymbolViewBox(symbol)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="${symbol.pathData}" fill="${branding.color}" /></svg>`
 			: "";
 
-	return `<svg class="comparison-slider__handle-visual" id="sameview-handle-visual" style="width: ${visualSizeRem}rem; height: ${visualSizeRem}rem" viewBox="0 0 54 54" aria-hidden="true" focusable="false" data-testid="comparison-slider-handle" data-branding-kind="${branding.kind}"><path d="${RING_ARC_LEFT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><path d="${RING_ARC_RIGHT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><circle cx="27" cy="27" r="${HANDLE_RADIUS_PX}" fill="#ffffff" />${chevrons}${assetImage}${symbolSvg}</svg>`;
+	return `<svg class="comparison-slider__handle-visual"${idAttr("sameview-handle-visual", instanceMode)} style="width: ${visualSizeRem}rem; height: ${visualSizeRem}rem" viewBox="0 0 54 54" aria-hidden="true" focusable="false" data-testid="comparison-slider-handle" data-branding-kind="${branding.kind}"><path d="${RING_ARC_LEFT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><path d="${RING_ARC_RIGHT}" fill="none" stroke="#ffffff" stroke-width="${RING_STROKE_WIDTH_PX}" /><circle cx="27" cy="27" r="${HANDLE_RADIUS_PX}" fill="#ffffff" />${chevrons}${assetImage}${symbolSvg}</svg>`;
 }
 
 export interface ComparisonInfoLabels {
@@ -118,6 +159,7 @@ function formatLocation(location: {
 function buildInfoMarkup(
 	presentation: ComparisonPresentation,
 	visibility: PresentationVisibility,
+	instanceMode: MarkupInstanceMode,
 ): string {
 	const locationText = presentation.location
 		? formatLocation(presentation.location)
@@ -133,10 +175,10 @@ function buildInfoMarkup(
 	const showLocation = visibility.location && Boolean(locationText);
 
 	const titleHtml = showTitle
-		? `<p class="presentation-info__title" id="sameview-title" data-testid="comparison-title" data-overflow-tooltip>${escapeHtml(presentation.title ?? "")}</p>`
+		? `<p class="presentation-info__title"${idAttr("sameview-title", instanceMode)} data-testid="comparison-title" data-overflow-tooltip>${escapeHtml(presentation.title ?? "")}</p>`
 		: "";
 	const descriptionHtml = showDescription
-		? `<p class="presentation-info__description" id="sameview-description" data-testid="comparison-description" data-overflow-tooltip>${escapeHtml(presentation.description ?? "")}</p>`
+		? `<p class="presentation-info__description"${idAttr("sameview-description", instanceMode)} data-testid="comparison-description" data-overflow-tooltip>${escapeHtml(presentation.description ?? "")}</p>`
 		: "";
 	const primaryCluster =
 		showTitle || showDescription
@@ -147,17 +189,17 @@ function buildInfoMarkup(
 		? ` · <span data-testid="comparison-duration-label">${escapeHtml(presentation.durationLabel ?? "")}</span>`
 		: "";
 	const timeHtml = showTime
-		? `<p class="presentation-info__time" id="sameview-time" data-testid="comparison-time"><span data-testid="comparison-reference-label">${escapeHtml(presentation.referenceLabel)}</span> → <span data-testid="comparison-capture-label">${escapeHtml(presentation.captureLabel)}</span>${durationHtml}</p>`
+		? `<p class="presentation-info__time"${idAttr("sameview-time", instanceMode)} data-testid="comparison-time"><span data-testid="comparison-reference-label">${escapeHtml(presentation.referenceLabel)}</span> → <span data-testid="comparison-capture-label">${escapeHtml(presentation.captureLabel)}</span>${durationHtml}</p>`
 		: "";
 	const locationHtml = showLocation
-		? `<p class="presentation-info__location" id="sameview-location" data-testid="comparison-location" data-overflow-tooltip>${escapeHtml(locationText ?? "")}</p>`
+		? `<p class="presentation-info__location"${idAttr("sameview-location", instanceMode)} data-testid="comparison-location" data-overflow-tooltip>${escapeHtml(locationText ?? "")}</p>`
 		: "";
 	const contextCluster =
 		showTime || showLocation
 			? `<div class="presentation-info__context">${timeHtml}${locationHtml}</div>`
 			: "";
 
-	return `<div class="presentation-info" id="sameview-presentation-info" data-testid="comparison-presentation-info">${primaryCluster}${contextCluster}</div>`;
+	return `<div class="presentation-info"${idAttr("sameview-presentation-info", instanceMode)} data-testid="comparison-presentation-info">${primaryCluster}${contextCluster}</div>`;
 }
 
 export interface ComparisonArtifactAssetUrls {
@@ -185,6 +227,9 @@ export interface BuildComparisonArtifactMarkupInput {
 	// Slider Position") — converted to the same 0-100 percent scale
 	// src/components/ComparisonSlider.tsx's own local state already uses.
 	readonly initialSliderPosition: number;
+	// Required, not optional — see `MarkupInstanceMode`'s own comment above
+	// for why every caller must explicitly choose.
+	readonly instanceMode: MarkupInstanceMode;
 }
 
 // The complete `.presentation-canvas` markup — the one piece both
@@ -202,6 +247,7 @@ export function buildComparisonArtifactMarkup(
 		copy,
 		presentationFontFamily,
 		initialSliderPosition,
+		instanceMode,
 	} = input;
 
 	const resolvedBackground = resolveCanvasBackground(
@@ -228,26 +274,30 @@ export function buildComparisonArtifactMarkup(
 		`--presentation-font-family: ${presentationFontFamily}`,
 	].join("; ");
 
-	const handleMarkup = buildHandleMarkup(branding, assets.brandingSrc);
-	const infoMarkup = buildInfoMarkup(presentation, visibility);
+	const handleMarkup = buildHandleMarkup(
+		branding,
+		assets.brandingSrc,
+		instanceMode,
+	);
+	const infoMarkup = buildInfoMarkup(presentation, visibility, instanceMode);
 
 	const brandingSrcAttr = assets.brandingSrc
 		? ` data-branding-src="${escapeHtml(assets.brandingSrc)}"`
 		: "";
 
-	return `<div class="presentation-canvas" id="sameview-canvas" style="${escapeHtml(canvasStyle)}" data-show-slider-date-labels="${configuration.showSliderDateLabels}"${brandingSrcAttr}>
-	<div class="comparison-slider__frame comparison-slider__frame--loading" id="sameview-slider-frame" data-testid="comparison-slider">
-		<img src="${escapeHtml(assets.captureSrc)}" alt="${escapeHtml(copy.captureAlt)}" class="comparison-slider__image" draggable="false" id="sameview-capture-image" data-testid="capture-image" style="visibility: hidden">
-		<img src="${escapeHtml(assets.referenceSrc)}" alt="${escapeHtml(copy.referenceAlt)}" class="comparison-slider__image comparison-slider__image--overlay" draggable="false" id="sameview-reference-image" data-testid="reference-image" style="visibility: hidden; clip-path: inset(0 ${100 - positionPercent}% 0 0)">
-		<div class="comparison-slider__divider-line" id="sameview-divider-line" data-testid="comparison-divider-line" style="inset-inline-start: ${positionPercent}%; display: none"></div>
-		<div class="comparison-slider__handle" id="sameview-handle" role="slider" aria-label="${escapeHtml(copy.sliderLabel)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(positionPercent)}" tabindex="0" style="inset-inline-start: ${positionPercent}%; display: none">
+	return `<div class="presentation-canvas"${idAttr("sameview-canvas", instanceMode)} style="${escapeHtml(canvasStyle)}" data-show-slider-date-labels="${configuration.showSliderDateLabels}"${brandingSrcAttr}>
+	<div class="comparison-slider__frame comparison-slider__frame--loading"${idAttr("sameview-slider-frame", instanceMode)} data-testid="comparison-slider">
+		<img src="${escapeHtml(assets.captureSrc)}" alt="${escapeHtml(copy.captureAlt)}" class="comparison-slider__image" draggable="false"${idAttr("sameview-capture-image", instanceMode)} data-testid="capture-image" style="visibility: hidden">
+		<img src="${escapeHtml(assets.referenceSrc)}" alt="${escapeHtml(copy.referenceAlt)}" class="comparison-slider__image comparison-slider__image--overlay" draggable="false"${idAttr("sameview-reference-image", instanceMode)} data-testid="reference-image" style="visibility: hidden; clip-path: inset(0 ${100 - positionPercent}% 0 0)">
+		<div class="comparison-slider__divider-line"${idAttr("sameview-divider-line", instanceMode)} data-testid="comparison-divider-line" style="inset-inline-start: ${positionPercent}%; display: none"></div>
+		<div class="comparison-slider__handle"${idAttr("sameview-handle", instanceMode)} role="slider" aria-label="${escapeHtml(copy.sliderLabel)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(positionPercent)}" tabindex="0" style="inset-inline-start: ${positionPercent}%; display: none">
 			${handleMarkup}
 		</div>
-		<span class="comparison-slider__label" id="sameview-label-left" data-testid="comparison-slider-label-left" style="display: none">${escapeHtml(presentation.sliderLabels.left)}</span>
-		<span class="comparison-slider__label" id="sameview-label-right" data-testid="comparison-slider-label-right" style="display: none">${escapeHtml(presentation.sliderLabels.right)}</span>
-		<p class="comparison-slider__loading" id="sameview-loading" data-testid="comparison-loading" aria-live="polite">${escapeHtml(copy.loadingLabel)}</p>
+		<span class="comparison-slider__label"${idAttr("sameview-label-left", instanceMode)} data-testid="comparison-slider-label-left" style="display: none">${escapeHtml(presentation.sliderLabels.left)}</span>
+		<span class="comparison-slider__label"${idAttr("sameview-label-right", instanceMode)} data-testid="comparison-slider-label-right" style="display: none">${escapeHtml(presentation.sliderLabels.right)}</span>
+		<p class="comparison-slider__loading"${idAttr("sameview-loading", instanceMode)} data-testid="comparison-loading" aria-live="polite">${escapeHtml(copy.loadingLabel)}</p>
 	</div>
-	<div class="presentation-canvas__info-wrapper" id="sameview-info-wrapper">
+	<div class="presentation-canvas__info-wrapper"${idAttr("sameview-info-wrapper", instanceMode)}>
 		${infoMarkup}
 	</div>
 </div>`;

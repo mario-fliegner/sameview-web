@@ -110,6 +110,10 @@ export async function generateStandaloneHtml(
 		copy,
 		presentationFontFamily: resolvePresentationFontFamily(fontId),
 		initialSliderPosition: snapshot.initialSliderPosition,
+		// Standalone HTML always renders exactly one instance per document
+		// (docs/IMPLEMENTATION_PLAN_V1.md Phase 13) — preserves every existing
+		// `sameview-*` id byte-for-byte.
+		instanceMode: { kind: "single-instance-legacy" },
 	});
 
 	const faviconMarkup = `<link rel="icon" type="${FAVICON_MIME}" href="${bytesToDataUrl(faviconBytes, FAVICON_MIME)}">`;
