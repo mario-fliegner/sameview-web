@@ -20,7 +20,8 @@ The following files under [docs/](docs/) are the binding functional and technica
 ## Hard Constraints (V1)
 
 - SameView Web is a small, realistically sized full-stack web application. No hyperscaler design.
-- No microservices. No monorepo.
+- No microservices.
+- `sameview-web` remains one repository, not a general-purpose monorepo: dedicated Embed platform-integration codebases (their own platform-specific code and tooling, e.g. a WordPress plugin) may live in clearly separated integration directories inside it, isolated from the Astro/React application structure under `src/`, and must reuse shared SameView Presentation/runtime code rather than duplicate it — see [docs/IMPLEMENTATION_PLAN_V1.md](docs/IMPLEMENTATION_PLAN_V1.md) Phase 14. A separate repository for such an integration is not prohibited but is not the default; it is adopted only for a concrete technical or organizational reason.
 - No S3 or other external object storage in V1.
 - No separate frontend/backend deployments — one application.
 - Stack: Astro + React + TypeScript, one Node.js application, on Netcup shared hosting.
