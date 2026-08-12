@@ -1,0 +1,16 @@
+{
+  "name": "sameview-wordpress-integration",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Isolated WordPress plugin integration area for SameView Web's Embed in Website output (docs/WORDPRESS_INTEGRATION.md). Not part of the Astro/React application in the repository root; installed and run independently via its own plain `npm install` (never pnpm, to avoid the root pnpm-workspace.yaml treating this directory's dependencies as its own).",
+  "scripts": {
+    "start": "wp-env start",
+    "stop": "wp-env stop",
+    "destroy": "wp-env destroy",
+    "wp-env": "wp-env",
+    "test": "node --test \"tests/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@wordpress/env": "^11.12.0"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    "./sameview-comparisons"
+  ],
+  "testsEnvironment": false
+}
