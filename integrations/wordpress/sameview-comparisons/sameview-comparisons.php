@@ -1,20 +1,16 @@
 <?php
 /**
  * Plugin Name: SameView Comparisons
- * Description: Persistent SameView Comparison storage, lifecycle, Block Editor/shortcode placement and Comparison Library for WordPress (docs/IMPLEMENTATION_PLAN_V1.md Phase 14/15/16/18).
+ * Plugin URI: https://sameview.app/wordpress/
+ * Description: Embed interactive SameView comparisons on your WordPress website.
  * Version: 0.4.0
  * Requires at least: 6.4
  * Requires PHP: 7.4
- * Author: SameView
+ * Author: SameView.app
+ * Author URI: https://sameview.app/
  * License: GPL-2.0-or-later
  * Text Domain: sameview-comparisons
  * Domain Path: /languages
- *
- * docs/WORDPRESS_INTEGRATION.md; docs/EMBED_IN_WEBSITE.md. Lives inside
- * the sameview-web repository's own dedicated integration area
- * (integrations/wordpress/), isolated from the Astro/React application
- * under src/ — see CLAUDE.md "Hard Constraints" and
- * docs/IMPLEMENTATION_PLAN_V1.md Phase 14.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
