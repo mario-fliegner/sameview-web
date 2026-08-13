@@ -73,9 +73,9 @@ async function loginAsAdmin(page) {
 	await page.waitForURL(/wp-admin/);
 }
 
-async function dismissPatternModalIfPresent(page) {
+async function dismissPatternModalIfPresent(page, timeoutMs = 5000) {
 	try {
-		await page.getByRole("button", { name: "Close" }).first().click({ timeout: 5000 });
+		await page.getByRole("button", { name: "Close" }).first().click({ timeout: timeoutMs });
 	} catch {
 		// No modal this time.
 	}
@@ -86,12 +86,44 @@ function canvasFrame(page) {
 }
 
 async function openInserterIfClosed(page) {
+	// A bare `.count()` snapshot can observe a search input that is mid-
+	// transition (about to unmount from the previous block's own insertion,
+	// e.g. on WordPress 6.9.7) and wrongly conclude the inserter is already
+	// open, handing the caller an element that then detaches mid-interaction.
+	// Waiting briefly for actual visibility is a stronger, still-minimal
+	// signal of "genuinely open and interactable right now".
+	// A search-input DOM presence/visibility check is unreliable here: after
+	// a previous insertSameViewBlock's own option selection, the popover
+	// begins an async close transition during which its search input can
+	// still read as "visible" for a moment while genuinely on its way out
+	// (observed on 6.9.7 — the very next `.click()` then finds it detached
+	// mid-interaction). The toggle button's own `aria-pressed` reflects the
+	// real React open/closed state immediately, not a transition artifact.
+	const toggle = page.getByRole("button", { name: "Block Inserter", exact: true });
+	const alreadyOpen = (await toggle.getAttribute("aria-pressed")) === "true";
+	if (!alreadyOpen) {
+		await toggle.click();
+	}
 	const searchInput = page.getByPlaceholder(/search/i);
-	if (await searchInput.count()) return;
-	await page.getByRole("button", { name: "Block Inserter", exact: true }).click();
+	await searchInput.waitFor({ state: "visible", timeout: 5000 });
 }
 
 async function insertSameViewBlock(page) {
+	// WordPress's own native "Choose a pattern" starter-pattern modal can
+	// reappear before a later inserter interaction on some WordPress
+	// versions (observed on 6.9.7, intercepting the inserter search input) —
+	// defensive re-check here, not just once at page load, keeps this
+	// unrelated WordPress-core UI behavior from blocking the SameView block
+	// insertion it has nothing to do with. A short timeout, since the modal
+	// is normally absent here and this must not meaningfully shift the rest
+	// of this function's own interaction timing.
+	// Brief settle wait: the previous insertion's own selectComparisonInLastBlock
+	// re-renders the editor canvas via ServerSideRender on an independent
+	// timeline (see assets/block/index.js `ComparisonPreview`'s own
+	// MutationObserver-driven re-mount) — starting the next inserter
+	// interaction immediately after can race that unrelated re-render.
+	await page.waitForTimeout(500);
+	await dismissPatternModalIfPresent(page, 800);
 	await openInserterIfClosed(page);
 	const searchInput = page.getByPlaceholder(/search/i);
 	await searchInput.click();
@@ -103,6 +135,7 @@ async function insertSameViewBlock(page) {
 }
 
 async function insertShortcodeBlock(page, shortcodeText) {
+	await dismissPatternModalIfPresent(page, 800);
 	await openInserterIfClosed(page);
 	const searchInput = page.getByPlaceholder(/search/i);
 	await searchInput.click();

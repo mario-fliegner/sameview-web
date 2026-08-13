@@ -1,0 +1,10 @@
+{
+  "plugins": [],
+  "port": 8890,
+  "core": "https://wordpress.org/wordpress-6.9.7.zip",
+  "testsEnvironment": false,
+  "mappings": {
+    "wp-content/sameview-artifact": "./artifact",
+    "wp-content/mu-plugins": "./mu-plugins"
+  }
+}

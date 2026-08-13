@@ -34,8 +34,8 @@ define( 'SAMEVIEW_MAX_PACKAGE_UNCOMPRESSED_BYTES', 100 * 1024 * 1024 );
 
 function sameview_register_admin_menu() {
 	add_management_page(
-		'SameView Comparisons',
-		'SameView',
+		__( 'Add comparison', 'sameview-comparisons' ),
+		__( 'Add comparison', 'sameview-comparisons' ),
 		SAMEVIEW_CAPABILITY,
 		'sameview-add-comparison',
 		'sameview_render_add_comparison_page'
@@ -51,6 +51,7 @@ function sameview_render_add_comparison_page() {
 	$message = isset( $_GET['sameview_message'] ) ? sanitize_text_field( wp_unslash( $_GET['sameview_message'] ) ) : '';
 
 	echo '<div class="wrap"><h1>SameView</h1>';
+	echo '<p><a href="' . esc_url( admin_url( 'tools.php?page=sameview-comparisons' ) ) . '">&larr; ' . esc_html__( 'Back to Comparisons', 'sameview-comparisons' ) . '</a></p>';
 
 	if ( $status && $message ) {
 		$notice_class = in_array( $status, array( 'added', 'updated', 'no-op' ), true ) ? 'notice-success' : 'notice-error';
@@ -88,28 +89,30 @@ function sameview_redirect_with_result( $status, $message ) {
  * problem found.
  */
 function sameview_validate_zip_structure( $zip ) {
+	$invalid_package_message = __( 'This is not a valid SameView Comparison package.', 'sameview-comparisons' );
+
 	if ( $zip->numFiles > SAMEVIEW_MAX_PACKAGE_FILES ) {
-		return new WP_Error( 'sameview_too_many_files', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_too_many_files', $invalid_package_message );
 	}
 
 	$uncompressed_total = 0;
 	for ( $i = 0; $i < $zip->numFiles; $i++ ) {
 		$stat = $zip->statIndex( $i );
 		if ( false === $stat ) {
-			return new WP_Error( 'sameview_invalid_zip', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_invalid_zip', $invalid_package_message );
 		}
 		$name = $stat['name'];
 
 		if ( '/' === substr( $name, 0, 1 ) || false !== strpos( $name, '..' ) ) {
-			return new WP_Error( 'sameview_unsafe_entry_path', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_unsafe_entry_path', $invalid_package_message );
 		}
 		if ( preg_match( '/\.zip$/i', $name ) ) {
-			return new WP_Error( 'sameview_nested_archive', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_nested_archive', $invalid_package_message );
 		}
 
 		$uncompressed_total += $stat['size'];
 		if ( $uncompressed_total > SAMEVIEW_MAX_PACKAGE_UNCOMPRESSED_BYTES ) {
-			return new WP_Error( 'sameview_package_too_large', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_package_too_large', $invalid_package_message );
 		}
 	}
 

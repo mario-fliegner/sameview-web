@@ -41,8 +41,23 @@ export function quoteArgForShell(arg) {
 	return /\s/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg;
 }
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 18 "Supported WordPress Versions":
+// the routine suite always targets this directory's own default
+// .wp-env.json (unpinned, tracks whatever `wp-env` treats as latest) unless
+// SAMEVIEW_WP_ENV_CONFIG names a specific pinned config file — set by the
+// Phase 18 version-matrix runner, never by everyday `npm test`. Purely
+// additive: every existing call site below is unaffected when the variable
+// is unset.
+const WP_ENV_CONFIG = process.env.SAMEVIEW_WP_ENV_CONFIG
+	? join(integrationRoot, process.env.SAMEVIEW_WP_ENV_CONFIG)
+	: undefined;
+
+function withConfigArgs(args) {
+	return WP_ENV_CONFIG ? ["wp-env", "--config", WP_ENV_CONFIG, ...args] : ["wp-env", ...args];
+}
+
 export function runWpEnv(args, options = {}) {
-	return execFileSync("npx", ["wp-env", ...args].map(quoteArgForShell), {
+	return execFileSync("npx", withConfigArgs(args).map(quoteArgForShell), {
 		cwd: integrationRoot,
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "pipe"],
@@ -59,7 +74,7 @@ export function wpCli(args) {
 	try {
 		return execFileSync(
 			"npx",
-			["wp-env", "run", "cli", "wp", ...args].map(quoteArgForShell),
+			withConfigArgs(["run", "cli", "wp", ...args]).map(quoteArgForShell),
 			{
 				cwd: integrationRoot,
 				encoding: "utf8",
@@ -84,6 +99,20 @@ export function assertNoPhpIssues(output, context) {
 		PHP_ISSUE_PATTERN,
 		`unexpected PHP warning/notice/error during ${context}:\n${output}`,
 	);
+}
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 18: "prove which WordPress version is
+// actually running after startup, rather than merely trusting the config" —
+// `core` pins a download source, not a guarantee; this asks the live
+// instance itself via `wp core version` (docs/WORDPRESS_INTEGRATION.md
+// "Supported WordPress Versions") before any further verification proceeds.
+export function assertRunningWordPressMajor(expectedMajorPrefix) {
+	const version = wpCli(["core", "version"]).trim();
+	assert.ok(
+		version.startsWith(expectedMajorPrefix),
+		`expected a running WordPress ${expectedMajorPrefix}.x instance, but "wp core version" reported: ${version}`,
+	);
+	return version;
 }
 
 // `wp-env run` itself may print an informational banner line before the

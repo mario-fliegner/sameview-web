@@ -86,42 +86,44 @@ function sameview_comparison_assets_dir( $session_id ) {
  * any stored state changes").
  */
 function sameview_validate_seed( $seed_dir ) {
+	$invalid_package_message = __( 'This is not a valid SameView Comparison package.', 'sameview-comparisons' );
+
 	$manifest_path = trailingslashit( $seed_dir ) . 'comparison.json';
 	if ( ! is_file( $manifest_path ) ) {
-		return new WP_Error( 'sameview_missing_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_missing_manifest', $invalid_package_message );
 	}
 
 	$raw = file_get_contents( $manifest_path );
 	if ( false === $raw ) {
-		return new WP_Error( 'sameview_unreadable_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_unreadable_manifest', $invalid_package_message );
 	}
 
 	$manifest = json_decode( $raw, true );
 	if ( ! is_array( $manifest ) || JSON_ERROR_NONE !== json_last_error() ) {
-		return new WP_Error( 'sameview_invalid_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_invalid_manifest', $invalid_package_message );
 	}
 
 	if ( ! isset( $manifest['formatVersion'] ) || ! is_int( $manifest['formatVersion'] ) ) {
-		return new WP_Error( 'sameview_invalid_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_invalid_manifest', $invalid_package_message );
 	}
 	if ( $manifest['formatVersion'] > SAMEVIEW_MANIFEST_FORMAT_VERSION ) {
 		return new WP_Error(
 			'sameview_unsupported_format_version',
-			'This Comparison was created with a newer version of SameView. Please update the SameView Comparisons plugin first.'
+			__( 'This Comparison was created with a newer version of SameView. Please update the SameView Comparisons plugin first.', 'sameview-comparisons' )
 		);
 	}
 
 	if ( empty( $manifest['sessionId'] ) || ! is_string( $manifest['sessionId'] ) ) {
-		return new WP_Error( 'sameview_invalid_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_invalid_manifest', $invalid_package_message );
 	}
 	if ( empty( $manifest['outcomeFingerprint'] ) || ! is_string( $manifest['outcomeFingerprint'] ) ) {
-		return new WP_Error( 'sameview_invalid_manifest', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_invalid_manifest', $invalid_package_message );
 	}
 
 	foreach ( array( 'reference.jpg', 'capture.jpg' ) as $required_asset ) {
 		$asset_path = trailingslashit( $seed_dir ) . $required_asset;
 		if ( ! is_file( $asset_path ) || filesize( $asset_path ) <= 0 ) {
-			return new WP_Error( 'sameview_missing_asset', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_missing_asset', $invalid_package_message );
 		}
 		// A light sanity check that this is genuinely a decodable image —
 		// SameView Web already performs the real privacy processing
@@ -129,13 +131,13 @@ function sameview_validate_seed( $seed_dir ) {
 		// non-image file reaching stored state, never re-encodes or otherwise
 		// modifies the bytes themselves.
 		if ( false === @getimagesize( $asset_path ) ) {
-			return new WP_Error( 'sameview_invalid_asset', 'This is not a valid SameView Comparison package.' );
+			return new WP_Error( 'sameview_invalid_asset', $invalid_package_message );
 		}
 	}
 
 	$branding_path = trailingslashit( $seed_dir ) . 'branding.png';
 	if ( is_file( $branding_path ) && false === @getimagesize( $branding_path ) ) {
-		return new WP_Error( 'sameview_invalid_asset', 'This is not a valid SameView Comparison package.' );
+		return new WP_Error( 'sameview_invalid_asset', $invalid_package_message );
 	}
 
 	return $manifest;
@@ -176,7 +178,7 @@ function sameview_import_seed( $seed_dir ) {
 		if ( $existing_fingerprint === $manifest['outcomeFingerprint'] ) {
 			return array(
 				'status'  => 'no-op',
-				'message' => 'Comparison already up to date.',
+				'message' => __( 'Comparison already up to date.', 'sameview-comparisons' ),
 				'post_id' => $existing_post_id,
 			);
 		}
@@ -197,7 +199,7 @@ function sameview_import_seed( $seed_dir ) {
 			sameview_delete_directory_recursive( $new_dir );
 			return array(
 				'status'  => 'rejected',
-				'message' => 'Comparison could not be imported. Please try again.',
+				'message' => __( 'Comparison could not be imported. Please try again.', 'sameview-comparisons' ),
 			);
 		}
 	}
@@ -238,7 +240,7 @@ function sameview_import_seed( $seed_dir ) {
 
 		return array(
 			'status'  => 'updated',
-			'message' => 'Comparison updated.',
+			'message' => __( 'Comparison updated.', 'sameview-comparisons' ),
 			'post_id' => $existing_post_id,
 		);
 	}
@@ -263,7 +265,7 @@ function sameview_import_seed( $seed_dir ) {
 		sameview_delete_directory_recursive( $final_dir );
 		return array(
 			'status'  => 'rejected',
-			'message' => 'Comparison could not be imported. Please try again.',
+			'message' => __( 'Comparison could not be imported. Please try again.', 'sameview-comparisons' ),
 		);
 	}
 
@@ -273,7 +275,7 @@ function sameview_import_seed( $seed_dir ) {
 
 	return array(
 		'status'  => 'added',
-		'message' => 'Comparison added.',
+		'message' => __( 'Comparison added.', 'sameview-comparisons' ),
 		'post_id' => $new_post_id,
 	);
 }

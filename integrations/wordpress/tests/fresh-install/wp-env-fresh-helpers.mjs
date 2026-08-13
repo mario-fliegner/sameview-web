@@ -11,10 +11,21 @@
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import assert from "node:assert/strict";
 import { quoteArgForShell } from "../wp-env-helpers.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const CONFIG_PATH = join(HERE, ".wp-env.json");
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 18 "Supported WordPress Versions":
+// on-demand scripts in this directory default to this directory's own
+// .wp-env.json (unpinned) unless SAMEVIEW_WP_ENV_FRESH_CONFIG names a
+// specific pinned config file's basename (e.g. ".wp-env.previous-major.json")
+// — set by the Phase 18 version-matrix runner only. Every script that
+// imports CONFIG_PATH automatically follows this without its own changes.
+export const CONFIG_PATH = join(
+	HERE,
+	process.env.SAMEVIEW_WP_ENV_FRESH_CONFIG || ".wp-env.json",
+);
 
 // `wp-env` resolves a `mappings` entry's relative local path against the
 // *process's own cwd*, not against the config file's own directory
@@ -64,4 +75,17 @@ export function wpCliFresh(args) {
 			`wp ${args.join(" ")} failed (fresh-install instance):\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`,
 		);
 	}
+}
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 18: "prove which WordPress version is
+// actually running after startup, rather than merely trusting the config" —
+// same intent as ../wp-env-helpers.mjs `assertRunningWordPressMajor`, for
+// this directory's own isolated instance.
+export function assertRunningWordPressMajorFresh(expectedMajorPrefix) {
+	const version = wpCliFresh(["core", "version"]).trim();
+	assert.ok(
+		version.startsWith(expectedMajorPrefix),
+		`expected a running WordPress ${expectedMajorPrefix}.x instance, but "wp core version" reported: ${version}`,
+	);
+	return version;
 }

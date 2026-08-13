@@ -44,3 +44,71 @@ msgstr "Dies ist kein gültiges SameView-Vergleichspaket."
 
 msgid "This server cannot process ZIP files."
 msgstr "Dieser Server kann ZIP-Dateien nicht verarbeiten."
+
+msgid "This Comparison was created with a newer version of SameView. Please update the SameView Comparisons plugin first."
+msgstr "Dieser Vergleich wurde mit einer neueren Version von SameView erstellt. Bitte aktualisieren Sie zuerst das Plugin SameView Comparisons."
+
+msgid "Comparison already up to date."
+msgstr "Vergleich ist bereits aktuell."
+
+msgid "Comparison could not be imported. Please try again."
+msgstr "Vergleich konnte nicht importiert werden. Bitte versuchen Sie es erneut."
+
+msgid "Comparison updated."
+msgstr "Vergleich aktualisiert."
+
+msgid "Comparison added."
+msgstr "Vergleich hinzugefügt."
+
+msgid "(no title)"
+msgstr "(kein Titel)"
+
+msgid "SameView Comparisons"
+msgstr "SameView-Vergleiche"
+
+msgid "SameView"
+msgstr "SameView"
+
+msgid "Back to Comparisons"
+msgstr "Zurück zu den Vergleichen"
+
+msgid "No Comparisons yet."
+msgstr "Noch keine Vergleiche."
+
+msgid "Comparison"
+msgstr "Vergleich"
+
+msgid "Reference → capture"
+msgstr "Referenz → Aufnahme"
+
+msgid "Usage"
+msgstr "Verwendung"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "No placements found"
+msgstr "Keine Platzierungen gefunden"
+
+msgid "Used in %d place"
+msgid_plural "Used in %d places"
+msgstr[0] "Verwendet an %d Stelle"
+msgstr[1] "Verwendet an %d Stellen"
+
+msgid "Delete \"%s\"? No placements were found, but it may still be used somewhere this check cannot see (for example inside a reusable block or a widget area). This cannot be undone."
+msgstr "„%s“ löschen? Es wurden keine Platzierungen gefunden, der Vergleich könnte jedoch an einer Stelle verwendet werden, die diese Prüfung nicht erkennen kann (zum Beispiel in einem wiederverwendbaren Block oder einem Widget-Bereich). Dies kann nicht rückgängig gemacht werden."
+
+msgid "Delete \"%1$s\"? It is currently used on: %2$s. This cannot be undone."
+msgstr "„%1$s“ löschen? Es wird derzeit verwendet auf: %2$s. Dies kann nicht rückgängig gemacht werden."
+
+msgid "Delete"
+msgstr "Löschen"
+
+msgid "Missing Comparison."
+msgstr "Vergleich fehlt."
+
+msgid "Comparison not found."
+msgstr "Vergleich nicht gefunden."
+
+msgid "Comparison deleted."
+msgstr "Vergleich gelöscht."

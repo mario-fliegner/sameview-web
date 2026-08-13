@@ -1,0 +1,7 @@
+{
+  "plugins": [
+    "./sameview-comparisons"
+  ],
+  "core": "https://wordpress.org/wordpress-6.9.7.zip",
+  "testsEnvironment": false
+}

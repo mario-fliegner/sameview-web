@@ -377,6 +377,8 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 			"sameview-comparisons/includes/render.php",
 			"sameview-comparisons/includes/block.php",
 			"sameview-comparisons/includes/shortcode.php",
+			"sameview-comparisons/includes/placements.php",
+			"sameview-comparisons/includes/admin-library.php",
 			"sameview-comparisons/uninstall.php",
 			"sameview-comparisons/languages/sameview-comparisons-de_DE.mo",
 			"sameview-comparisons/languages/sameview-comparisons-de_DE.po",
@@ -400,6 +402,27 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 			"sameview-comparisons/assets/fonts/spacegrotesk/OFL.txt",
 		].sort(),
 	);
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 15/18: WordPress's own native
+	// plugin-install flow recognizes an installable plugin exclusively by a
+	// "Plugin Name:" header inside a top-level PHP file's own doc comment —
+	// the same criterion a real `wp plugin install` (verified separately
+	// against a real instance in
+	// integrations/wordpress/tests/fresh-install/verify-fresh-install.mjs)
+	// relies on. Asserted here structurally, on every generated artifact, so
+	// a future change to the packaged plugin file can never silently drop it.
+	const pluginMainFileEntry = entries.find(
+		(entry) =>
+			entry.filename === "sameview-comparisons/sameview-comparisons.php" &&
+			!entry.directory,
+	);
+	if (!pluginMainFileEntry || pluginMainFileEntry.directory) {
+		throw new Error("sameview-comparisons.php entry missing");
+	}
+	const pluginMainFileText = await pluginMainFileEntry.getData(
+		new TextWriter(),
+	);
+	expect(pluginMainFileText).toMatch(/^\s*\*\s*Plugin Name:\s*\S/m);
 
 	const manifestEntry = entries.find(
 		(entry) =>

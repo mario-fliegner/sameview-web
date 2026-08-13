@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: SameView Comparisons
- * Description: Persistent SameView Comparison storage, lifecycle and Block Editor/shortcode placement for WordPress (docs/IMPLEMENTATION_PLAN_V1.md Phase 14/15/16).
- * Version: 0.3.0
+ * Description: Persistent SameView Comparison storage, lifecycle, Block Editor/shortcode placement and Comparison Library for WordPress (docs/IMPLEMENTATION_PLAN_V1.md Phase 14/15/16/18).
+ * Version: 0.4.0
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Author: SameView
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Disallow direct access.
 }
 
-define( 'SAMEVIEW_COMPARISONS_VERSION', '0.3.0' );
+define( 'SAMEVIEW_COMPARISONS_VERSION', '0.4.0' );
 define( 'SAMEVIEW_COMPARISONS_FILE', __FILE__ );
 define( 'SAMEVIEW_COMPARISONS_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -35,6 +35,8 @@ require_once SAMEVIEW_COMPARISONS_DIR . 'includes/admin-add-comparison.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/render.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/block.php';
 require_once SAMEVIEW_COMPARISONS_DIR . 'includes/shortcode.php';
+require_once SAMEVIEW_COMPARISONS_DIR . 'includes/placements.php';
+require_once SAMEVIEW_COMPARISONS_DIR . 'includes/admin-library.php';
 
 register_activation_hook( __FILE__, 'sameview_activate' );
 register_deactivation_hook( __FILE__, 'sameview_deactivate' );
