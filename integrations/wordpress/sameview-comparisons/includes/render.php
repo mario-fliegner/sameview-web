@@ -37,49 +37,47 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SAMEVIEW_EMBED_ASSET_HANDLE', 'sameview-comparisons-embed' );
 
 /**
- * Enqueues the shared Embed runtime script/CSS
+ * Enqueues the shared Embed runtime script
  * (docs/IMPLEMENTATION_PLAN_V1.md Phase 16 "Asset loading": "the simplest
  * WordPress-native enqueue behavior that loads the renderer when a SameView
  * block/shortcode actually requires it"). Called only from inside
  * `sameview_render_comparison_embed()` below — i.e. only when a placement is
  * actually about to be rendered on the current page — never unconditionally
  * on every request, so an unrelated public page never loads these assets.
- * `wp_enqueue_script()`/`wp_enqueue_style()` register-then-enqueue in one
- * call and safely dedupe across multiple placements on the same page.
+ * `wp_enqueue_script()` registers-then-enqueues in one call and safely
+ * dedupes across multiple placements on the same page.
+ *
+ * No corresponding `wp_enqueue_style()` (docs/IMPLEMENTATION_PLAN_V1.md
+ * Phase 17, Decision 76): the Embed CSS is now fetched and injected as a
+ * `<style>` element inside each placement's own Shadow Root by the runtime
+ * script itself (src/lib/comparison-embed-runtime-entry.ts) — a `<link>` in
+ * this document's own `<head>` could never reach inside a Shadow Root
+ * anyway, so enqueuing one here would only ever be dead weight.
  */
 function sameview_enqueue_embed_assets() {
-	$urls = sameview_embed_asset_urls();
 	wp_enqueue_script(
 		SAMEVIEW_EMBED_ASSET_HANDLE,
-		$urls['script'],
+		sameview_embed_script_url(),
 		array(),
 		SAMEVIEW_COMPARISONS_VERSION,
 		true
 	);
-	wp_enqueue_style(
-		SAMEVIEW_EMBED_ASSET_HANDLE,
-		$urls['style'],
-		array(),
-		SAMEVIEW_COMPARISONS_VERSION
-	);
 }
 
 /**
- * The Embed runtime/CSS URLs, also handed to the Block Editor
+ * The Embed runtime script's own URL, also handed to the Block Editor
  * (includes/block.php) as plain data: the Block Editor's own iframed canvas
  * (confirmed empirically against a real `wp-env` instance: WordPress does
- * *not* automatically mirror a top-level `enqueue_block_editor_assets` script
- * into that iframe's own document, and `ServerSideRender` does not inject a
- * render's own `wp_enqueue_script()` calls into it either) needs to load
- * this script into its own document itself — see assets/block/index.js
- * `ensureEmbedRuntimeLoaded()`. Both callers resolve the exact same URLs
- * this way, never a second hardcoded path.
+ * *not* automatically mirror a top-level `enqueue_block_editor_assets`
+ * script into that iframe's own document) needs to load this script into its
+ * own document itself — see assets/block/index.js
+ * `ensureEmbedRuntimeLoaded()`. Both callers resolve the exact same URL this
+ * way, never a second hardcoded path. The script derives its own CSS URL
+ * from this same URL at runtime (docs/IMPLEMENTATION_PLAN_V1.md Phase 17) —
+ * no separate style URL is handed out anywhere.
  */
-function sameview_embed_asset_urls() {
-	return array(
-		'script' => plugins_url( 'assets/embed/comparison-embed-runtime.js', SAMEVIEW_COMPARISONS_FILE ),
-		'style'  => plugins_url( 'assets/embed/comparison-embed.css', SAMEVIEW_COMPARISONS_FILE ),
-	);
+function sameview_embed_script_url() {
+	return plugins_url( 'assets/embed/comparison-embed-runtime.js', SAMEVIEW_COMPARISONS_FILE );
 }
 
 /**
@@ -115,6 +113,21 @@ function sameview_render_comparison_embed( $session_id ) {
 	$has_branding_asset = is_file( trailingslashit( $assets_dir ) . 'branding.png' );
 	$assets_url         = trailingslashit( sameview_uploads_url() ) . md5( $session_id );
 
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 17 cache/versioning contract: the
+	// stored, deterministic Outcome Fingerprint as the `?v=` token.
+	// `sameview_import_seed()`'s own atomic update (Phase 15) intentionally
+	// keeps every Comparison's asset directory at this exact same path
+	// across an update, so existing placements keep resolving correctly —
+	// but that also means the URL itself never changes when the file
+	// content does, which would otherwise leave a browser or intermediary
+	// cache holding stale image bytes after an update. Appending the
+	// fingerprint (already stored, already changes exactly when the
+	// allowlisted content it was computed from changes — no new
+	// computation) makes the *effective* URL change on every real update,
+	// without needing any cache-purge mechanism.
+	$fingerprint = get_post_meta( $post_id, SAMEVIEW_META_OUTCOME_FINGERPRINT, true );
+	$version_arg = $fingerprint ? '?v=' . rawurlencode( $fingerprint ) : '';
+
 	$payload = array(
 		'presentation'          => isset( $manifest['presentation'] ) ? $manifest['presentation'] : new stdClass(),
 		'visibility'            => isset( $manifest['visibility'] ) ? $manifest['visibility'] : new stdClass(),
@@ -122,9 +135,9 @@ function sameview_render_comparison_embed( $session_id ) {
 		'branding'              => isset( $manifest['branding'] ) ? $manifest['branding'] : array( 'kind' => 'none' ),
 		'initialSliderPosition' => isset( $manifest['initialSliderPosition'] ) ? $manifest['initialSliderPosition'] : 0.5,
 		'assets'                => array(
-			'referenceSrc' => $assets_url . '/reference.jpg',
-			'captureSrc'   => $assets_url . '/capture.jpg',
-			'brandingSrc'  => $has_branding_asset ? $assets_url . '/branding.png' : null,
+			'referenceSrc' => $assets_url . '/reference.jpg' . $version_arg,
+			'captureSrc'   => $assets_url . '/capture.jpg' . $version_arg,
+			'brandingSrc'  => $has_branding_asset ? $assets_url . '/branding.png' . $version_arg : null,
 		),
 		'copy'                  => sameview_embed_copy_strings(),
 	);

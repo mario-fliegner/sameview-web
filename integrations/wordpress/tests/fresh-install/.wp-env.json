@@ -3,6 +3,7 @@
   "port": 8890,
   "testsEnvironment": false,
   "mappings": {
-    "wp-content/sameview-artifact": "./artifact"
+    "wp-content/sameview-artifact": "./artifact",
+    "wp-content/mu-plugins": "./mu-plugins"
   }
 }

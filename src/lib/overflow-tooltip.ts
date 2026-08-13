@@ -139,6 +139,18 @@ export function attachPresentationOverflowTooltips(
 	let tooltip: HTMLDivElement | null = null;
 	let repositionListenersAttached = false;
 
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 17 (Decision 75): a shadow-rooted
+	// Presentation's own tooltip DOM must stay inside its owning Shadow Root
+	// — appending it to `document.body` regardless of `root` would leak
+	// SameView-owned DOM into the host page. `getRootNode()` returns the
+	// owning `ShadowRoot` when `root` lives inside one, or plain `document`
+	// otherwise (Standalone HTML/Static Microsite, and every other existing
+	// non-shadow caller) — resolved once, here, since it never changes for
+	// the lifetime of one `attachPresentationOverflowTooltips` call.
+	const ownerRootNode = root.getRootNode();
+	const tooltipPortalParent: ParentNode =
+		ownerRootNode instanceof ShadowRoot ? ownerRootNode : document.body;
+
 	function ensureTooltipElement(): HTMLDivElement {
 		if (tooltip) return tooltip;
 		const element = document.createElement("div");
@@ -154,7 +166,7 @@ export function attachPresentationOverflowTooltips(
 		// have.
 		element.setAttribute("aria-hidden", "true");
 		element.hidden = true;
-		document.body.appendChild(element);
+		tooltipPortalParent.appendChild(element);
 		tooltip = element;
 		return element;
 	}
@@ -311,16 +323,24 @@ export function attachPresentationOverflowTooltips(
 
 	function handleDocumentPointerDown(event: PointerEvent) {
 		if (!openElement) return;
-		const target = event.target;
-		if (target instanceof Node) {
-			// Neither the trigger itself (its own pointerup/focus handlers
-			// own that decision) nor the tooltip bubble itself (its content
-			// may need to be scrolled — see the "extremely long content"
-			// case in global.css — a tap starting a scroll gesture inside
-			// it must not immediately close it) count as "outside".
-			if (openElement.contains(target)) return;
-			if (tooltip?.contains(target)) return;
-		}
+		// `event.target` is retargeted to the shadow host for a click whose
+		// real origin is inside a shadow-rooted trigger/tooltip (standard
+		// Shadow DOM event retargeting — docs/IMPLEMENTATION_PLAN_V1.md Phase
+		// 17), which would make `.contains(target)` below wrongly treat that
+		// click as "outside". `composedPath()` is never retargeted: it always
+		// lists the real originating element, crossing any shadow boundary,
+		// so this check stays correct whether `root` is shadow-rooted or not
+		// — still listening on `document` here (not scoped to the owning
+		// root) precisely so a genuine click anywhere else on the host page
+		// still closes this instance's own tooltip, exactly as before.
+		const path = event.composedPath();
+		// Neither the trigger itself (its own pointerup/focus handlers own
+		// that decision) nor the tooltip bubble itself (its content may need
+		// to be scrolled — see the "extremely long content" case in
+		// global.css — a tap starting a scroll gesture inside it must not
+		// immediately close it) count as "outside".
+		if (path.includes(openElement)) return;
+		if (tooltip && path.includes(tooltip)) return;
 		closeTooltip(openElement);
 	}
 

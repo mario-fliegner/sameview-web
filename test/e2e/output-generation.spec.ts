@@ -1863,6 +1863,32 @@ function sha256Hex(bytes: Uint8Array | Buffer): string {
 // `buildComparisonArtifactMarkup` call) stayed byte-for-byte unchanged, so
 // the Presentation markup/content/settings embedded here are unaffected;
 // only the runtime script bytes are.
+//
+// Updated again, deliberately, for docs/IMPLEMENTATION_PLAN_V1.md Phase 17
+// ("WordPress Frontend Delivery and Host Isolation"): src/lib/comparison-presentation-runtime.ts
+// now additionally exports its own per-instance initializer (`initInstance`,
+// needed only by the WordPress Embed runtime for Shadow DOM mounting) and
+// src/lib/overflow-tooltip.ts's outside-pointerdown detection now uses
+// `event.composedPath()` instead of `event.target` (needed only to remain
+// correct across a Shadow DOM boundary) — both are additive/behavior-preserving
+// for this single-instance, non-shadow-rooted consumer, but the compiled
+// runtime script's own bytes still change since both modules feed this same
+// bundle. Verified again before this update that every other entry hash
+// below, especially `index.html`, stayed exactly unchanged.
+//
+// Updated a third time, deliberately, for the same Phase 17 (Decision 77
+// "Embed sizing model"): `initInstance` gained a `sizingMode` parameter
+// (default `"bounded"`, this consumer's own call site — `initComparisonPresentation()`,
+// unchanged — never passes a second argument, so it keeps taking exactly the
+// same `computeCanvasGeometry` code path it always has) and
+// src/lib/canvas-geometry.ts gained the new, separate
+// `computeCanvasGeometryForAvailableWidth` function the Embed-only
+// `"width-constrained"` mode calls instead — used by nothing in this bundle,
+// but its mere presence in the same module still changes the compiled
+// output's bytes. Verified again that every other entry hash stayed exactly
+// unchanged, and that the full Workspace Preview/comparison-viewer and
+// comparison-slider-handle-geometry E2E suites (this bundle's own real
+// behavior, not just its bytes) still pass unmodified.
 test("Standalone HTML bytes for the default fixture configuration remain byte-for-byte unchanged across unrelated Outcome Snapshot changes (Phase 11 regression guard)", async ({
 	page,
 }) => {
@@ -1875,7 +1901,7 @@ test("Standalone HTML bytes for the default fixture configuration remain byte-fo
 	]);
 	const bytes = readFileSync(await download.path());
 	expect(sha256Hex(bytes)).toBe(
-		"25076374b1ac3f217a6565a2161fe1877cc52dbc75ab98a616029432ce2434c3",
+		"3c174ab5185cb088d57c071b327022e97ec7f68f3921e04ba443aa5b9b34131a",
 	);
 });
 
@@ -1934,6 +1960,6 @@ test("Static Microsite entry contents for the default fixture configuration rema
 		"index.html":
 			"3b0dd723677a238fc1f9d2c399f92af1b50d57e4734eeeeb9beccde07188fbc1",
 		"js/sameview-comparison.js":
-			"5ea240e889a41cc03c49014087f53193e2c770986f7e3cfddc7ae36c57a96f44",
+			"95ca28f46a15d57e7f9902df5b42a3bf93c039f9656670db7e69e32b879e27a1",
 	});
 });

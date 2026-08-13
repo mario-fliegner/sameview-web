@@ -53,6 +53,29 @@ export interface CanvasGeometryResult {
 	readonly canvasHeight: number;
 }
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 17 ("WordPress Frontend Delivery and
+// Host Isolation", Decision 77 "Embed sizing model"): the WordPress Embed
+// context has no externally bounded height the way a fixed-viewport
+// Standalone HTML document or the flex-parent-allocated Workspace Preview
+// area both already have — it sits inside arbitrary host-page content flow,
+// where only the available *width* is an external constraint and the
+// required height must be *derived* from it (and then let the container
+// grow/shrink to fit, in normal document flow — never a fixed height, never
+// an internal scroll area). Deliberately only `previewWidth`, never
+// `previewHeight`: an embed consumer's own "available height" would only
+// ever be an echo of the Presentation's own already-rendered height (its
+// container has no independent height of its own to report), so reading one
+// here would reintroduce exactly the circular measurement this input shape
+// exists to avoid.
+export interface CanvasGeometryWidthConstrainedInput {
+	readonly previewWidth: number;
+	readonly ratio: number | null;
+	readonly metadataHeight: number;
+	readonly canvasPadding: number;
+	readonly contentGap: number;
+	readonly frameWidth: number;
+}
+
 const ZERO_RESULT: CanvasGeometryResult = {
 	stageWidth: 0,
 	stageHeight: 0,
@@ -137,6 +160,52 @@ export function computeCanvasGeometry(
 		stageWidth = availableWidth;
 		stageHeight = stageWidth / ratio;
 	}
+
+	return {
+		stageWidth,
+		stageHeight,
+		canvasWidth: stageWidth + 2 * canvasPadding + 2 * frameWidth,
+		canvasHeight:
+			stageHeight + gap + metadataHeight + 2 * canvasPadding + 2 * frameWidth,
+	};
+}
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 17, Decision 77 "Embed sizing model":
+// "the host/container WIDTH is the external sizing constraint... height
+// must be derived from the current available container width and the
+// complete SameView Presentation." The Comparison Stage's width is simply
+// the full available width (no width-vs-height fit comparison — there is no
+// height to compare against); its height follows from the configured image
+// ratio exactly as `computeCanvasGeometry` already derives it in the
+// height-bound branch above, so this is the same "Stage receives whatever
+// space follows from the image ratio" principle applied to a boundary with
+// only one known side, not a different geometry model. Reused unchanged by
+// `initInstance`'s own width-constrained sizing mode
+// (src/lib/comparison-presentation-runtime.ts) — never a second, independent
+// layout implementation for the Embed context.
+export function computeCanvasGeometryForAvailableWidth(
+	input: CanvasGeometryWidthConstrainedInput,
+): CanvasGeometryResult {
+	const {
+		previewWidth,
+		ratio,
+		metadataHeight,
+		canvasPadding,
+		contentGap,
+		frameWidth,
+	} = input;
+
+	if (ratio === null || !(ratio > 0) || !(previewWidth > 0)) {
+		return ZERO_RESULT;
+	}
+
+	const gap = metadataHeight > 0 ? contentGap : 0;
+
+	const stageWidth = Math.max(
+		0,
+		previewWidth - 2 * canvasPadding - 2 * frameWidth,
+	);
+	const stageHeight = stageWidth / ratio;
 
 	return {
 		stageWidth,

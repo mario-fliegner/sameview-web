@@ -92,16 +92,20 @@ function sameview_get_comparison_picker_options() {
  * listed here is a WordPress-core-provided script handle, already bundled
  * with WordPress itself.
  *
- * Also localizes the shared Embed runtime/CSS URLs (never enqueues them
- * here): confirmed empirically against a real `wp-env` instance that neither
- * a top-level `enqueue_block_editor_assets` script nor `ServerSideRender`'s
- * own response reaches the Block Editor's iframed canvas's own document —
- * the editor script itself (assets/block/index.js
+ * Also localizes the shared Embed runtime script's own URL (never enqueues
+ * it here): confirmed empirically against a real `wp-env` instance that
+ * neither a top-level `enqueue_block_editor_assets` script nor
+ * `ServerSideRender`'s own response reaches the Block Editor's iframed
+ * canvas's own document — the editor script itself (assets/block/index.js
  * `ensureEmbedRuntimeLoaded()`) loads the runtime directly into that
  * document once a `ComparisonPreview` actually mounts there, which also
  * keeps this editor-only loading exactly as conditional as the public
  * frontend's own per-render enqueue in includes/render.php
- * (docs/IMPLEMENTATION_PLAN_V1.md Phase 16 "Asset loading").
+ * (docs/IMPLEMENTATION_PLAN_V1.md Phase 16 "Asset loading"). The runtime
+ * script itself now derives its own CSS URL and mounts every placement —
+ * public frontend and editor preview alike — inside a Shadow Root
+ * (docs/IMPLEMENTATION_PLAN_V1.md Phase 17, Decision 75/76), so no separate
+ * style URL is localized here either.
  */
 function sameview_enqueue_block_editor_assets() {
 	$script_path = trailingslashit( SAMEVIEW_COMPARISONS_DIR ) . 'assets/block/index.js';
@@ -128,8 +132,8 @@ function sameview_enqueue_block_editor_assets() {
 		SAMEVIEW_BLOCK_EDITOR_SCRIPT_HANDLE,
 		'sameviewComparisonsBlockData',
 		array(
-			'comparisons' => sameview_get_comparison_picker_options(),
-			'embedAssets' => sameview_embed_asset_urls(),
+			'comparisons'    => sameview_get_comparison_picker_options(),
+			'embedScriptUrl' => sameview_embed_script_url(),
 		)
 	);
 	wp_enqueue_script( SAMEVIEW_BLOCK_EDITOR_SCRIPT_HANDLE );

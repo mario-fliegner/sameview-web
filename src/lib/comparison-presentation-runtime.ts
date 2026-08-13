@@ -43,7 +43,9 @@ import {
 import {
 	CANVAS_CONTENT_GAP_PX,
 	CANVAS_PADDING_PX,
+	type CanvasGeometryResult,
 	computeCanvasGeometry,
+	computeCanvasGeometryForAvailableWidth,
 	deriveImageRatio,
 	GEOMETRY_STABILITY_TOLERANCE_PX,
 	initialMetadataWidth,
@@ -211,6 +213,27 @@ function applyAdaptiveSize(
 // failure never leaves a root permanently marked as initialized.
 const RUNTIME_INITIALIZED_ATTRIBUTE = "sameviewRuntimeInitialized";
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 17, Decision 77 "Embed sizing model".
+// Every existing consumer (Standalone HTML, Static Microsite, the live
+// Workspace Preview) already has a genuinely externally bounded height —
+// Standalone HTML's own fixed-viewport frame, the Preview's own
+// flex-parent-allocated area — so `"bounded"` (the default below,
+// unchanged from this module's pre-Phase-17 behavior) fits both width and
+// height against that real external box, exactly as `computeCanvasGeometry`
+// already does. The WordPress Embed context has no such thing: it sits
+// inside arbitrary host-page content flow, where only the available width
+// is external and the required height must instead be derived from it (see
+// src/lib/canvas-geometry.ts `computeCanvasGeometryForAvailableWidth`) —
+// `"width-constrained"` selects that path instead. This is the one place
+// the distinction is made; every other function in this closure (interaction,
+// labels, adaptive sizing, the Handle) is completely unaware of which mode
+// produced the `stageWidth`/`stageHeight` it receives.
+export type CanvasSizingMode =
+	| { readonly kind: "bounded" }
+	| { readonly kind: "width-constrained" };
+
+const BOUNDED_SIZING_MODE: CanvasSizingMode = { kind: "bounded" };
+
 // Initializes exactly one discovered `.presentation-canvas` root
 // (docs/IMPLEMENTATION_PLAN_V1.md Phase 13). All interaction/geometry/
 // observer state below is declared inside this function's own closure, so
@@ -219,7 +242,20 @@ const RUNTIME_INITIALIZED_ATTRIBUTE = "sameviewRuntimeInitialized";
 // instance-local by construction; this refactor only changes *how* each
 // call finds its own elements (root-relative, never global/never by id),
 // never how its own state is scoped.
-function initInstance(canvas: HTMLElement): void {
+//
+// Exported (docs/IMPLEMENTATION_PLAN_V1.md Phase 13/17) so
+// src/lib/comparison-embed-runtime-entry.ts can initialize one specific,
+// already-known canvas directly — needed because a shadow-rooted canvas is
+// unreachable from `initComparisonPresentation()`'s own `document.querySelectorAll`
+// scan below (shadow trees are not part of the light DOM it searches).
+// `sizingMode` defaults to `"bounded"`, so `initComparisonPresentation()`'s
+// own call below — and every other existing call site, none of which pass a
+// second argument — resolves to exactly the same geometry behavior this
+// function already had before Phase 17 introduced the alternative.
+export function initInstance(
+	canvas: HTMLElement,
+	sizingMode: CanvasSizingMode = BOUNDED_SIZING_MODE,
+): void {
 	if (canvas.dataset[RUNTIME_INITIALIZED_ATTRIBUTE] === "true") return;
 
 	const outputFrame = requireInstanceFrame(canvas);
@@ -475,17 +511,39 @@ function initInstance(canvas: HTMLElement): void {
 	function recomputeGeometry(): void {
 		if (ratio === null) return;
 		const previewWidth = outputFrame.clientWidth;
-		const previewHeight = outputFrame.clientHeight;
-		if (previewWidth <= 0 || previewHeight <= 0) return;
-		const geometry = computeCanvasGeometry({
-			previewWidth,
-			previewHeight,
-			ratio,
-			metadataHeight: metadataHeightPx,
-			canvasPadding: CANVAS_PADDING_PX,
-			contentGap: CANVAS_CONTENT_GAP_PX,
-			frameWidth: frameWidthResolved,
-		});
+		if (previewWidth <= 0) return;
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 17, Decision 77: the only place
+		// this closure ever branches on `sizingMode` — `"bounded"` reads
+		// `outputFrame.clientHeight` as a real external constraint exactly as
+		// this function always has; `"width-constrained"` never reads it at
+		// all, since for the Embed context that value is only ever an echo of
+		// this same Presentation's own already-rendered height, not an
+		// independent constraint (reading it would reintroduce the exact
+		// circular measurement this mode exists to avoid).
+		const geometry =
+			sizingMode.kind === "width-constrained"
+				? computeCanvasGeometryForAvailableWidth({
+						previewWidth,
+						ratio,
+						metadataHeight: metadataHeightPx,
+						canvasPadding: CANVAS_PADDING_PX,
+						contentGap: CANVAS_CONTENT_GAP_PX,
+						frameWidth: frameWidthResolved,
+					})
+				: ((): CanvasGeometryResult | null => {
+						const previewHeight = outputFrame.clientHeight;
+						if (previewHeight <= 0) return null;
+						return computeCanvasGeometry({
+							previewWidth,
+							previewHeight,
+							ratio,
+							metadataHeight: metadataHeightPx,
+							canvasPadding: CANVAS_PADDING_PX,
+							contentGap: CANVAS_CONTENT_GAP_PX,
+							frameWidth: frameWidthResolved,
+						});
+					})();
+		if (!geometry) return;
 		canvas.style.setProperty("--stage-width", `${geometry.stageWidth}px`);
 		canvas.style.setProperty("--stage-height", `${geometry.stageHeight}px`);
 		canvas.style.setProperty("--canvas-width", `${geometry.canvasWidth}px`);

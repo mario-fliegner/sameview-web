@@ -72,25 +72,33 @@
 		return options;
 	}
 
-	var embedAssets =
+	var embedScriptUrl =
 		( window.sameviewComparisonsBlockData &&
-			window.sameviewComparisonsBlockData.embedAssets ) ||
+			window.sameviewComparisonsBlockData.embedScriptUrl ) ||
 		null;
 
 	// Confirmed empirically against a real `wp-env` instance: neither a
 	// top-level `enqueue_block_editor_assets` script nor `ServerSideRender`'s
 	// own response reaches the Block Editor's iframed canvas's own document —
 	// only the editor's own top-level admin document. This loads the exact
-	// same Embed runtime/CSS URLs includes/render.php's own frontend enqueue
-	// uses (`sameview_embed_asset_urls()`) directly into `doc`, once, keyed by
-	// the script/style's own handle-equivalent id so a second
-	// `ComparisonPreview` instance on the same page never loads it twice.
+	// same Embed runtime script URL includes/render.php's own frontend
+	// enqueue uses (`sameview_embed_script_url()`) directly into `doc`, once,
+	// keyed by its own id so a second `ComparisonPreview` instance on the
+	// same page never loads it twice.
+	//
+	// No corresponding CSS `<link>` injection here (docs/IMPLEMENTATION_PLAN_V1.md
+	// Phase 17, Decision 75/76): the runtime script mounts every placement —
+	// this editor preview included — inside a Shadow Root and fetches/injects
+	// its own CSS as a `<style>` element there once it runs, the exact same
+	// way for the editor's iframed document as for the public frontend; a
+	// `<link>` injected here would do nothing for shadow-rooted content and
+	// would only leak an unused stylesheet into this document's own `<head>`.
 	function ensureEmbedRuntimeLoaded( doc ) {
 		var win = doc.defaultView;
 		if ( win && win.SameViewComparisonEmbed ) {
 			return Promise.resolve( win );
 		}
-		if ( ! embedAssets ) {
+		if ( ! embedScriptUrl ) {
 			return Promise.resolve( win );
 		}
 		var existing = doc.getElementById( 'sameview-comparisons-embed-js' );
@@ -101,17 +109,10 @@
 				} );
 			} );
 		}
-		if ( ! doc.getElementById( 'sameview-comparisons-embed-css' ) ) {
-			var link = doc.createElement( 'link' );
-			link.id = 'sameview-comparisons-embed-css';
-			link.rel = 'stylesheet';
-			link.href = embedAssets.style;
-			doc.head.appendChild( link );
-		}
 		return new Promise( function ( resolve ) {
 			var script = doc.createElement( 'script' );
 			script.id = 'sameview-comparisons-embed-js';
-			script.src = embedAssets.script;
+			script.src = embedScriptUrl;
 			script.addEventListener( 'load', function () {
 				resolve( doc.defaultView );
 			} );
