@@ -29,6 +29,8 @@
 // own configuration.
 
 import {
+	buildComparisonEmbedCssCode,
+	buildComparisonEmbedRuntimeCode,
 	buildPresentationCssCode,
 	buildPresentationRuntimeCode,
 } from "./build-presentation-runtime.mjs";
@@ -65,6 +67,21 @@ const ROUTES = [
 		path: "/generated/comparison-presentation.min.css",
 		contentType: "text/css; charset=utf-8",
 		build: () => buildPresentationCssCode(),
+		watchFragment: CSS_WATCHED_PATH_FRAGMENT,
+	},
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 16: the WordPress Embed runtime/CSS
+	// (src/lib/comparison-embed-runtime-entry.ts), served the same
+	// always-fresh, never-stale way as every other route here.
+	{
+		path: "/generated/comparison-embed-runtime.js",
+		contentType: "text/javascript; charset=utf-8",
+		build: () => buildComparisonEmbedRuntimeCode(),
+		watchFragment: JS_WATCHED_PATH_FRAGMENT,
+	},
+	{
+		path: "/generated/comparison-embed.css",
+		contentType: "text/css; charset=utf-8",
+		build: () => buildComparisonEmbedCssCode(),
 		watchFragment: CSS_WATCHED_PATH_FRAGMENT,
 	},
 ];

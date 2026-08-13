@@ -161,18 +161,11 @@ function sameview_import_seed( $seed_dir ) {
 		);
 	}
 
-	$session_id = $manifest['sessionId'];
-	$existing   = get_posts(
-		array(
-			'post_type'      => SAMEVIEW_POST_TYPE,
-			'post_status'    => 'any',
-			'posts_per_page' => 1,
-			'meta_key'       => SAMEVIEW_META_SESSION_ID,
-			'meta_value'     => $session_id,
-			'fields'         => 'ids',
-		)
-	);
-	$existing_post_id = $existing ? $existing[0] : null;
+	$session_id       = $manifest['sessionId'];
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 16: the one shared `session.id`
+	// lookup (includes/comparison-lookup.php), also used by block/shortcode
+	// rendering — never a second, independently maintained query.
+	$existing_post_id = sameview_find_comparison_by_session_id( $session_id );
 
 	// docs/EMBED_IN_WEBSITE.md "Comparison Lifecycle": "an existing
 	// `session.id` with an unchanged Outcome Fingerprint is a no-op ... no

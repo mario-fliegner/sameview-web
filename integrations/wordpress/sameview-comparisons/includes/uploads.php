@@ -25,6 +25,19 @@ function sameview_uploads_dir() {
 	return trailingslashit( $upload_dir['basedir'] ) . SAMEVIEW_UPLOADS_SUBDIR;
 }
 
+/**
+ * The public URL counterpart of `sameview_uploads_dir()` above — the same
+ * SameView-owned uploads subdirectory is an ordinary, web-servable location
+ * under the site's own uploads URL (docs/IMPLEMENTATION_PLAN_V1.md Phase 16:
+ * Comparison assets need no PHP asset-streaming endpoint of their own, only
+ * their already-public URL). Introduced for includes/render.php's own
+ * asset-URL resolution.
+ */
+function sameview_uploads_url() {
+	$upload_dir = wp_upload_dir();
+	return trailingslashit( $upload_dir['baseurl'] ) . SAMEVIEW_UPLOADS_SUBDIR;
+}
+
 function sameview_create_uploads_dir() {
 	$dir = sameview_uploads_dir();
 	wp_mkdir_p( $dir );

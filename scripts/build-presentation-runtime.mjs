@@ -35,6 +35,8 @@
 // esbuild is not a direct dependency and is not otherwise reachable from
 // application code — only Vite's own internal `build()` machinery uses it).
 
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "vite";
 
@@ -165,6 +167,86 @@ export async function buildPresentationCssCode() {
 	return `${presentationCss}\n${frameCss}`;
 }
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 16 ("WordPress Block Editor
+// Placement"): the smallest possible bundle pairing
+// src/lib/comparison-artifact-markup.ts `buildComparisonArtifactMarkup` with
+// src/lib/comparison-presentation-runtime.ts `initComparisonPresentation` —
+// see src/lib/comparison-embed-runtime-entry.ts's own header comment for why
+// this is a new *entry point* around two unmodified, already-shared modules,
+// never a second renderer. Uses the exact same isolated Vite `build()` shape
+// as `buildPresentationRuntimeCode` above (only the entry file and library
+// name differ) so this can never recursively load astro.config.mjs either.
+// Fetched by src/lib/comparison-artifact-assets.ts and packaged into the
+// generated WordPress ZIP by src/lib/generate-wordpress-package.ts — this
+// compiled output is never committed inside integrations/wordpress/ itself
+// (docs/IMPLEMENTATION_PLAN_V1.md Phase 16 Decision 72).
+export async function buildComparisonEmbedRuntimeCode() {
+	const result = await build({
+		root: projectRoot,
+		configFile: false,
+		logLevel: "warn",
+		publicDir: false,
+		build: {
+			write: false,
+			lib: {
+				entry: "src/lib/comparison-embed-runtime-entry.ts",
+				name: "SameViewComparisonEmbed",
+				formats: ["iife"],
+				fileName: () => "comparison-embed-runtime.js",
+			},
+			minify: false,
+		},
+	});
+	const output = Array.isArray(result) ? result[0] : result;
+	const chunk = output.output.find((entry) => entry.type === "chunk");
+	if (!chunk || !("code" in chunk)) {
+		throw new Error("Comparison embed runtime build produced no output chunk");
+	}
+	return stripBundlerRegionMarkers(chunk.code);
+}
+
+// The WordPress Embed CSS: the same src/styles/comparison-presentation.css
+// every other output already shares, plus the `@font-face` rule(s) for
+// *every* Presentation Font (never just one, unlike Standalone HTML/Static
+// Microsite: a WordPress site's stored Comparisons may each use a different
+// font, and Phase 16 does not implement Phase 17's per-page conditional
+// asset selection) — resolved via src/lib/presentation-font-assets.ts
+// `buildFontFaceCss`, the same function every other output already uses,
+// never a second font-packaging implementation. Deliberately excludes
+// src/styles/comparison-artifact-frame.css: that stylesheet's only rule is
+// scoped to the single-instance-only `#sameview-canvas` id
+// (src/lib/comparison-artifact-markup.ts never emits it in "multi-instance"
+// mode — see that module's own header comment), so it has nothing to select
+// in a WordPress embed context. No Vite build needed here — unlike the JS
+// runtime above, this is a plain-text composition of already-plain-text
+// sources via src/lib/comparison-artifact-scaffold.ts `composeArtifactCss`
+// (which already strips developer comments at exactly this distribution
+// boundary), so it reuses that function directly rather than introducing a
+// second CSS composition path.
+export async function buildComparisonEmbedCssCode() {
+	const [{ buildFontFaceCss }, { PRESENTATION_FONT_IDS }, { composeArtifactCss }] =
+		await Promise.all([
+			import("../src/lib/presentation-font-assets.ts"),
+			import("../src/lib/presentation-fonts.ts"),
+			import("../src/lib/comparison-artifact-scaffold.ts"),
+		]);
+	const presentationCss = await readFile(
+		join(projectRoot, "src/styles/comparison-presentation.css"),
+		"utf8",
+	);
+	// Relative to this CSS file's own eventual location inside the generated
+	// WordPress package (`sameview-comparisons/assets/embed/comparison-embed.css`),
+	// resolved against the font files' own location there
+	// (`sameview-comparisons/assets/fonts/...` —
+	// src/lib/generate-wordpress-package.ts places both under a fixed,
+	// known-at-build-time relative layout, so no site-specific URL
+	// substitution is ever needed inside this CSS text itself).
+	const fontFaceCss = PRESENTATION_FONT_IDS.map((id) =>
+		buildFontFaceCss(id, (file) => `../fonts/${file.path}`),
+	).join("\n\n");
+	return composeArtifactCss(fontFaceCss, presentationCss, "");
+}
+
 // CLI entry point — `pnpm build:runtime`, wired into `pnpm build` only (see
 // package.json; `pnpm dev` no longer needs this, the dev plugin covers it).
 const isMainModule =
@@ -174,11 +256,14 @@ const isMainModule =
 if (isMainModule) {
 	const { mkdir, writeFile } = await import("node:fs/promises");
 	const { join } = await import("node:path");
-	const [readableCode, minifiedCode, cssCode] = await Promise.all([
-		buildPresentationRuntimeCode(),
-		buildPresentationRuntimeCode({ minify: true }),
-		buildPresentationCssCode(),
-	]);
+	const [readableCode, minifiedCode, cssCode, embedRuntimeCode, embedCssCode] =
+		await Promise.all([
+			buildPresentationRuntimeCode(),
+			buildPresentationRuntimeCode({ minify: true }),
+			buildPresentationCssCode(),
+			buildComparisonEmbedRuntimeCode(),
+			buildComparisonEmbedCssCode(),
+		]);
 	const outDir = join(projectRoot, "public", "generated");
 	await mkdir(outDir, { recursive: true });
 	await Promise.all([
@@ -191,5 +276,7 @@ if (isMainModule) {
 			minifiedCode,
 		),
 		writeFile(join(outDir, "comparison-presentation.min.css"), cssCode),
+		writeFile(join(outDir, "comparison-embed-runtime.js"), embedRuntimeCode),
+		writeFile(join(outDir, "comparison-embed.css"), embedCssCode),
 	]);
 }

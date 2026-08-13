@@ -13,7 +13,14 @@
 // Playwright's own webServer config, since this script is invoked standalone,
 // outside `playwright test`.
 //
-// Usage: node scripts/generate-wordpress-artifact-for-verification.mjs <output-path>
+// Usage: node scripts/generate-wordpress-artifact-for-verification.mjs <output-path> [fixture-name]
+//
+// `fixture-name` (docs/IMPLEMENTATION_PLAN_V1.md Phase 16 final verification:
+// "two different Comparisons on one page" needs a second, genuinely
+// different generated package) defaults to `sample-v6-session_full.zip` and
+// is resolved under test/fixtures/android-export/ — any other fixture in
+// that directory (e.g. `sample-v6-session_minimal.zip`) can be passed to
+// produce a package for a different session.id/title.
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -23,12 +30,13 @@ import { chromium } from "@playwright/test";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const APP_URL = "http://localhost:4321";
-const FIXTURE_PATH = `${repoRoot}test/fixtures/android-export/sample-v6-session_full.zip`;
+const FIXTURE_NAME = process.argv[3] ?? "sample-v6-session_full.zip";
+const FIXTURE_PATH = `${repoRoot}test/fixtures/android-export/${FIXTURE_NAME}`;
 
 const outputPath = process.argv[2];
 if (!outputPath) {
 	console.error(
-		"Usage: node scripts/generate-wordpress-artifact-for-verification.mjs <output-path>",
+		"Usage: node scripts/generate-wordpress-artifact-for-verification.mjs <output-path> [fixture-name]",
 	);
 	process.exit(1);
 }

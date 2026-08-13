@@ -1,5 +1,7 @@
 {
   "plugins": [],
+  "port": 8890,
+  "testsEnvironment": false,
   "mappings": {
     "wp-content/sameview-artifact": "./artifact"
   }

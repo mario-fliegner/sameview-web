@@ -26,10 +26,16 @@
 // older integration that cannot fully understand it, the import is rejected
 // completely").
 //
-// No Presentation/runtime markup of any kind is included — rendering a
-// Comparison on a real WordPress page is Phase 16 scope; this module only
-// ever transports data, the same boundary Phase 14's plugin skeleton already
-// observes ("no Comparison-facing behavior").
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 16 additionally packages the WordPress
+// Embed runtime/CSS/fonts here — see `WORDPRESS_EMBED_ASSET_PATHS` below —
+// the one place SameView Web's own compiled build output
+// (scripts/build-presentation-runtime.mjs `buildComparisonEmbedRuntimeCode()`/
+// `buildComparisonEmbedCssCode()`) enters the generated ZIP. These are never
+// committed as generated files inside integrations/wordpress/ itself
+// (Phase 16 Decision 72) — the plugin's own PHP never builds Presentation
+// markup; it only resolves data and hands it to this same compiled runtime
+// at WordPress render time (docs/WORDPRESS_INTEGRATION.md "Placement": "no
+// PHP reimplementation of Presentation rendering").
 
 import {
 	TextReader,
@@ -37,8 +43,14 @@ import {
 	Uint8ArrayWriter,
 	ZipWriter,
 } from "@zip.js/zip.js";
-import { fetchWordPressPluginFiles } from "./comparison-artifact-assets.ts";
+import {
+	fetchComparisonEmbedCss,
+	fetchComparisonEmbedRuntimeScript,
+	fetchPresentationFontAsset,
+	fetchWordPressPluginFiles,
+} from "./comparison-artifact-assets.ts";
 import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
+import { PRESENTATION_FONT_IDS } from "./presentation-fonts.ts";
 
 export const WORDPRESS_PACKAGE_FILENAME = "sameview-comparisons-wordpress.zip";
 
@@ -92,7 +104,13 @@ export async function generateWordPressPackage(
 	options: GenerateWordPressPackageOptions,
 ): Promise<Uint8Array> {
 	const { snapshot } = options;
-	const pluginFiles = await fetchWordPressPluginFiles();
+	const [pluginFiles, embedRuntimeScript, embedCss, fontAssets] =
+		await Promise.all([
+			fetchWordPressPluginFiles(),
+			fetchComparisonEmbedRuntimeScript(),
+			fetchComparisonEmbedCss(),
+			Promise.all(PRESENTATION_FONT_IDS.map(fetchPresentationFontAsset)),
+		]);
 	const manifest = buildComparisonManifest(snapshot);
 	const hasBrandingAsset =
 		snapshot.branding.kind === "asset" &&
@@ -118,6 +136,34 @@ export async function generateWordPressPackage(
 		await zipWriter.add(
 			"sameview-comparisons/seed/branding.png",
 			new Uint8ArrayReader(snapshot.brandingAssetBytes),
+		);
+	}
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 16: the shared Embed runtime/CSS,
+	// plus every Presentation Font's own file(s) and license (unlike
+	// Standalone HTML/Static Microsite, never just the one selected font —
+	// see scripts/build-presentation-runtime.mjs `buildComparisonEmbedCssCode()`
+	// for why). Placed under a fixed relative layout the pre-built
+	// `comparison-embed.css` text above already assumes (`../fonts/...` from
+	// its own `assets/embed/` location).
+	await zipWriter.add(
+		"sameview-comparisons/assets/embed/comparison-embed-runtime.js",
+		new TextReader(embedRuntimeScript),
+	);
+	await zipWriter.add(
+		"sameview-comparisons/assets/embed/comparison-embed.css",
+		new TextReader(embedCss),
+	);
+	for (const fontAsset of fontAssets) {
+		for (const file of fontAsset.files) {
+			await zipWriter.add(
+				`sameview-comparisons/assets/fonts/${file.path}`,
+				new Uint8ArrayReader(file.bytes),
+			);
+		}
+		await zipWriter.add(
+			`sameview-comparisons/assets/fonts/${fontAsset.asset.licensePath}`,
+			new TextReader(fontAsset.licenseText),
 		);
 	}
 

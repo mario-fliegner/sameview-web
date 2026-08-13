@@ -359,7 +359,11 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 
 	// The exact Phase 14 plugin files, copied verbatim, plus the seed
 	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 15) — same fixture as the Static
-	// Microsite test above, so branding.png is expected here too.
+	// Microsite test above, so branding.png is expected here too — plus the
+	// Phase 16 Embed runtime/CSS and every Presentation Font's own file(s)
+	// and license (never just the one selected font — see
+	// scripts/build-presentation-runtime.mjs `buildComparisonEmbedCssCode()`
+	// for why all three are always packaged in V1).
 	expect(paths).toEqual(
 		[
 			"sameview-comparisons/sameview-comparisons.php",
@@ -369,11 +373,31 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 			"sameview-comparisons/includes/import.php",
 			"sameview-comparisons/includes/lifecycle.php",
 			"sameview-comparisons/includes/admin-add-comparison.php",
+			"sameview-comparisons/includes/comparison-lookup.php",
+			"sameview-comparisons/includes/render.php",
+			"sameview-comparisons/includes/block.php",
+			"sameview-comparisons/includes/shortcode.php",
 			"sameview-comparisons/uninstall.php",
+			"sameview-comparisons/languages/sameview-comparisons-de_DE.mo",
+			"sameview-comparisons/languages/sameview-comparisons-de_DE.po",
+			"sameview-comparisons/languages/sameview-comparisons-block-editor-de_DE.po",
+			"sameview-comparisons/languages/sameview-comparisons-de_DE-sameview-comparisons-block-editor.json",
+			"sameview-comparisons/assets/block/block.json",
+			"sameview-comparisons/assets/block/index.js",
 			"sameview-comparisons/seed/comparison.json",
 			"sameview-comparisons/seed/reference.jpg",
 			"sameview-comparisons/seed/capture.jpg",
 			"sameview-comparisons/seed/branding.png",
+			"sameview-comparisons/assets/embed/comparison-embed-runtime.js",
+			"sameview-comparisons/assets/embed/comparison-embed.css",
+			"sameview-comparisons/assets/fonts/inter/InterVariable.woff2",
+			"sameview-comparisons/assets/fonts/inter/LICENSE.txt",
+			"sameview-comparisons/assets/fonts/manrope/Manrope-Regular.woff2",
+			"sameview-comparisons/assets/fonts/manrope/Manrope-Medium.woff2",
+			"sameview-comparisons/assets/fonts/manrope/Manrope-SemiBold.woff2",
+			"sameview-comparisons/assets/fonts/manrope/OFL.txt",
+			"sameview-comparisons/assets/fonts/spacegrotesk/SpaceGrotesk-Variable.woff2",
+			"sameview-comparisons/assets/fonts/spacegrotesk/OFL.txt",
 		].sort(),
 	);
 

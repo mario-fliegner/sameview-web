@@ -124,6 +124,37 @@ export async function fetchPresentationCssMinified(): Promise<string> {
 	return response.text();
 }
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 16: the WordPress Embed runtime
+// script and its CSS — pre-built by
+// scripts/build-presentation-runtime.mjs `buildComparisonEmbedRuntimeCode()`/
+// `buildComparisonEmbedCssCode()` into `public/generated/`, served as an
+// ordinary static asset identically in dev and production, exactly like the
+// runtime script/fonts above. Fetched as text, embedded into the generated
+// WordPress ZIP by src/lib/generate-wordpress-package.ts — never executed
+// here, and never committed as a generated file inside integrations/wordpress/
+// (Phase 16 Decision 72).
+const COMPARISON_EMBED_RUNTIME_SCRIPT_PATH =
+	"/generated/comparison-embed-runtime.js";
+const COMPARISON_EMBED_CSS_PATH = "/generated/comparison-embed.css";
+
+export async function fetchComparisonEmbedRuntimeScript(): Promise<string> {
+	const response = await fetch(COMPARISON_EMBED_RUNTIME_SCRIPT_PATH);
+	if (!response.ok) {
+		throw new Error(
+			`Failed to fetch comparison embed runtime script: ${response.status}`,
+		);
+	}
+	return response.text();
+}
+
+export async function fetchComparisonEmbedCss(): Promise<string> {
+	const response = await fetch(COMPARISON_EMBED_CSS_PATH);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch comparison embed CSS: ${response.status}`);
+	}
+	return response.text();
+}
+
 // The Phase 14 WordPress plugin's own static PHP files, copied verbatim at
 // SameView Web's own build time by scripts/build-wordpress-plugin-assets.mjs
 // (docs/IMPLEMENTATION_PLAN_V1.md Phase 15) — the one approved, build-time-
