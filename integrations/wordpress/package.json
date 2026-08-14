@@ -8,7 +8,11 @@
     "stop": "wp-env stop",
     "destroy": "wp-env destroy",
     "wp-env": "wp-env",
-    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\""
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
+    "sandbox:start": "wp-env --config .wp-env.sandbox.json start",
+    "sandbox:stop": "wp-env --config .wp-env.sandbox.json stop",
+    "sandbox:destroy": "wp-env --config .wp-env.sandbox.json destroy",
+    "sandbox:status": "wp-env --config .wp-env.sandbox.json status"
   },
   "devDependencies": {
     "@wordpress/env": "^11.12.0"

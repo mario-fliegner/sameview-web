@@ -69,6 +69,51 @@ Other useful commands (run from this directory):
   `http://localhost:8888`, admin at `/wp-admin`, default credentials
   `admin` / `password` unless `wp-env` reports otherwise).
 
+## Manual Sandbox (human testing)
+
+A dedicated, disposable WordPress instance for manually testing the real
+customer install workflow — not an automated test, and not used by any of
+the `npm test`/`verify-*.mjs` tooling. It is fully isolated from the
+default instance above (`:8888`) and from `tests/fresh-install/` (`:8890`):
+`wp-env` derives each environment's Docker containers, volumes and network
+from a hash of its own config file's absolute path, so a distinct config
+file (`.wp-env.sandbox.json`) guarantees entirely separate Docker
+resources, never shared or destroyed by another environment's commands.
+
+Unlike every other config in this directory, it never bind-mounts or
+pre-installs the `sameview-comparisons` plugin (`"plugins": []`) — it
+boots as a plain, clean WordPress install, exactly like a real customer's
+own site before they've ever heard of SameView. WordPress core is pinned
+to the same version already established as current for this project
+(`https://wordpress.org/wordpress-7.0.4.zip`), the same URL the
+`current-major` configs above use.
+
+```sh
+cd integrations/wordpress
+npm run sandbox:start     # first run pulls/builds Docker images; boots a clean WP 7.0.4 at :8891
+npm run sandbox:stop      # stops containers; preserves the WordPress database/uploads for next start
+npm run sandbox:destroy   # prompts for confirmation, then deletes containers/volumes/network — full reset
+npm run sandbox:status    # prints the current URL, port and config in use
+```
+
+Manual test workflow:
+
+1. `npm run sandbox:start`.
+2. In the main repository, run the SameView Web app (`pnpm dev`), import a
+   Comparison, choose the `Embed in website` → WordPress output and
+   generate/download the real `sameview-comparisons-wordpress.zip`.
+3. Open `http://localhost:8891/wp-admin` — login `admin` / `password`
+   (wp-env's own standard local bootstrap credentials; not used or
+   reachable outside your machine).
+4. **Plugins → Add Plugin → Upload Plugin**, choose the downloaded ZIP,
+   **Install Now**, then **Activate** — the exact flow a real customer
+   follows, exercised here through the real wp-admin UI rather than
+   WP-CLI.
+
+`sandbox:stop` never deletes the database or uploaded plugin — a later
+`sandbox:start` resumes exactly where you left off. Only `sandbox:destroy`
+resets it to a genuinely clean install.
+
 ## Testing notes
 
 `tests/plugin-foundation.test.mjs` verifies the full Phase 14 lifecycle
