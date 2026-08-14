@@ -1,0 +1,41 @@
+# Real, disposable Joomla instance pinned to the immediately previous
+# supported major version (docs/JOOMLA_INTEGRATION.md "Supported Joomla
+# Versions"). Otherwise identical to docker-compose.current-major.yml — see
+# that file for the rationale of each setting.
+name: sameview-joomla-previous-major
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sameview_root
+      MYSQL_DATABASE: joomla
+      MYSQL_USER: joomla
+      MYSQL_PASSWORD: joomla
+    volumes:
+      - db-data:/var/lib/mysql
+
+  joomla:
+    image: joomla:5
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      JOOMLA_DB_HOST: db
+      JOOMLA_DB_USER: joomla
+      JOOMLA_DB_PASSWORD: joomla
+      JOOMLA_DB_NAME: joomla
+      JOOMLA_SITE_NAME: SameView Joomla Test (Previous Major)
+      JOOMLA_ADMIN_USER: SameView Test Admin
+      JOOMLA_ADMIN_USERNAME: admin
+      JOOMLA_ADMIN_PASSWORD: sameview-test-1234
+      JOOMLA_ADMIN_EMAIL: admin@example.test
+    ports:
+      - "8893:80"
+    volumes:
+      - joomla-data:/var/www/html
+
+volumes:
+  db-data:
+  joomla-data:

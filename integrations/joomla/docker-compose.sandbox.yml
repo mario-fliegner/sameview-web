@@ -1,0 +1,54 @@
+# Dedicated, disposable-but-persistent Joomla instance for manually testing
+# the real customer install workflow — not an automated test. Boots a
+# plain, clean Joomla install with no SameView extension pre-installed,
+# exactly like a real customer's own site before they have ever heard of
+# SameView.
+#
+# Isolated by Compose project name (`name:` below) and its own named
+# volumes/port from:
+# - docker-compose.current-major.yml / docker-compose.previous-major.yml
+#   (the automated-test instances, which are recreated per test run and
+#   never intended to persist data);
+# - integrations/wordpress's wp-env-managed sandbox (`.wp-env.sandbox.json`,
+#   a completely separate toolchain with its own Docker resources).
+#
+# Pinned to the current supported major version (docs/JOOMLA_INTEGRATION.md
+# "Supported Joomla Versions"), the same version a real customer would most
+# likely encounter today.
+name: sameview-joomla-sandbox
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sameview_root
+      MYSQL_DATABASE: joomla
+      MYSQL_USER: joomla
+      MYSQL_PASSWORD: joomla
+    volumes:
+      - db-data:/var/lib/mysql
+
+  joomla:
+    image: joomla:6
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      JOOMLA_DB_HOST: db
+      JOOMLA_DB_USER: joomla
+      JOOMLA_DB_PASSWORD: joomla
+      JOOMLA_DB_NAME: joomla
+      JOOMLA_SITE_NAME: SameView Joomla Sandbox
+      JOOMLA_ADMIN_USER: SameView Sandbox Admin
+      JOOMLA_ADMIN_USERNAME: admin
+      JOOMLA_ADMIN_PASSWORD: sameview-sandbox-1234
+      JOOMLA_ADMIN_EMAIL: admin@example.test
+    ports:
+      - "8894:80"
+    volumes:
+      - joomla-data:/var/www/html
+
+volumes:
+  db-data:
+  joomla-data:

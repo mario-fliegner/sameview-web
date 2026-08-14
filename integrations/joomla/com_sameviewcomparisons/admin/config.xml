@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Minimal config.xml: confirmed against a real Joomla 6.1.2 instance
+	(cross-checked against the core com_contact config.xml) that Joomla's
+	native component Permissions screen
+	(index.php?option=com_config&view=component&component=...) requires
+	both: a config.xml at all (without it: "Form::loadForm could not load
+	file"), and, within it, a real <field type="rules" .../> inside the
+	permissions fieldset, not just an empty fieldset (an empty fieldset
+	loads without error but shows "This component has no configuration
+	options" and never renders the access.xml actions
+	(docs/JOOMLA_INTEGRATION.md "Permissions and Security")). Root element
+	must be <config>, not <form>. No other options are needed yet for
+	Phase 19.
+-->
+<config>
+	<fieldset name="permissions" label="JCONFIG_PERMISSIONS_LABEL">
+		<field
+			name="rules"
+			type="rules"
+			label="JCONFIG_PERMISSIONS_LABEL"
+			validate="rules"
+			filter="rules"
+			component="com_sameviewcomparisons"
+			section="component"
+		/>
+	</fieldset>
+</config>

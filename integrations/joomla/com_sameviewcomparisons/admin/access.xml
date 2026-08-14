@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	docs/JOOMLA_INTEGRATION.md "Permissions and Security": a single native
+	Joomla access-control permission gates every administrative
+	Comparison-library action uniformly (library access, Add comparison,
+	update through Add comparison, Delete). No separate SameView role or
+	permission system. `core.manage` is Joomla's own conventional action
+	for "access this component's backend"; it is reused unchanged rather
+	than inventing a custom action name, and no second action is defined.
+-->
+<access component="com_sameviewcomparisons">
+	<section name="component">
+		<action name="core.manage" title="JACTION_MANAGE" description="COM_SAMEVIEWCOMPARISONS_ACCESS_MANAGE_DESC" />
+	</section>
+</access>

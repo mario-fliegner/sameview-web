@@ -4,7 +4,7 @@
 
 This is the normative Version 1 specification for the `Embed in website` comparison output, referenced from [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) and [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-005. It supersedes the dated product-decision baseline that preceded it as the ongoing source of truth for this feature; that baseline remains available as historical input, not as a second normative document.
 
-This document defines the shared, platform-independent contract every supported target platform must satisfy. It does not define any single platform's own technical implementation — platform-specific technical contracts are defined in their own documents, for example [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md).
+This document defines the shared, platform-independent contract every supported target platform must satisfy. It does not define any single platform's own technical implementation — platform-specific technical contracts are defined in their own documents, for example [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md) and [JOOMLA_INTEGRATION.md](JOOMLA_INTEGRATION.md).
 
 ## Purpose
 
@@ -204,7 +204,7 @@ Webflow and Squarespace use the same quality bar but follow the customer workflo
 This document does not define:
 
 - any platform's own technical architecture, storage layout, code structure, plugin/extension/module packaging, or build tooling — see the relevant platform integration document;
-- Joomla, Webflow or Squarespace technical contracts, which are not yet specified;
+- Webflow or Squarespace technical contracts, which are not yet specified;
 - the Version 2 Hosted Comparison model, its public URLs, QR codes or iframe embed codes (F-005; [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md));
 - SameView Web's own UI layout beyond what [APPLICATION_LAYOUT.md](APPLICATION_LAYOUT.md) already defines;
 - implementation details of any kind.

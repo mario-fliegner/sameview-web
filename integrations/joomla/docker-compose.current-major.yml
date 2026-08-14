@@ -1,0 +1,48 @@
+# Real, disposable Joomla instance pinned to the current supported major
+# version (docs/JOOMLA_INTEGRATION.md "Supported Joomla Versions"). Used for
+# automated Phase 19 verification (docs/IMPLEMENTATION_PLAN_V1.md Phase 19
+# "Tests/manual"). The real generated extension package is installed
+# through the native Extensions Manager UI (docs/JOOMLA_INTEGRATION.md
+# "Testing") — never bind-mounted into the container, never a direct-PHP
+# shortcut.
+#
+# Isolated by Compose project name (`name:` below) from the previous-major
+# environment, the sandbox, and the unrelated WordPress integration's own
+# wp-env-managed Docker resources.
+name: sameview-joomla-current-major
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sameview_root
+      MYSQL_DATABASE: joomla
+      MYSQL_USER: joomla
+      MYSQL_PASSWORD: joomla
+    volumes:
+      - db-data:/var/lib/mysql
+
+  joomla:
+    image: joomla:6
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      JOOMLA_DB_HOST: db
+      JOOMLA_DB_USER: joomla
+      JOOMLA_DB_PASSWORD: joomla
+      JOOMLA_DB_NAME: joomla
+      JOOMLA_SITE_NAME: SameView Joomla Test (Current Major)
+      JOOMLA_ADMIN_USER: SameView Test Admin
+      JOOMLA_ADMIN_USERNAME: admin
+      JOOMLA_ADMIN_PASSWORD: sameview-test-1234
+      JOOMLA_ADMIN_EMAIL: admin@example.test
+    ports:
+      - "8892:80"
+    volumes:
+      - joomla-data:/var/www/html
+
+volumes:
+  db-data:
+  joomla-data:

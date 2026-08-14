@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Filename must be exactly "sameviewcomparisons.xml" (the element with its
+	"com_" prefix stripped), not e.g. "sameview_comparisons.xml": confirmed
+	against a real Joomla 6.1.2 instance that the general installer accepts
+	any *.xml with an <extension> root regardless of filename, but the core
+	PSR-4 namespace-map generator (libraries/namespacemap.php
+	JNamespacePsr4Map::getExtensions()) looks for this exact filename
+	pattern only (falling back to "<full element>.xml") — a mismatch here
+	silently leaves the component's own namespace unregistered, causing a
+	"Class ... not found" fatal error the first time the component is
+	actually opened, well after a successful-looking install.
+
+	No method="upgrade" attribute here, deliberately: confirmed against a
+	real Joomla 6.1.2 instance that it makes Joomla treat every install as
+	an update route (Installer\Adapter\ComponentAdapter::checkExtensionInFilesystem()
+	forces the update route once the target directory exists on disk, with
+	no check of whether a matching #__extensions row exists) — which skips
+	<install><sql> entirely, silently, with no error. Without it, Joomla's
+	default install/update detection (based on whether the extension is
+	already registered) is used instead, which is what Phase 19 needs.
+-->
+<extension type="component">
+	<name>COM_SAMEVIEWCOMPARISONS</name>
+	<author>SameView</author>
+	<creationDate>2026-08-14</creationDate>
+	<copyright>Copyright SameView</copyright>
+	<license>See LICENSE</license>
+	<version>0.1.0</version>
+	<description>COM_SAMEVIEWCOMPARISONS_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Component\Sameviewcomparisons</namespace>
+
+	<install>
+		<sql>
+			<!--
+				Confirmed against a real Joomla 6.1.2 instance:
+				Installer::parseSQLFiles() only matches charset="utf8"
+				literally (strtolower(...) === 'utf8') — charset="utf8mb4"
+				makes it silently skip the file, no error. The driver
+				attribute accepts "mysql" or "mysqli" equivalently (both
+				normalize to the same internal value), but charset must be
+				exactly "utf8" here regardless of the table's own actual
+				charset, which the .sql file below still correctly declares
+				as utf8mb4.
+			-->
+			<file driver="mysqli" charset="utf8">sql/install.mysqli.utf8.sql</file>
+		</sql>
+	</install>
+
+	<scriptfile>script.php</scriptfile>
+
+	<administration>
+		<menu>COM_SAMEVIEWCOMPARISONS</menu>
+		<files folder="admin">
+			<folder>services</folder>
+			<folder>src</folder>
+			<folder>sql</folder>
+			<folder>tmpl</folder>
+			<file>access.xml</file>
+			<file>config.xml</file>
+		</files>
+		<languages folder="admin">
+			<language tag="en-GB">language/en-GB/en-GB.com_sameviewcomparisons.ini</language>
+			<language tag="en-GB">language/en-GB/en-GB.com_sameviewcomparisons.sys.ini</language>
+			<language tag="de-DE">language/de-DE/de-DE.com_sameviewcomparisons.ini</language>
+			<language tag="de-DE">language/de-DE/de-DE.com_sameviewcomparisons.sys.ini</language>
+		</languages>
+	</administration>
+</extension>
