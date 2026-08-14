@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	docs/IMPLEMENTATION_PLAN_V1.md Phase 22 "Content-Plugin": resolves the
+	`{sameview session="SESSION_ID"}` reference wherever it appears in
+	rendered content — the render-time half of the primary content-placement
+	mechanism (docs/JOOMLA_INTEGRATION.md "Placement"). Modeled directly on
+	Joomla's own core plg_content_loadmodule (`onContentPrepare` + a bracket-
+	tag regex substitution), not a custom mechanism.
+-->
+<extension type="plugin" group="content" method="upgrade">
+	<name>plg_content_sameview</name>
+	<author>SameView</author>
+	<creationDate>2026-08-14</creationDate>
+	<copyright>Copyright SameView</copyright>
+	<license>See LICENSE</license>
+	<version>0.1.0</version>
+	<description>PLG_CONTENT_SAMEVIEW_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Plugin\Content\Sameview</namespace>
+	<files>
+		<folder plugin="sameview">services</folder>
+		<folder>src</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">language/en-GB/plg_content_sameview.ini</language>
+		<language tag="en-GB">language/en-GB/plg_content_sameview.sys.ini</language>
+		<language tag="de-DE">language/de-DE/plg_content_sameview.ini</language>
+		<language tag="de-DE">language/de-DE/plg_content_sameview.sys.ini</language>
+	</languages>
+</extension>

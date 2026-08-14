@@ -49,6 +49,7 @@ import {
 	joomlaExec,
 	loginAsAdmin,
 	normalizeMediaOwnership,
+	raiseUploadLimits,
 	resetExtensionState,
 } from "./docker-helpers.mjs";
 
@@ -71,12 +72,15 @@ async function buildUpdatedArtifact() {
 	const writer = new ZipWriter(new BlobWriter("application/zip"));
 
 	for (const entry of entries) {
-		if (entry.filename === "seed/comparison.json") {
+		if (entry.filename === "com_sameviewcomparisons/seed/comparison.json") {
 			const text = await entry.getData(new TextWriter());
 			const manifest = JSON.parse(text);
 			manifest.outcomeFingerprint = `${manifest.outcomeFingerprint}-updated-variant`;
 			manifest.presentation.title = `${manifest.presentation.title ?? "Comparison"} (updated)`;
-			await writer.add("seed/comparison.json", new TextReader(JSON.stringify(manifest, null, "\t")));
+			await writer.add(
+				"com_sameviewcomparisons/seed/comparison.json",
+				new TextReader(JSON.stringify(manifest, null, "\t")),
+			);
 			continue;
 		}
 		const bytes = await entry.getData(new Uint8ArrayWriter());
@@ -91,7 +95,7 @@ async function buildUpdatedArtifact() {
 async function buildInvalidArtifact() {
 	const writer = new ZipWriter(new BlobWriter("application/zip"));
 	await writer.add(
-		"seed/comparison.json",
+		"com_sameviewcomparisons/seed/comparison.json",
 		new TextReader(JSON.stringify({ formatVersion: 1 })),
 	);
 	// Deliberately no reference.jpg/capture.jpg and no sessionId/fingerprint —
@@ -104,7 +108,9 @@ async function readManifestSessionId(artifactPath) {
 	const buffer = await readFile(artifactPath);
 	const reader = new ZipReader(new BlobReader(new Blob([buffer])));
 	const entries = await reader.getEntries();
-	const manifestEntry = entries.find((entry) => entry.filename === "seed/comparison.json");
+	const manifestEntry = entries.find(
+		(entry) => entry.filename === "com_sameviewcomparisons/seed/comparison.json",
+	);
 	const text = await manifestEntry.getData(new TextWriter());
 	await reader.close();
 	return JSON.parse(text).sessionId;
@@ -132,6 +138,7 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 
 			resetExtensionState(composeFile);
 			disableGuidedTours(composeFile);
+			raiseUploadLimits(composeFile);
 		});
 
 		await t.test("first installation makes the bundled Comparison available with no second import step", () => {

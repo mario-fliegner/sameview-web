@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	docs/IMPLEMENTATION_PLAN_V1.md Phase 22 "Editors-XTD-Button": inserts the
+	`{sameview session="SESSION_ID"}` reference into the currently edited
+	content — the primary content-placement mechanism
+	(docs/JOOMLA_INTEGRATION.md "Placement"). Modeled directly on Joomla's own
+	core plg_editors-xtd_module (onEditorButtonsSetup + a native modal
+	dialog), not a custom mechanism.
+-->
+<extension type="plugin" group="editors-xtd" method="upgrade">
+	<name>plg_editors-xtd_sameview</name>
+	<author>SameView</author>
+	<creationDate>2026-08-14</creationDate>
+	<copyright>Copyright SameView</copyright>
+	<license>See LICENSE</license>
+	<version>0.1.0</version>
+	<description>PLG_EDITORS-XTD_SAMEVIEW_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Plugin\EditorsXtd\Sameview</namespace>
+	<files>
+		<folder plugin="sameview">services</folder>
+		<folder>src</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">language/en-GB/plg_editors-xtd_sameview.ini</language>
+		<language tag="en-GB">language/en-GB/plg_editors-xtd_sameview.sys.ini</language>
+		<language tag="de-DE">language/de-DE/plg_editors-xtd_sameview.ini</language>
+		<language tag="de-DE">language/de-DE/plg_editors-xtd_sameview.sys.ini</language>
+	</languages>
+</extension>

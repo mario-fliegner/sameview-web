@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	docs/JOOMLA_INTEGRATION.md "Persistent Integration": "packaged and
+	installed together as a single Joomla extension package (a native Joomla
+	mechanism for bundling several extensions into one install/uninstall
+	unit), so a site operator only ever performs one native install action,
+	never several separate extension installs." A real native Joomla package
+	extension (Joomla\CMS\Installer\Adapter\PackageAdapter) — not a
+	component-driven self-install of its companions.
+
+	Each <file> value is a plain folder name at the package zip's own root
+	(sibling to this manifest), not a nested zip: confirmed against real
+	Joomla core (libraries/src/Installer/Adapter/PackageAdapter.php
+	copyBaseFiles(): `is_dir($file)` is checked before falling back to
+	InstallerHelper::unpack(), and Joomla installs each child extension via
+	its own fresh Installer instance pointed directly at that folder) — this
+	avoids double-zipping every sub-extension inside the one generated
+	package artifact (src/lib/generate-joomla-package.ts).
+
+	method="upgrade" here too, for the same reason already documented on
+	com_sameviewcomparisons/sameviewcomparisons.xml: without it, reinstalling
+	this already-installed package through the ordinary Extensions Manager
+	aborts before ever reaching this package's own script.php (docs/
+	IMPLEMENTATION_PLAN_V1.md Phase 22 update-lifecycle fix). Confirmed
+	empirically that it does not affect a genuinely fresh install (the
+	package's own manifest-cache file does not exist yet on a clean site, so
+	Joomla's route-forcing check never triggers) and that PackageAdapter::
+	copyBaseFiles() still installs each bundled child extension via its own
+	fresh Installer, so each child's own manifest independently needs the
+	same attribute — which com_sameviewcomparisons, mod_sameview_comparison
+	and the two plugins now all carry.
+
+	docs/IMPLEMENTATION_PLAN_V1.md Phase 22 (UX follow-up): `script.php`
+	auto-enables the two placement plugins on a genuine first install only —
+	see that file's own header comment.
+-->
+<extension method="upgrade" type="package">
+	<name>pkg_sameviewcomparisons</name>
+	<author>SameView</author>
+	<creationDate>2026-08-14</creationDate>
+	<copyright>Copyright SameView</copyright>
+	<license>See LICENSE</license>
+	<version>0.1.0</version>
+	<description>PKG_SAMEVIEWCOMPARISONS_XML_DESCRIPTION</description>
+	<packagename>sameviewcomparisons</packagename>
+	<scriptfile>script.php</scriptfile>
+	<files>
+		<file type="component" id="com_sameviewcomparisons">com_sameviewcomparisons</file>
+		<file type="plugin" id="sameview" group="content">plg_content_sameview</file>
+		<file type="plugin" id="sameview" group="editors-xtd">plg_editors-xtd_sameview</file>
+		<file type="module" id="mod_sameview_comparison" client="site">mod_sameview_comparison</file>
+	</files>
+	<languages>
+		<language tag="en-GB">language/en-GB/pkg_sameviewcomparisons.sys.ini</language>
+		<language tag="de-DE">language/de-DE/pkg_sameviewcomparisons.sys.ini</language>
+	</languages>
+</extension>

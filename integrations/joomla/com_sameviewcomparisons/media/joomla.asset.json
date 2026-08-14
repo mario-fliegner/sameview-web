@@ -1,0 +1,13 @@
+{
+	"$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
+	"name": "com_sameviewcomparisons",
+	"version": "1.0.0",
+	"description": "SameView Comparisons embed runtime",
+	"assets": [
+		{
+			"name": "com_sameviewcomparisons.embed",
+			"type": "script",
+			"uri": "com_sameviewcomparisons/comparison-embed-runtime.js"
+		}
+	]
+}

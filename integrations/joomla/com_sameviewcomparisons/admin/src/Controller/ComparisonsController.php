@@ -92,7 +92,16 @@ class ComparisonsController extends BaseController
 			return;
 		}
 
-		$seedDir = $package['extractdir'] . '/seed';
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 22: `seed/` moved from the
+		// package's own root to inside its `com_sameviewcomparisons/`
+		// sub-folder once the generated package became a real
+		// pkg_sameviewcomparisons wrapper bundling four extensions
+		// (src/lib/generate-joomla-package.ts) — confirmed empirically that
+		// this path must be updated here too, since this upload handler
+		// extracts the exact same package artifact the Extensions Manager
+		// installs, independently of script.php's own (already-updated)
+		// seed lookup.
+		$seedDir = $package['extractdir'] . '/com_sameviewcomparisons/seed';
 		$result = is_dir($seedDir)
 			? ComparisonImportHelper::importSeed($seedDir)
 			: ['status' => 'rejected', 'message' => Text::_('COM_SAMEVIEWCOMPARISONS_ADD_ERROR_INVALID_FILE')];

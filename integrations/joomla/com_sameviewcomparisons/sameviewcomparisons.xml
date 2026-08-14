@@ -11,16 +11,29 @@
 	"Class ... not found" fatal error the first time the component is
 	actually opened, well after a successful-looking install.
 
-	No method="upgrade" attribute here, deliberately: confirmed against a
-	real Joomla 6.1.2 instance that it makes Joomla treat every install as
-	an update route (Installer\Adapter\ComponentAdapter::checkExtensionInFilesystem()
-	forces the update route once the target directory exists on disk, with
-	no check of whether a matching #__extensions row exists) — which skips
-	<install><sql> entirely, silently, with no error. Without it, Joomla's
-	default install/update detection (based on whether the extension is
-	already registered) is used instead, which is what Phase 19 needs.
+	method="upgrade" is required here: without it, Joomla's own
+	Installer\Adapter\ComponentAdapter::checkExtensionInFilesystem() aborts
+	("Another component is already using folder: ...") the moment this
+	component is reinstalled while its target directory already exists on
+	disk — regardless of whether a matching #__extensions row exists —
+	leaving no native way to deliver a code update through the ordinary
+	Extensions Manager (docs/IMPLEMENTATION_PLAN_V1.md Phase 22 update-
+	lifecycle fix; confirmed empirically against a real Joomla 6.1.2
+	instance, both before and after this change).
+
+	Confirmed empirically that method="upgrade" does NOT affect a genuinely
+	fresh install: checkExtensionInFilesystem()'s whole upgrade-detection
+	branch is itself gated behind the target directory already existing on
+	disk, so on a clean site (nothing installed yet) the route stays
+	'install' and <install><sql> still runs, unaffected by this attribute.
+	The one confirmed edge case: if the target directory exists on disk but
+	no matching #__extensions row does (e.g. a previously interrupted
+	install/uninstall), Joomla still forces the update route here — which
+	is why Com_SameviewcomparisonsInstallerScript::update() re-runs the same
+	idempotent (CREATE TABLE IF NOT EXISTS) install SQL rather than
+	assuming the table already exists.
 -->
-<extension type="component">
+<extension method="upgrade" type="component">
 	<name>COM_SAMEVIEWCOMPARISONS</name>
 	<author>SameView</author>
 	<creationDate>2026-08-14</creationDate>
@@ -48,6 +61,49 @@
 	</install>
 
 	<scriptfile>script.php</scriptfile>
+
+	<!--
+		docs/IMPLEMENTATION_PLAN_V1.md Phase 22: the shared Embed runtime/CSS
+		+ every Presentation Font's own file(s)/license, delivered through
+		Joomla's own native Web Asset system
+		(docs/JOOMLA_INTEGRATION.md "Frontend Delivery") rather than a
+		manually enqueued <link>/<script>.
+
+		The `js/` folder name and the `uri` value's own
+		"com_sameviewcomparisons/..." prefix in media/joomla.asset.json are
+		NOT arbitrary: confirmed against real Joomla 6.1.2 core source
+		(Joomla\CMS\WebAsset\WebAssetItem::resolvePath() ->
+		Joomla\CMS\HTML\HTMLHelper::mediaPath()/includeRelativeFiles()) that a
+		script-type Web Asset's `uri` is resolved as
+		"<first-path-segment>/js/<rest>" under `/media/`, regardless of the
+		registry file's own folder — a plain path relative to this
+		joomla.asset.json's own location (e.g. "embed/foo.js") is silently
+		treated as belonging to a non-existent extension named "embed" and
+		produces NO `<script>` tag at all, with no error of any kind (only
+		discovered by comparing Joomla's own internal "active assets" list,
+		which did include the entry, against the final rendered `<head>`,
+		which did not — see this repository's own Phase 22 real-instance
+		verification). `comparison-embed-runtime.js` and
+		`comparison-embed.css` are therefore both placed under this
+		component's own `js/` subfolder as plain sibling files (the runtime
+		script derives its own CSS URL by replacing its own filename in the
+		same directory — src/lib/comparison-embed-runtime-entry.ts — the CSS
+		is never itself registered as a Web Asset, so Joomla's own
+		type-based folder convention does not apply to it); `fonts/` is a
+		sibling of `js/` (the pre-built CSS already assumes `../fonts/...`
+		from its own location — scripts/build-presentation-runtime.mjs).
+		`joomla.asset.json` itself is the one static, committed file here;
+		comparison-embed-runtime.js, comparison-embed.css and every font file
+		are injected only at generation time by
+		src/lib/generate-joomla-package.ts (never committed as generated
+		files inside this integration area, mirroring the WordPress
+		integration's own Phase 16 Decision 72).
+	-->
+	<media destination="com_sameviewcomparisons" folder="media">
+		<filename>joomla.asset.json</filename>
+		<folder>js</folder>
+		<folder>fonts</folder>
+	</media>
 
 	<administration>
 		<menu>COM_SAMEVIEWCOMPARISONS</menu>

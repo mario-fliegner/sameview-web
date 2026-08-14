@@ -534,16 +534,21 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 	await expect(primaryAction).toHaveText(/download again/i);
 });
 
-// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: the Embed in website → Joomla
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 21/22: the Embed in website → Joomla
 // "Generate" action is now real. Verifies the exact unified package
 // structure (docs/JOOMLA_INTEGRATION.md "First Installation": "the same
 // kind of downloadable package ... regardless") and that `comparison.json`
 // is a direct mapping of the already-approved Outcome Snapshot content
 // (test/unit/generate-joomla-package.test.mjs covers the mapping itself in
 // isolation; this test covers the real, actually-downloaded artifact). Not
-// a copy of the WordPress test above: the package shape itself differs
-// (manifest/script.php at the ZIP root, no embed runtime/CSS/fonts yet —
-// see src/lib/generate-joomla-package.ts's own header comment for why).
+// a copy of the WordPress test above: the package shape itself differs — a
+// real native Joomla package extension (pkg_sameviewcomparisons.xml at the
+// ZIP root) bundling the component together with its companion content
+// plugin, Editors-XTD plugin and module as sibling folders, per
+// docs/JOOMLA_INTEGRATION.md "Persistent Integration" — plus the shared
+// Embed runtime/CSS/fonts, now bundled under
+// com_sameviewcomparisons/media/js/ and .../media/fonts/ (Phase 22,
+// mirroring WordPress's own Phase 16).
 test("generating for Joomla downloads sameview-comparisons-joomla.zip containing the extension files and a seed matching the current Comparison, then shows the install guide", async ({
 	page,
 }) => {
@@ -565,60 +570,103 @@ test("generating for Joomla downloads sameview-comparisons-joomla.zip containing
 	const entries = await zipReader.getEntries();
 	const paths = entries.map((entry) => entry.filename).sort();
 
-	// The exact Phase 19 extension files, copied verbatim, plus the seed
-	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 21) — same fixture as the
-	// WordPress test above, so branding.png is expected here too. No
-	// assets/embed/ or assets/fonts/ yet — those are Phase 22, mirroring
-	// WordPress's own Phase 15 vs. Phase 16 split.
+	// The exact static extension files (component + content plugin +
+	// Editors-XTD plugin + module + package manifest), copied verbatim,
+	// plus the bundled Embed runtime/CSS/fonts and the seed
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 21/22) — same fixture as the
+	// WordPress test above, so branding.png is expected here too.
 	expect(paths).toEqual(
 		[
-			"sameviewcomparisons.xml",
-			"script.php",
-			"admin/access.xml",
-			"admin/config.xml",
-			"admin/services/provider.php",
-			"admin/sql/install.mysqli.utf8.sql",
-			"admin/src/Controller/ComparisonsController.php",
-			"admin/src/Controller/DisplayController.php",
-			"admin/src/Extension/SameviewcomparisonsComponent.php",
-			"admin/src/Helper/ComparisonImportHelper.php",
-			"admin/src/Model/ComparisonsModel.php",
-			"admin/src/View/Comparisons/HtmlView.php",
-			"admin/src/View/Upload/HtmlView.php",
-			"admin/tmpl/comparisons/default.php",
-			"admin/tmpl/upload/default.php",
-			"admin/language/en-GB/en-GB.com_sameviewcomparisons.ini",
-			"admin/language/en-GB/en-GB.com_sameviewcomparisons.sys.ini",
-			"admin/language/de-DE/de-DE.com_sameviewcomparisons.ini",
-			"admin/language/de-DE/de-DE.com_sameviewcomparisons.sys.ini",
-			"seed/comparison.json",
-			"seed/reference.jpg",
-			"seed/capture.jpg",
-			"seed/branding.png",
+			"pkg_sameviewcomparisons.xml",
+			"language/en-GB/pkg_sameviewcomparisons.sys.ini",
+			"language/de-DE/pkg_sameviewcomparisons.sys.ini",
+			"com_sameviewcomparisons/sameviewcomparisons.xml",
+			"com_sameviewcomparisons/script.php",
+			"com_sameviewcomparisons/admin/access.xml",
+			"com_sameviewcomparisons/admin/config.xml",
+			"com_sameviewcomparisons/admin/services/provider.php",
+			"com_sameviewcomparisons/admin/sql/install.mysqli.utf8.sql",
+			"com_sameviewcomparisons/admin/src/Controller/ComparisonsController.php",
+			"com_sameviewcomparisons/admin/src/Controller/DisplayController.php",
+			"com_sameviewcomparisons/admin/src/Extension/SameviewcomparisonsComponent.php",
+			"com_sameviewcomparisons/admin/src/Helper/ComparisonImportHelper.php",
+			"com_sameviewcomparisons/admin/src/Helper/ComparisonRenderHelper.php",
+			"com_sameviewcomparisons/admin/src/Model/ComparisonsModel.php",
+			"com_sameviewcomparisons/admin/src/View/Comparisons/HtmlView.php",
+			"com_sameviewcomparisons/admin/src/View/Upload/HtmlView.php",
+			"com_sameviewcomparisons/admin/tmpl/comparisons/default.php",
+			"com_sameviewcomparisons/admin/tmpl/comparisons/modal.php",
+			"com_sameviewcomparisons/admin/tmpl/upload/default.php",
+			"com_sameviewcomparisons/admin/language/en-GB/en-GB.com_sameviewcomparisons.ini",
+			"com_sameviewcomparisons/admin/language/en-GB/en-GB.com_sameviewcomparisons.sys.ini",
+			"com_sameviewcomparisons/admin/language/de-DE/de-DE.com_sameviewcomparisons.ini",
+			"com_sameviewcomparisons/admin/language/de-DE/de-DE.com_sameviewcomparisons.sys.ini",
+			"com_sameviewcomparisons/media/joomla.asset.json",
+			"com_sameviewcomparisons/media/js/comparison-embed-runtime.js",
+			"com_sameviewcomparisons/media/js/comparison-embed.css",
+			"com_sameviewcomparisons/media/fonts/inter/InterVariable.woff2",
+			"com_sameviewcomparisons/media/fonts/inter/LICENSE.txt",
+			"com_sameviewcomparisons/media/fonts/manrope/Manrope-Regular.woff2",
+			"com_sameviewcomparisons/media/fonts/manrope/Manrope-Medium.woff2",
+			"com_sameviewcomparisons/media/fonts/manrope/Manrope-SemiBold.woff2",
+			"com_sameviewcomparisons/media/fonts/manrope/OFL.txt",
+			"com_sameviewcomparisons/media/fonts/spacegrotesk/SpaceGrotesk-Variable.woff2",
+			"com_sameviewcomparisons/media/fonts/spacegrotesk/OFL.txt",
+			"com_sameviewcomparisons/seed/comparison.json",
+			"com_sameviewcomparisons/seed/reference.jpg",
+			"com_sameviewcomparisons/seed/capture.jpg",
+			"com_sameviewcomparisons/seed/branding.png",
+			"plg_content_sameview/sameview.xml",
+			"plg_content_sameview/services/provider.php",
+			"plg_content_sameview/src/Extension/Sameview.php",
+			"plg_content_sameview/language/en-GB/plg_content_sameview.ini",
+			"plg_content_sameview/language/en-GB/plg_content_sameview.sys.ini",
+			"plg_content_sameview/language/de-DE/plg_content_sameview.ini",
+			"plg_content_sameview/language/de-DE/plg_content_sameview.sys.ini",
+			"plg_editors-xtd_sameview/sameview.xml",
+			"plg_editors-xtd_sameview/services/provider.php",
+			"plg_editors-xtd_sameview/src/Extension/Sameview.php",
+			"plg_editors-xtd_sameview/language/en-GB/plg_editors-xtd_sameview.ini",
+			"plg_editors-xtd_sameview/language/en-GB/plg_editors-xtd_sameview.sys.ini",
+			"plg_editors-xtd_sameview/language/de-DE/plg_editors-xtd_sameview.ini",
+			"plg_editors-xtd_sameview/language/de-DE/plg_editors-xtd_sameview.sys.ini",
+			"mod_sameview_comparison/mod_sameview_comparison.xml",
+			"mod_sameview_comparison/services/provider.php",
+			"mod_sameview_comparison/src/Dispatcher/Dispatcher.php",
+			"mod_sameview_comparison/tmpl/default.php",
+			"mod_sameview_comparison/language/en-GB/mod_sameview_comparison.ini",
+			"mod_sameview_comparison/language/en-GB/mod_sameview_comparison.sys.ini",
+			"mod_sameview_comparison/language/de-DE/mod_sameview_comparison.ini",
+			"mod_sameview_comparison/language/de-DE/mod_sameview_comparison.sys.ini",
 		].sort(),
 	);
 
-	// docs/IMPLEMENTATION_PLAN_V1.md Phase 19: a real Joomla install package
-	// is recognized by its manifest XML at the package root with an
-	// <extension type="component"> root element — the same criterion the
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 22: a real Joomla install package
+	// is recognized by its own package manifest at the package root with an
+	// <extension type="package"> root element — the same criterion the
 	// real, disposable Joomla instances in
-	// integrations/joomla/tests/plugin-foundation.test.mjs install against.
-	// Asserted here structurally so a future change can never silently break
-	// it.
+	// integrations/joomla/tests/placement-lifecycle.test.mjs install
+	// against. Asserted here structurally so a future change can never
+	// silently break it.
 	const manifestXmlEntry = entries.find(
-		(entry) => entry.filename === "sameviewcomparisons.xml" && !entry.directory,
+		(entry) =>
+			entry.filename === "pkg_sameviewcomparisons.xml" && !entry.directory,
 	);
 	if (!manifestXmlEntry || manifestXmlEntry.directory) {
-		throw new Error("sameviewcomparisons.xml entry missing");
+		throw new Error("pkg_sameviewcomparisons.xml entry missing");
 	}
 	const manifestXmlText = await manifestXmlEntry.getData(new TextWriter());
-	expect(manifestXmlText).toMatch(/<extension\s+type="component">/);
+	expect(manifestXmlText).toMatch(/<extension\s+type="package">/);
 
 	const manifestEntry = entries.find(
-		(entry) => entry.filename === "seed/comparison.json" && !entry.directory,
+		(entry) =>
+			entry.filename === "com_sameviewcomparisons/seed/comparison.json" &&
+			!entry.directory,
 	);
 	if (!manifestEntry || manifestEntry.directory) {
-		throw new Error("seed/comparison.json entry missing");
+		throw new Error(
+			"com_sameviewcomparisons/seed/comparison.json entry missing",
+		);
 	}
 	const manifestText = await manifestEntry.getData(new TextWriter());
 	const manifest = JSON.parse(manifestText);

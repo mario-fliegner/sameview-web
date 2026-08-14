@@ -78,10 +78,10 @@ describe("Joomla package — comparison-manifest.ts reused unchanged", () => {
 		assert.deepEqual(manifest.configuration, snapshot.configuration);
 		assert.deepEqual(manifest.branding, snapshot.branding);
 
-		// docs/IMPLEMENTATION_PLAN_V1.md Phase 21 "Not included": nothing here
-		// references the shared Embed runtime/CSS/fonts — those enter the
-		// Joomla package only from Phase 22 onward, mirroring WordPress's own
-		// Phase 15 (no runtime assets) vs. Phase 16 (adds them) split.
+		// The manifest itself never references the shared Embed runtime/CSS/
+		// fonts — those are bundled as separate package files from Phase 22
+		// onward (src/lib/generate-joomla-package.ts, mirroring WordPress's
+		// own Phase 15 vs. Phase 16 split), never folded into this JSON shape.
 		assert.deepEqual(
 			Object.keys(manifest).sort(),
 			[

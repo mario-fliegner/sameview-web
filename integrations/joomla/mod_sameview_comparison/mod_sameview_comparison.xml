@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	docs/IMPLEMENTATION_PLAN_V1.md Phase 22 "Modul-Platzierung": the
+	compatibility placement path for template/module-position placement
+	(docs/JOOMLA_INTEGRATION.md "Placement": "for placement contexts outside
+	ordinary content"). Stores only `session.id` as a structured module
+	parameter — never the bracket-tag syntax the content-placement path uses,
+	since a module's own configuration is a structured form, not freeform
+	text.
+
+	The Comparison picker uses Joomla's own core `sql` field type
+	(Joomla\CMS\Form\Field\SqlField) — a native list populated directly from
+	#__sameview_comparisons, no custom PHP field class. Title only, no
+	preview (docs/JOOMLA_INTEGRATION.md "No Editor Preview").
+
+	The `<folder module="mod_sameview_comparison">services</folder>` value
+	must be this module's own full name, prefix included: confirmed
+	empirically against a real Joomla 6.1.2 instance
+	(docs/IMPLEMENTATION_PLAN_V1.md Phase 22) that using the bare element
+	name instead (`sameview_comparison`, matching this module's own
+	#__extensions.element column, which itself IS stored without the "mod_"
+	prefix) makes the install silently abort its own `<files>` copy step
+	entirely, for every folder — not just `services` — while still reporting
+	"Extension installed successfully" and still creating the #__extensions
+	row. The result is a registered-but-unusable module type: selectable in
+	"New Module", but its own edit form fails with "Module XML data not
+	available" and no `config.xml`-declared field (including the `session_id`
+	picker) ever renders, since modules/mod_sameview_comparison/ never
+	receives any of its own files. Matches the real core mod_custom.xml's own
+	`module="mod_custom"` convention (full name, not the bare element).
+
+	method="upgrade" here too, for the same reason already documented on
+	com_sameviewcomparisons/sameviewcomparisons.xml (without it, reinstalling
+	this already-installed module through the ordinary Extensions Manager
+	aborts, since Joomla's own generic InstallerAdapter::
+	checkExtensionInFilesystem() applies the same directory-exists check to
+	every extension type) — kept consistent with the component and package
+	manifests, though not itself the cause of the above finding. Confirmed
+	empirically that it does not affect a genuinely fresh install.
+-->
+<extension method="upgrade" type="module" client="site">
+	<name>mod_sameview_comparison</name>
+	<author>SameView</author>
+	<creationDate>2026-08-14</creationDate>
+	<copyright>Copyright SameView</copyright>
+	<license>See LICENSE</license>
+	<version>0.1.0</version>
+	<description>MOD_SAMEVIEW_COMPARISON_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Module\SameviewComparison</namespace>
+	<files>
+		<folder module="mod_sameview_comparison">services</folder>
+		<folder>src</folder>
+		<folder>tmpl</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">language/en-GB/mod_sameview_comparison.ini</language>
+		<language tag="en-GB">language/en-GB/mod_sameview_comparison.sys.ini</language>
+		<language tag="de-DE">language/de-DE/mod_sameview_comparison.ini</language>
+		<language tag="de-DE">language/de-DE/mod_sameview_comparison.sys.ini</language>
+	</languages>
+	<config>
+		<fields name="params">
+			<fieldset name="basic">
+				<field
+					name="session_id"
+					type="sql"
+					label="MOD_SAMEVIEW_COMPARISON_FIELD_SESSION_LABEL"
+					description="MOD_SAMEVIEW_COMPARISON_FIELD_SESSION_DESC"
+					query="SELECT session_id AS value, title AS text FROM #__sameview_comparisons ORDER BY modified DESC"
+					key_field="value"
+					value_field="text"
+					header="MOD_SAMEVIEW_COMPARISON_FIELD_SESSION_HEADER"
+					validate="options"
+				/>
+			</fieldset>
+		</fields>
+	</config>
+</extension>

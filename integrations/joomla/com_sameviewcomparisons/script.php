@@ -32,6 +32,18 @@
  * section, so it is never copied into the permanent installed component
  * directory.
  *
+ * Re-confirmed unchanged under the Phase 22 `pkg_sameviewcomparisons`
+ * package wrapper (again against real Joomla 6 and Joomla 5 instances):
+ * Joomla's own PackageAdapter::copyBaseFiles() installs each bundled child
+ * extension via a fresh `Installer` pointed directly at that child's own
+ * sub-folder inside the already-extracted package (never a second
+ * unpack/copy step) — so this component's own install-time "source" path
+ * is exactly `<package source>/com_sameviewcomparisons`, and `seed/`
+ * placed as its sibling (`.../com_sameviewcomparisons/seed`,
+ * src/lib/generate-joomla-package.ts) resolves through this exact same
+ * unchanged code path. No script.php change was needed for the package
+ * wrapper.
+ *
  * Deliberately a plain global class, not a namespaced one: Joomla loads
  * this file before the component's own PSR-4 namespace is registered with
  * the autoloader (in particular on first install), so a namespaced class
@@ -45,6 +57,35 @@
  * context in Joomla 6 (it only exists via the optional "compat6" behaviour
  * plugin) — using the framework class directly works on both supported
  * major versions.
+ *
+ * `ComparisonImportHelper.php` is `require_once`'d only from inside
+ * `install()`, never at this file's own top level: confirmed empirically
+ * against a real Joomla 6.1.2 instance (docs/IMPLEMENTATION_PLAN_V1.md
+ * Phase 22) that this same script.php is also `require_once`'d by
+ * `uninstall()` — and, under the `pkg_sameviewcomparisons` package wrapper,
+ * `PackageAdapter::removeExtensionFiles()` deletes this component's own
+ * installed folder (including `admin/src/Helper/ComparisonImportHelper.php`)
+ * before invoking this class's own `uninstall()` method. A top-level
+ * `require_once` therefore fails with "Failed to open stream" on every
+ * uninstall — `uninstall()` never actually needs this class (it only drops
+ * the table and removes the media directory), so the require simply moves
+ * to the one method that does.
+ *
+ * docs/IMPLEMENTATION_PLAN_V1.md Phase 22 (update-lifecycle fix):
+ * `sameviewcomparisons.xml` now carries `method="upgrade"`, so `update()`
+ * fires on every reinstall of an already-installed component — including
+ * the one confirmed edge case where the component's own directory exists on
+ * disk but no matching #__extensions row does (e.g. a previously
+ * interrupted install/uninstall), in which case Joomla forces the update
+ * route without ever having run `<install><sql>`, leaving
+ * `#__sameview_comparisons` missing. `update()` therefore re-runs the exact
+ * same install SQL file every time — safe and idempotent, since it already
+ * uses `CREATE TABLE IF NOT EXISTS` for the equivalent reason on a genuine
+ * first install, and simplest here since there is no actual schema change
+ * to apply, only ever this one table definition. Parsed via Joomla's own
+ * `Installer::splitSql()` (the same native helper `Installer::
+ * parseSQLFiles()` uses for `<install><sql>`), not a hand-rolled statement
+ * splitter.
  */
 
 defined('_JEXEC') or die;
@@ -52,8 +93,6 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\Database\DatabaseDriver;
 use Joomla\Filesystem\Folder;
-
-require_once __DIR__ . '/admin/src/Helper/ComparisonImportHelper.php';
 
 class Com_SameviewcomparisonsInstallerScript
 {
@@ -64,6 +103,8 @@ class Com_SameviewcomparisonsInstallerScript
 
 	public function install($parent): bool
 	{
+		require_once __DIR__ . '/admin/src/Helper/ComparisonImportHelper.php';
+
 		$this->createAssetDirectory();
 		$this->importBundledSeed($parent);
 
@@ -73,6 +114,7 @@ class Com_SameviewcomparisonsInstallerScript
 	public function update($parent): bool
 	{
 		$this->createAssetDirectory();
+		$this->ensureComparisonsTable();
 
 		return true;
 	}
@@ -119,6 +161,29 @@ class Com_SameviewcomparisonsInstallerScript
 
 		if (is_dir($path)) {
 			Folder::delete($path);
+		}
+	}
+
+	private function ensureComparisonsTable(): void
+	{
+		$sqlFile = __DIR__ . '/admin/sql/install.mysqli.utf8.sql';
+		$buffer = file_get_contents($sqlFile);
+
+		if ($buffer === false) {
+			return;
+		}
+
+		/** @var DatabaseDriver $db */
+		$db = Factory::getContainer()->get(DatabaseDriver::class);
+
+		foreach (\Joomla\CMS\Installer\Installer::splitSql($buffer) as $query) {
+			$query = trim($query);
+
+			if ($query === '') {
+				continue;
+			}
+
+			$db->setQuery($query)->execute();
 		}
 	}
 
