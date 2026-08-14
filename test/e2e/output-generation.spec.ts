@@ -253,11 +253,10 @@ test("selecting Embed in website enables its WordPress platform selector, shows 
 	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
 });
 
-// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: Joomla is selectable but has no
-// working Generate action yet (Phase 21) — the primary action must be
-// disabled and must never claim a WordPress-specific action while Joomla is
-// selected.
-test("selecting Joomla disables the primary action with a Joomla-specific label, never changes the Workspace Preview or Current Working State, and switching back to WordPress restores its real Generate action", async ({
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: Joomla now has a real Generate
+// action too — the primary action must show a Joomla-specific label and
+// never claim a WordPress-specific action while Joomla is selected.
+test("selecting Joomla shows its own real Generate action, never changes the Workspace Preview or Current Working State, and switching back to WordPress restores its own real Generate action", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -267,18 +266,23 @@ test("selecting Joomla disables the primary action with a Joomla-specific label,
 
 	await page.getByTestId("output-card-embed-in-website").click();
 	const joomlaPlatformSelector = page.getByTestId("output-platform-joomla");
-	const wordPressPlatformSelector = page.getByTestId("output-platform-wordpress");
+	const wordPressPlatformSelector = page.getByTestId(
+		"output-platform-wordpress",
+	);
 	const primaryAction = page.getByTestId("output-primary-action");
 
 	await joomlaPlatformSelector.click();
 	await expect(joomlaPlatformSelector).toHaveAttribute("aria-checked", "true");
-	await expect(wordPressPlatformSelector).toHaveAttribute("aria-checked", "false");
+	await expect(wordPressPlatformSelector).toHaveAttribute(
+		"aria-checked",
+		"false",
+	);
 
 	// The label must not read "Generate for WordPress" while Joomla is
-	// selected, and the action itself must be disabled.
-	await expect(primaryAction).toBeDisabled();
+	// selected, and the action itself is a real, enabled Generate action.
+	await expect(primaryAction).toBeEnabled();
 	await expect(primaryAction).not.toHaveText(/wordpress/i);
-	await expect(primaryAction).toHaveText(/joomla/i);
+	await expect(primaryAction).toHaveText(/generate for joomla/i);
 
 	// The shared output settings remain interactive regardless of platform
 	// (F-005), and selecting Joomla changes only this Output Inspector's own
@@ -291,7 +295,10 @@ test("selecting Joomla disables the primary action with a Joomla-specific label,
 	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
 
 	await wordPressPlatformSelector.click();
-	await expect(wordPressPlatformSelector).toHaveAttribute("aria-checked", "true");
+	await expect(wordPressPlatformSelector).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
 	await expect(primaryAction).toBeEnabled();
 	await expect(primaryAction).toHaveText(/generate for wordpress/i);
 });
@@ -344,7 +351,9 @@ test("the Embed card's output-type radio and its WordPress/Joomla platform selec
 	await openOutputInspector(page);
 
 	const embedCard = page.getByTestId("output-card-embed-in-website");
-	const wordPressPlatformSelector = page.getByTestId("output-platform-wordpress");
+	const wordPressPlatformSelector = page.getByTestId(
+		"output-platform-wordpress",
+	);
 	const joomlaPlatformSelector = page.getByTestId("output-platform-joomla");
 
 	await expect(embedCard).toHaveAttribute("role", "radio");
@@ -360,8 +369,7 @@ test("the Embed card's output-type radio and its WordPress/Joomla platform selec
 		(element) =>
 			element.querySelector('[data-testid="output-platform-wordpress"]') !==
 				null ||
-			element.querySelector('[data-testid="output-platform-joomla"]') !==
-				null,
+			element.querySelector('[data-testid="output-platform-joomla"]') !== null,
 	);
 	expect(isNestedInsideRadio).toBe(false);
 });
@@ -382,16 +390,14 @@ test("Embed in website's card name, description and platform selectors render in
 	await expect(page.getByTestId("output-platform-wordpress")).toHaveText(
 		"WordPress",
 	);
-	await expect(page.getByTestId("output-platform-joomla")).toHaveText(
-		"Joomla",
-	);
+	await expect(page.getByTestId("output-platform-joomla")).toHaveText("Joomla");
 
-	// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: the disabled-state label for
-	// Joomla is itself localized.
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: Joomla's own Generate label is
+	// itself localized.
 	await embedCard.click();
 	await page.getByTestId("output-platform-joomla").click();
 	await expect(page.getByTestId("output-primary-action")).toHaveText(
-		"Joomla noch nicht verfügbar",
+		"Für Joomla erstellen",
 	);
 });
 
@@ -524,6 +530,117 @@ test("generating for WordPress downloads sameview-comparisons-wordpress.zip cont
 	await expect(
 		page.getByTestId("output-wordpress-install-guide"),
 	).toBeVisible();
+	const primaryAction = page.getByTestId("output-primary-action");
+	await expect(primaryAction).toHaveText(/download again/i);
+});
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: the Embed in website → Joomla
+// "Generate" action is now real. Verifies the exact unified package
+// structure (docs/JOOMLA_INTEGRATION.md "First Installation": "the same
+// kind of downloadable package ... regardless") and that `comparison.json`
+// is a direct mapping of the already-approved Outcome Snapshot content
+// (test/unit/generate-joomla-package.test.mjs covers the mapping itself in
+// isolation; this test covers the real, actually-downloaded artifact). Not
+// a copy of the WordPress test above: the package shape itself differs
+// (manifest/script.php at the ZIP root, no embed runtime/CSS/fonts yet —
+// see src/lib/generate-joomla-package.ts's own header comment for why).
+test("generating for Joomla downloads sameview-comparisons-joomla.zip containing the extension files and a seed matching the current Comparison, then shows the install guide", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+	await page.getByTestId("output-card-embed-in-website").click();
+	await page.getByTestId("output-platform-joomla").click();
+
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		page.getByTestId("output-primary-action").click(),
+	]);
+	expect(download.suggestedFilename()).toBe("sameview-comparisons-joomla.zip");
+	const zipPath = await download.path();
+	expect(zipPath).not.toBeNull();
+
+	const zipBytes = new Uint8Array(readFileSync(zipPath as string));
+	const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
+	const entries = await zipReader.getEntries();
+	const paths = entries.map((entry) => entry.filename).sort();
+
+	// The exact Phase 19 extension files, copied verbatim, plus the seed
+	// (docs/IMPLEMENTATION_PLAN_V1.md Phase 21) — same fixture as the
+	// WordPress test above, so branding.png is expected here too. No
+	// assets/embed/ or assets/fonts/ yet — those are Phase 22, mirroring
+	// WordPress's own Phase 15 vs. Phase 16 split.
+	expect(paths).toEqual(
+		[
+			"sameviewcomparisons.xml",
+			"script.php",
+			"admin/access.xml",
+			"admin/config.xml",
+			"admin/services/provider.php",
+			"admin/sql/install.mysqli.utf8.sql",
+			"admin/src/Controller/ComparisonsController.php",
+			"admin/src/Controller/DisplayController.php",
+			"admin/src/Extension/SameviewcomparisonsComponent.php",
+			"admin/src/Helper/ComparisonImportHelper.php",
+			"admin/src/Model/ComparisonsModel.php",
+			"admin/src/View/Comparisons/HtmlView.php",
+			"admin/src/View/Upload/HtmlView.php",
+			"admin/tmpl/comparisons/default.php",
+			"admin/tmpl/upload/default.php",
+			"admin/language/en-GB/en-GB.com_sameviewcomparisons.ini",
+			"admin/language/en-GB/en-GB.com_sameviewcomparisons.sys.ini",
+			"admin/language/de-DE/de-DE.com_sameviewcomparisons.ini",
+			"admin/language/de-DE/de-DE.com_sameviewcomparisons.sys.ini",
+			"seed/comparison.json",
+			"seed/reference.jpg",
+			"seed/capture.jpg",
+			"seed/branding.png",
+		].sort(),
+	);
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 19: a real Joomla install package
+	// is recognized by its manifest XML at the package root with an
+	// <extension type="component"> root element — the same criterion the
+	// real, disposable Joomla instances in
+	// integrations/joomla/tests/plugin-foundation.test.mjs install against.
+	// Asserted here structurally so a future change can never silently break
+	// it.
+	const manifestXmlEntry = entries.find(
+		(entry) => entry.filename === "sameviewcomparisons.xml" && !entry.directory,
+	);
+	if (!manifestXmlEntry || manifestXmlEntry.directory) {
+		throw new Error("sameviewcomparisons.xml entry missing");
+	}
+	const manifestXmlText = await manifestXmlEntry.getData(new TextWriter());
+	expect(manifestXmlText).toMatch(/<extension\s+type="component">/);
+
+	const manifestEntry = entries.find(
+		(entry) => entry.filename === "seed/comparison.json" && !entry.directory,
+	);
+	if (!manifestEntry || manifestEntry.directory) {
+		throw new Error("seed/comparison.json entry missing");
+	}
+	const manifestText = await manifestEntry.getData(new TextWriter());
+	const manifest = JSON.parse(manifestText);
+
+	expect(manifest.formatVersion).toBe(1);
+	expect(typeof manifest.sessionId).toBe("string");
+	expect(manifest.sessionId.length).toBeGreaterThan(0);
+	expect(typeof manifest.outcomeFingerprint).toBe("string");
+	expect(manifest.outcomeFingerprint.length).toBeGreaterThan(0);
+	expect(manifest).not.toHaveProperty("html");
+	expect(manifest).not.toHaveProperty("metadata");
+	expect(manifest.presentation).toBeTruthy();
+	expect(manifest.visibility).toBeTruthy();
+	expect(manifest.configuration).toBeTruthy();
+	expect(typeof manifest.initialSliderPosition).toBe("number");
+	expect(manifest.branding).toBeTruthy();
+
+	await zipReader.close();
+
+	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": a short
+	// installation guide, no dedicated success screen.
+	await expect(page.getByTestId("output-joomla-install-guide")).toBeVisible();
 	const primaryAction = page.getByTestId("output-primary-action");
 	await expect(primaryAction).toHaveText(/download again/i);
 });

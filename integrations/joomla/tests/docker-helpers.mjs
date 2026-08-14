@@ -69,6 +69,24 @@ export function joomlaCli(composeFile, args) {
 	);
 }
 
+// Confirmed against a real Joomla 6.1.2 instance (docs/IMPLEMENTATION_PLAN_V1.md
+// Phase 21): `docker compose exec` runs as root by default, so a CLI-driven
+// `extension:install` (joomlaCli above) creates media/com_sameviewcomparisons/
+// as root-owned — while Apache/the real web-driven Add-comparison upload
+// runs as www-data, which then cannot create new subdirectories under a
+// root-owned parent. A real customer's install and every later upload both
+// go through the same web request path (always www-data), so this
+// never occurs in production; it is purely an artifact of this test
+// harness's own CLI shortcut for fast setup. Called after every CLI-driven
+// install so later web-driven steps see the same ownership a real install
+// would have produced.
+export function normalizeMediaOwnership(composeFile) {
+	joomlaExec(
+		composeFile,
+		"chown -R www-data:www-data /var/www/html/media/com_sameviewcomparisons 2>/dev/null; true",
+	);
+}
+
 export function copyIntoContainer(composeFile, hostPath, containerPath) {
 	compose(composeFile, ["cp", hostPath, `joomla:${containerPath}`]);
 }

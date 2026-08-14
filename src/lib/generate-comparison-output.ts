@@ -11,6 +11,10 @@ import type { Locale } from "../i18n/translations";
 import type { ComparisonArtifactCopy } from "./comparison-artifact-markup.ts";
 import type { DeriveComparisonPresentationOptions } from "./comparison-presentation.ts";
 import {
+	generateJoomlaPackage,
+	JOOMLA_PACKAGE_FILENAME,
+} from "./generate-joomla-package.ts";
+import {
 	generateStandaloneHtml,
 	STANDALONE_HTML_FILENAME,
 } from "./generate-standalone-html.ts";
@@ -33,7 +37,8 @@ import type { CurrentWorkingState } from "./workspace-state.ts";
 export type OutputType =
 	| "standalone-html"
 	| "static-microsite"
-	| "embed-wordpress";
+	| "embed-wordpress"
+	| "embed-joomla";
 
 // The Output Inspector's progress phases (docs/APPLICATION_LAYOUT.md
 // "Progress": "Preparing comparison / Processing images / Building output /
@@ -145,6 +150,20 @@ export async function generateComparisonOutput(
 				ok: true,
 				value: {
 					filename: WORDPRESS_PACKAGE_FILENAME,
+					mimeType: "application/zip",
+					bytes,
+				},
+			};
+		}
+		if (options.outputType === "embed-joomla") {
+			// Same data-only transport as embed-wordpress above — see
+			// src/lib/generate-joomla-package.ts's own header comment for why
+			// its package shape is not a copy of WordPress's.
+			const bytes = await generateJoomlaPackage({ snapshot });
+			return {
+				ok: true,
+				value: {
+					filename: JOOMLA_PACKAGE_FILENAME,
 					mimeType: "application/zip",
 					bytes,
 				},

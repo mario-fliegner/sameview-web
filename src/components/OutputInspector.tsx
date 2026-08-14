@@ -62,24 +62,18 @@ interface OutputInspectorProps {
 type Phase = "idle" | "generating" | "ready" | "error";
 
 // Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md "Embed in Website Output
-// Selection"): the Output Inspector's own selectable output-type set is
-// wider than what generation currently supports (`OutputType`, from
-// generate-comparison-output.ts) — Embed in website is selectable and
-// configurable here but has no working Generate action yet
-// (docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "this phase adds
-// selection UI only"). Kept as a separate type so generateComparisonOutput's
-// own OutputType union never has to widen for a state runGeneration already
-// guards against below.
+// Selection"): "Embed in website" itself is not one `OutputType`
+// (generate-comparison-output.ts) — it resolves to either `"embed-wordpress"`
+// or `"embed-joomla"` depending on `embedPlatform` below, in
+// `runGeneration()`. Kept as a separate type so this Output Inspector's own
+// card selection never has to duplicate the platform branch.
 type SelectableOutputType = OutputType | "embed-in-website";
 
 // docs/WORDPRESS_INTEGRATION.md / docs/JOOMLA_INTEGRATION.md: WordPress and
 // Joomla are the two Embed platforms selectable so far
 // (docs/EMBED_IN_WEBSITE.md "Supported Platforms" — Webflow/Squarespace are
-// approved product scope but not planned by this phase). Joomla has no
-// working "Generate" action yet (docs/IMPLEMENTATION_PLAN_V1.md Phase 20
-// "Not included": actual Joomla package generation is Phase 21) — selecting
-// it only changes this Output Inspector's own state, per runGeneration's own
-// guard below.
+// approved product scope but not planned by this phase). Both have a working
+// Generate action as of docs/IMPLEMENTATION_PLAN_V1.md Phase 21.
 type EmbedPlatform = "wordpress" | "joomla";
 
 // Yields across exactly two real browser animation frames rather than a
@@ -141,19 +135,16 @@ export default function OutputInspector({
 		currentWorkingState.presentationVisibility.location;
 
 	async function runGeneration() {
-		// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed in website has a
-		// working Generate action for WordPress. Phase 20 adds Joomla as a
-		// second selectable platform, but its own package generation is Phase
-		// 21 — `OutputType` (generate-comparison-output.ts) still has no
-		// `"embed-joomla"` member. The primary action is disabled whenever
-		// Joomla is selected (see the button below), so this function never
-		// actually runs for it; this guard exists so a future regression in
-		// that disabled state can never silently generate the wrong artifact.
-		if (outputType === "embed-in-website" && embedPlatform === "joomla") {
-			return;
-		}
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 15/21: Embed in website has a
+		// working Generate action for both WordPress and Joomla — the platform
+		// selection resolves to the matching `OutputType`
+		// (generate-comparison-output.ts).
 		const resolvedOutputType: OutputType =
-			outputType === "embed-in-website" ? "embed-wordpress" : outputType;
+			outputType === "embed-in-website"
+				? embedPlatform === "joomla"
+					? "embed-joomla"
+					: "embed-wordpress"
+				: outputType;
 		setPhase("generating");
 		setProgressPhase("preparing-comparison");
 		// Snapshotted here, once, at the moment Generate is pressed — never
@@ -260,20 +251,17 @@ export default function OutputInspector({
 	}
 
 	const isGenerating = phase === "generating";
-	// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: while Embed in website is
-	// selected, the label depends on the chosen platform — Joomla has no
-	// working Generate action yet (Phase 21), so its own disabled-state label
-	// must never claim a WordPress-specific action.
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: while Embed in website is
+	// selected, the label depends on the chosen platform — each has its own
+	// real Generate action now.
 	const primaryLabel =
 		outputType === "standalone-html"
 			? t.outputInspector.downloadHtmlButton
 			: outputType === "embed-in-website"
 				? embedPlatform === "joomla"
-					? t.outputInspector.joomlaNotAvailableButton
+					? t.outputInspector.downloadJoomlaButton
 					: t.outputInspector.downloadWordPressButton
 				: t.outputInspector.downloadZipButton;
-	const embedGenerateUnavailable =
-		outputType === "embed-in-website" && embedPlatform === "joomla";
 
 	const progressLabel =
 		progressPhase === "preparing-comparison"
@@ -518,7 +506,7 @@ export default function OutputInspector({
 				className="output-inspector__primary-button"
 				data-testid="output-primary-action"
 				onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
-				disabled={isGenerating || embedGenerateUnavailable}
+				disabled={isGenerating}
 			>
 				{phase === "ready"
 					? t.outputInspector.downloadAgainButton
@@ -531,14 +519,26 @@ export default function OutputInspector({
 			    There is no wizard, modal or separate workflow page." Deferred from
 			    Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md Phase 12 "Not included":
 			    "post-generation installation guidance content (Phase 15)"). */}
-			{phase === "ready" && outputType === "embed-in-website" && (
-				<p
-					className="output-inspector__hint"
-					data-testid="output-wordpress-install-guide"
-				>
-					{t.outputInspector.wordPressInstallGuide}
-				</p>
-			)}
+			{phase === "ready" &&
+				outputType === "embed-in-website" &&
+				embedPlatform === "wordpress" && (
+					<p
+						className="output-inspector__hint"
+						data-testid="output-wordpress-install-guide"
+					>
+						{t.outputInspector.wordPressInstallGuide}
+					</p>
+				)}
+			{phase === "ready" &&
+				outputType === "embed-in-website" &&
+				embedPlatform === "joomla" && (
+					<p
+						className="output-inspector__hint"
+						data-testid="output-joomla-install-guide"
+					>
+						{t.outputInspector.joomlaInstallGuide}
+					</p>
+				)}
 		</aside>
 	);
 }

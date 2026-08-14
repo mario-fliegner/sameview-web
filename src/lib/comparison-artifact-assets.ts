@@ -194,3 +194,41 @@ export async function fetchWordPressPluginFiles(): Promise<
 		}),
 	);
 }
+
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 19/21: the Joomla extension's own
+// static PHP/XML files, copied verbatim at SameView Web's own build time by
+// scripts/build-joomla-extension-assets.mjs — the one approved, build-time-
+// only, one-directional, content-only coupling to the isolated
+// integrations/joomla/ area, mirroring `fetchWordPressPluginFiles()` above.
+// Fetched as opaque bytes only; nothing here executes or interprets PHP.
+export interface FetchedJoomlaExtensionFile {
+	readonly path: string;
+	readonly bytes: Uint8Array;
+}
+
+const JOOMLA_EXTENSION_ASSETS_BASE = "/generated/joomla-extension";
+
+export async function fetchJoomlaExtensionFiles(): Promise<
+	readonly FetchedJoomlaExtensionFile[]
+> {
+	const manifestResponse = await fetch(
+		`${JOOMLA_EXTENSION_ASSETS_BASE}/manifest.json`,
+	);
+	if (!manifestResponse.ok) {
+		throw new Error(
+			`Failed to fetch Joomla extension manifest: ${manifestResponse.status}`,
+		);
+	}
+	const manifest: string[] = await manifestResponse.json();
+	return Promise.all(
+		manifest.map(async (path) => {
+			const response = await fetch(`${JOOMLA_EXTENSION_ASSETS_BASE}/${path}`);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch Joomla extension file "${path}": ${response.status}`,
+				);
+			}
+			return { path, bytes: new Uint8Array(await response.arrayBuffer()) };
+		}),
+	);
+}

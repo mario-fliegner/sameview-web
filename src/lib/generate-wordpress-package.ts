@@ -49,52 +49,26 @@ import {
 	fetchPresentationFontAsset,
 	fetchWordPressPluginFiles,
 } from "./comparison-artifact-assets.ts";
+import {
+	buildComparisonManifest,
+	COMPARISON_MANIFEST_FORMAT_VERSION,
+	type ComparisonManifest,
+} from "./comparison-manifest.ts";
 import type { OutcomeSnapshot } from "./outcome-snapshot.ts";
 import { PRESENTATION_FONT_IDS } from "./presentation-fonts.ts";
 
 export const WORDPRESS_PACKAGE_FILENAME = "sameview-comparisons-wordpress.zip";
 
-// Bumped only if this manifest's own shape changes in a way an older
-// integration could not safely interpret (docs/WORDPRESS_INTEGRATION.md
-// "Persistent Integration Versioning") — never for ordinary Comparison
-// content changes, which `outcomeFingerprint` already exists to detect.
-export const COMPARISON_MANIFEST_FORMAT_VERSION = 1;
-
-// Every field here already exists, unchanged, on the Outcome Snapshot
-// itself (src/lib/outcome-snapshot.ts) — this is a transport shape, not a
-// second semantic model. `formatVersion` is the one addition, and is a
-// package/transport concern, not Comparison content.
-export interface ComparisonManifest {
-	readonly formatVersion: number;
-	readonly sessionId: string;
-	readonly outcomeFingerprint: string;
-	readonly presentation: OutcomeSnapshot["presentation"];
-	readonly visibility: OutcomeSnapshot["visibility"];
-	readonly configuration: OutcomeSnapshot["configuration"];
-	readonly initialSliderPosition: number;
-	readonly branding: OutcomeSnapshot["branding"];
-}
-
-// The exact, mechanical Outcome-Snapshot-to-manifest mapping (see this
-// file's own header comment for why no field here is invented). Image
-// bytes and the optional branding asset are not part of this JSON — they
-// are packaged as their own separate files alongside it, exactly like
-// every other generated output already does (src/lib/generate-static-microsite.ts
-// `images/reference.jpg` etc.).
-export function buildComparisonManifest(
-	snapshot: OutcomeSnapshot,
-): ComparisonManifest {
-	return {
-		formatVersion: COMPARISON_MANIFEST_FORMAT_VERSION,
-		sessionId: snapshot.session.id,
-		outcomeFingerprint: snapshot.outcomeFingerprint,
-		presentation: snapshot.presentation,
-		visibility: snapshot.visibility,
-		configuration: snapshot.configuration,
-		initialSliderPosition: snapshot.initialSliderPosition,
-		branding: snapshot.branding,
-	};
-}
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 21: the manifest type/builder/format
+// version moved to src/lib/comparison-manifest.ts (platform-neutral, reused
+// by src/lib/generate-joomla-package.ts) — re-exported here unchanged so
+// every existing import of this module keeps working and WordPress's own
+// generated package stays byte-for-byte identical.
+export {
+	buildComparisonManifest,
+	COMPARISON_MANIFEST_FORMAT_VERSION,
+	type ComparisonManifest,
+};
 
 export interface GenerateWordPressPackageOptions {
 	readonly snapshot: OutcomeSnapshot;
