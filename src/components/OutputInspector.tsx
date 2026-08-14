@@ -72,13 +72,15 @@ type Phase = "idle" | "generating" | "ready" | "error";
 // guards against below.
 type SelectableOutputType = OutputType | "embed-in-website";
 
-// docs/WORDPRESS_INTEGRATION.md: WordPress is the only Embed platform
-// currently implemented (docs/EMBED_IN_WEBSITE.md "Supported Platforms" —
-// Joomla/Webflow/Squarespace are approved product scope but not planned by
-// this phase). No member is added here speculatively; this type exists to
-// establish the state boundary the specification requires, not to predict
-// future platforms.
-type EmbedPlatform = "wordpress";
+// docs/WORDPRESS_INTEGRATION.md / docs/JOOMLA_INTEGRATION.md: WordPress and
+// Joomla are the two Embed platforms selectable so far
+// (docs/EMBED_IN_WEBSITE.md "Supported Platforms" — Webflow/Squarespace are
+// approved product scope but not planned by this phase). Joomla has no
+// working "Generate" action yet (docs/IMPLEMENTATION_PLAN_V1.md Phase 20
+// "Not included": actual Joomla package generation is Phase 21) — selecting
+// it only changes this Output Inspector's own state, per runGeneration's own
+// guard below.
+type EmbedPlatform = "wordpress" | "joomla";
 
 // Yields across exactly two real browser animation frames rather than a
 // fixed delay or a microtask-only `await Promise.resolve()` (which never
@@ -139,12 +141,17 @@ export default function OutputInspector({
 		currentWorkingState.presentationVisibility.location;
 
 	async function runGeneration() {
-		// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed in website now has a
-		// working Generate action. WordPress is the only Embed platform
-		// (`EmbedPlatform` above), so this Output Inspector selection always
-		// resolves to exactly one `OutputType` (generate-comparison-output.ts)
-		// — no branch on `embedPlatform`'s own value is needed while it has
-		// only one member.
+		// docs/IMPLEMENTATION_PLAN_V1.md Phase 15: Embed in website has a
+		// working Generate action for WordPress. Phase 20 adds Joomla as a
+		// second selectable platform, but its own package generation is Phase
+		// 21 — `OutputType` (generate-comparison-output.ts) still has no
+		// `"embed-joomla"` member. The primary action is disabled whenever
+		// Joomla is selected (see the button below), so this function never
+		// actually runs for it; this guard exists so a future regression in
+		// that disabled state can never silently generate the wrong artifact.
+		if (outputType === "embed-in-website" && embedPlatform === "joomla") {
+			return;
+		}
 		const resolvedOutputType: OutputType =
 			outputType === "embed-in-website" ? "embed-wordpress" : outputType;
 		setPhase("generating");
@@ -235,9 +242,7 @@ export default function OutputInspector({
 	}
 
 	// Same invalidation rule as selectOutputType and the two settings toggles
-	// below (docs/APPLICATION_LAYOUT.md "Completion") — even though Phase 12
-	// exposes only one value and this branch can never actually be reached by
-	// a user today (WordPress is the only rendered platform option).
+	// below (docs/APPLICATION_LAYOUT.md "Completion").
 	function selectEmbedPlatform(next: EmbedPlatform) {
 		if (next === embedPlatform) return;
 		setEmbedPlatform(next);
@@ -255,12 +260,20 @@ export default function OutputInspector({
 	}
 
 	const isGenerating = phase === "generating";
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: while Embed in website is
+	// selected, the label depends on the chosen platform — Joomla has no
+	// working Generate action yet (Phase 21), so its own disabled-state label
+	// must never claim a WordPress-specific action.
 	const primaryLabel =
 		outputType === "standalone-html"
 			? t.outputInspector.downloadHtmlButton
 			: outputType === "embed-in-website"
-				? t.outputInspector.downloadWordPressButton
+				? embedPlatform === "joomla"
+					? t.outputInspector.joomlaNotAvailableButton
+					: t.outputInspector.downloadWordPressButton
 				: t.outputInspector.downloadZipButton;
+	const embedGenerateUnavailable =
+		outputType === "embed-in-website" && embedPlatform === "joomla";
 
 	const progressLabel =
 		progressPhase === "preparing-comparison"
@@ -379,9 +392,9 @@ export default function OutputInspector({
 						<span className="output-inspector__platform-label">
 							{t.outputInspector.embedPlatformLabel}
 						</span>
-						{/* WordPress is currently the only Embed platform
-						    (docs/EMBED_IN_WEBSITE.md "Supported Platforms"); no Joomla,
-						    Webflow or Squarespace option is offered. */}
+						{/* WordPress and Joomla are the two Embed platforms offered so far
+						    (docs/EMBED_IN_WEBSITE.md "Supported Platforms"); no Webflow or
+						    Squarespace option is offered yet. */}
 						{/* biome-ignore lint/a11y/useSemanticElements: see the comment on the two radiogroups above */}
 						<button
 							type="button"
@@ -397,6 +410,22 @@ export default function OutputInspector({
 							disabled={outputType !== "embed-in-website" || isGenerating}
 						>
 							WordPress
+						</button>
+						{/* biome-ignore lint/a11y/useSemanticElements: see the comment on the two radiogroups above */}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={embedPlatform === "joomla"}
+							className={`output-inspector__platform-option${
+								embedPlatform === "joomla"
+									? " output-inspector__platform-option--selected"
+									: ""
+							}`}
+							data-testid="output-platform-joomla"
+							onClick={() => selectEmbedPlatform("joomla")}
+							disabled={outputType !== "embed-in-website" || isGenerating}
+						>
+							Joomla
 						</button>
 					</div>
 				</div>
@@ -489,7 +518,7 @@ export default function OutputInspector({
 				className="output-inspector__primary-button"
 				data-testid="output-primary-action"
 				onClick={phase === "ready" ? handleDownloadAgain : runGeneration}
-				disabled={isGenerating}
+				disabled={isGenerating || embedGenerateUnavailable}
 			>
 				{phase === "ready"
 					? t.outputInspector.downloadAgainButton

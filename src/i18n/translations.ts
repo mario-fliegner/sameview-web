@@ -199,6 +199,7 @@ export interface Translations {
 		readonly downloadZipButton: string;
 		readonly downloadWordPressButton: string;
 		readonly wordPressInstallGuide: string;
+		readonly joomlaNotAvailableButton: string;
 		readonly progressPreparingComparison: string;
 		readonly progressProcessingImages: string;
 		readonly progressBuildingOutput: string;
@@ -394,6 +395,7 @@ export const translations: Record<Locale, Translations> = {
 			downloadWordPressButton: "Generate for WordPress",
 			wordPressInstallGuide:
 				"Install this file through WordPress → Plugins → Add New → Upload Plugin. If SameView is already installed on the site, use SameView → Add comparison instead.",
+			joomlaNotAvailableButton: "Joomla not yet available",
 			progressPreparingComparison: "Preparing comparison…",
 			progressProcessingImages: "Processing images…",
 			progressBuildingOutput: "Building output…",
@@ -593,6 +595,7 @@ export const translations: Record<Locale, Translations> = {
 			downloadWordPressButton: "Für WordPress erstellen",
 			wordPressInstallGuide:
 				"Installieren Sie diese Datei über WordPress → Plugins → Installieren → Plugin hochladen. Ist SameView auf der Website bereits installiert, verwenden Sie stattdessen SameView → Vergleich hinzufügen.",
+			joomlaNotAvailableButton: "Joomla noch nicht verfügbar",
 			progressPreparingComparison: "Vergleich wird vorbereitet…",
 			progressProcessingImages: "Bilder werden verarbeitet…",
 			progressBuildingOutput: "Ausgabe wird erstellt…",

@@ -197,9 +197,17 @@ test("Create Output opens the Output Inspector with Standalone HTML selected, Re
 	await expect(platformSelector).toHaveAttribute("aria-checked", "true");
 	await expect(platformSelector).toHaveAccessibleName("WordPress");
 
-	// WordPress is the only platform offered (docs/EMBED_IN_WEBSITE.md
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: Joomla is now offered as a
+	// second platform, visible but disabled until Embed in website is
+	// selected, and not yet the selected platform.
+	const joomlaPlatformSelector = page.getByTestId("output-platform-joomla");
+	await expect(joomlaPlatformSelector).toBeVisible();
+	await expect(joomlaPlatformSelector).toBeDisabled();
+	await expect(joomlaPlatformSelector).toHaveAttribute("aria-checked", "false");
+	await expect(joomlaPlatformSelector).toHaveAccessibleName("Joomla");
+
+	// Webflow and Squarespace are not offered yet (docs/EMBED_IN_WEBSITE.md
 	// "Supported Platforms").
-	await expect(page.getByText(/joomla/i)).toHaveCount(0);
 	await expect(page.getByText(/webflow/i)).toHaveCount(0);
 	await expect(page.getByText(/squarespace/i)).toHaveCount(0);
 });
@@ -245,6 +253,49 @@ test("selecting Embed in website enables its WordPress platform selector, shows 
 	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
 });
 
+// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: Joomla is selectable but has no
+// working Generate action yet (Phase 21) — the primary action must be
+// disabled and must never claim a WordPress-specific action while Joomla is
+// selected.
+test("selecting Joomla disables the primary action with a Joomla-specific label, never changes the Workspace Preview or Current Working State, and switching back to WordPress restores its real Generate action", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await openOutputInspector(page);
+
+	const canvasBefore = await page.locator(".presentation-canvas").boundingBox();
+
+	await page.getByTestId("output-card-embed-in-website").click();
+	const joomlaPlatformSelector = page.getByTestId("output-platform-joomla");
+	const wordPressPlatformSelector = page.getByTestId("output-platform-wordpress");
+	const primaryAction = page.getByTestId("output-primary-action");
+
+	await joomlaPlatformSelector.click();
+	await expect(joomlaPlatformSelector).toHaveAttribute("aria-checked", "true");
+	await expect(wordPressPlatformSelector).toHaveAttribute("aria-checked", "false");
+
+	// The label must not read "Generate for WordPress" while Joomla is
+	// selected, and the action itself must be disabled.
+	await expect(primaryAction).toBeDisabled();
+	await expect(primaryAction).not.toHaveText(/wordpress/i);
+	await expect(primaryAction).toHaveText(/joomla/i);
+
+	// The shared output settings remain interactive regardless of platform
+	// (F-005), and selecting Joomla changes only this Output Inspector's own
+	// state, never the Workspace Preview.
+	await expect(
+		page.getByTestId("output-use-current-slider-position-switch"),
+	).toBeEnabled();
+	const canvasAfter = await page.locator(".presentation-canvas").boundingBox();
+	expect(canvasAfter?.width).toBeCloseTo(canvasBefore?.width ?? 0, 0);
+	expect(canvasAfter?.height).toBeCloseTo(canvasBefore?.height ?? 0, 0);
+
+	await wordPressPlatformSelector.click();
+	await expect(wordPressPlatformSelector).toHaveAttribute("aria-checked", "true");
+	await expect(primaryAction).toBeEnabled();
+	await expect(primaryAction).toHaveText(/generate for wordpress/i);
+});
+
 test("switching from Standalone HTML to Embed in website and back invalidates the previously generated artifact each time and requires a fresh generation for the newly selected type", async ({
 	page,
 }) => {
@@ -286,31 +337,36 @@ test("switching from Standalone HTML to Embed in website and back invalidates th
 	expect(freshDownload.suggestedFilename()).toBe("sameview-comparison.html");
 });
 
-test("the Embed card's output-type radio and its WordPress platform selector are two separate, non-nested controls", async ({
+test("the Embed card's output-type radio and its WordPress/Joomla platform selectors are separate, non-nested controls", async ({
 	page,
 }) => {
 	await importFullFixture(page);
 	await openOutputInspector(page);
 
 	const embedCard = page.getByTestId("output-card-embed-in-website");
-	const platformSelector = page.getByTestId("output-platform-wordpress");
+	const wordPressPlatformSelector = page.getByTestId("output-platform-wordpress");
+	const joomlaPlatformSelector = page.getByTestId("output-platform-joomla");
 
 	await expect(embedCard).toHaveAttribute("role", "radio");
-	await expect(platformSelector).toHaveAttribute("role", "radio");
-	await expect(platformSelector).toHaveAccessibleName(/\S/);
+	await expect(wordPressPlatformSelector).toHaveAttribute("role", "radio");
+	await expect(wordPressPlatformSelector).toHaveAccessibleName(/\S/);
+	await expect(joomlaPlatformSelector).toHaveAttribute("role", "radio");
+	await expect(joomlaPlatformSelector).toHaveAccessibleName(/\S/);
 
 	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": the platform
-	// selector is a separate control, never nested inside the radio that
+	// selectors are separate controls, never nested inside the radio that
 	// selects the output type itself.
 	const isNestedInsideRadio = await embedCard.evaluate(
 		(element) =>
 			element.querySelector('[data-testid="output-platform-wordpress"]') !==
-			null,
+				null ||
+			element.querySelector('[data-testid="output-platform-joomla"]') !==
+				null,
 	);
 	expect(isNestedInsideRadio).toBe(false);
 });
 
-test("Embed in website's card name, description and platform selector render in German after switching locale", async ({
+test("Embed in website's card name, description and platform selectors render in German after switching locale", async ({
 	page,
 }) => {
 	await importFullFixture(page);
@@ -322,9 +378,20 @@ test("Embed in website's card name, description and platform selector render in 
 	await expect(embedCard).toContainText(
 		"Diese Vergleichsansicht per WordPress in Ihre Website einbinden.",
 	);
-	// WordPress remains untranslated in both locales.
+	// WordPress and Joomla remain untranslated in both locales (brand names).
 	await expect(page.getByTestId("output-platform-wordpress")).toHaveText(
 		"WordPress",
+	);
+	await expect(page.getByTestId("output-platform-joomla")).toHaveText(
+		"Joomla",
+	);
+
+	// docs/IMPLEMENTATION_PLAN_V1.md Phase 20: the disabled-state label for
+	// Joomla is itself localized.
+	await embedCard.click();
+	await page.getByTestId("output-platform-joomla").click();
+	await expect(page.getByTestId("output-primary-action")).toHaveText(
+		"Joomla noch nicht verfügbar",
 	);
 });
 
