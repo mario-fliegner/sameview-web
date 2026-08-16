@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Test-only, never shipped: verification-only Joomla system plugin for
+	Phase 23 host-isolation verification (docs/IMPLEMENTATION_PLAN_V1.md
+	"Phase 23 – Joomla Frontend Delivery and Host Isolation"). Not part of
+	pkg_sameviewcomparisons, never packaged or installed on a real site —
+	lives only under integrations/joomla/tests/ and is installed only into
+	the disposable current-major/previous-major Docker test instances by
+	frontend-delivery-lifecycle.test.mjs. Mirrors
+	integrations/wordpress/tests/fresh-install/mu-plugins/hostile-theme-simulation.php's
+	own role: simulate a realistic, aggressively-styled site template so
+	Shadow DOM host isolation can be verified against a real hostile
+	stylesheet rather than an approximated one.
+
+	Deliberately the legacy (non-namespaced, non-PSR-4) Joomla plugin format:
+	a single classic file, no service provider, no `<namespace>` — the
+	simplest form that still installs and dispatches identically on both
+	supported Joomla major versions, appropriate for a throwaway test
+	fixture that carries no product responsibility.
+
+	method="upgrade" for the same reason already established across this
+	integration area (docs/IMPLEMENTATION_PLAN_V1.md Phase 22 update-
+	lifecycle fix): lets repeated test runs reinstall this plugin over an
+	already-installed copy on a persisted container without hitting
+	Joomla's own JLIB_INSTALLER_ABORT_DIRECTORY.
+-->
+<extension type="plugin" group="system" method="upgrade">
+	<name>PLG_SYSTEM_SAMEVIEWHOSTILETEST</name>
+	<author>SameView</author>
+	<version>1.0.0</version>
+	<description>Test-only: injects aggressive host CSS for Phase 23 host-isolation verification. Never shipped.</description>
+	<files>
+		<filename plugin="sameviewhostiletest">sameviewhostiletest.php</filename>
+	</files>
+</extension>

@@ -171,6 +171,21 @@ final class ComparisonRenderHelper
 	 * "com_sameviewcomparisons.embed" asset ... in the registry"), the same
 	 * pattern core Joomla itself uses for a field layout needing another
 	 * component's assets (administrator/components/com_scheduler/layouts/form/field/webcron_link.php).
+	 *
+	 * docs/IMPLEMENTATION_PLAN_V1.md Phase 23 (Frontend Delivery
+	 * verification): this script's own `joomla.asset.json` entry declares no
+	 * per-asset `"version"`, so `WebAssetItem::getVersion()` defaults to
+	 * `'auto'`. Confirmed against real Joomla 6.1.2 core source
+	 * (`Document\Renderer\Html\ScriptsRenderer`) and empirically against a
+	 * real instance that this resolves to the site's own, globally cached
+	 * Joomla media version (`Version::getMediaVersion()`), appended as
+	 * `?<token>` — never a per-extension value of ours. That cache is
+	 * refreshed automatically by Joomla itself on every successful extension
+	 * install (`Installer::install()` → `Application::flushAssets()` →
+	 * `Version::refreshMediaVersion()`), so a genuine code-only update of
+	 * this package (Phase 22 update-lifecycle fix) already changes this
+	 * script's own effective URL with no extra logic needed here — see
+	 * frontend-delivery-lifecycle.test.mjs for the real-instance proof.
 	 */
 	private static function enqueueEmbedAssets(): void
 	{
