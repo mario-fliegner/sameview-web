@@ -38,7 +38,7 @@ $editor = Factory::getApplication()->getInput()->getCmd('editor', '');
 			<thead>
 				<tr>
 					<th scope="col"><?php echo Text::_('COM_SAMEVIEWCOMPARISONS_COLUMN_TITLE'); ?></th>
-					<th scope="col"><?php echo Text::_('COM_SAMEVIEWCOMPARISONS_COLUMN_SESSION_ID'); ?></th>
+					<th scope="col"><?php echo Text::_('COM_SAMEVIEWCOMPARISONS_COLUMN_PERIOD'); ?></th>
 					<th scope="col"></th>
 				</tr>
 			</thead>

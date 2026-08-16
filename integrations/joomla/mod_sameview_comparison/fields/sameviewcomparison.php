@@ -68,6 +68,20 @@
  * a value the site itself already stored, never an arbitrary client-
  * supplied string, so `validate="options"` keeps rejecting every other
  * unknown value exactly as before.
+ *
+ * Phase 24 audit follow-up: docs/JOOMLA_INTEGRATION.md "No Editor Preview"
+ * requires every regular (non-missing) option here to identify its
+ * Comparison "by title and reference-to-capture period label" — the same
+ * bar the Editors-XTD picker (tmpl/comparisons/modal.php) already meets via
+ * its own separate table column. Joomla's native SqlField only supports one
+ * `text` value per `<option>`, so appendPeriodLabels() below enriches each
+ * regular option's already-resolved title with the same period label
+ * ComparisonRenderHelper::periodLabelFor() already computes for the Library
+ * list and the Editors-XTD picker — never a second, independently
+ * maintained period computation. The missing option built further down is
+ * deliberately excluded: docs/JOOMLA_INTEGRATION.md's own carve-out for the
+ * missing state ("identified by title only") stays title/session_id-only,
+ * unchanged.
  */
 
 defined('_JEXEC') or die;
@@ -75,14 +89,18 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Field\SqlField;
 use Joomla\CMS\Language\Text;
+use Joomla\Component\Sameviewcomparisons\Administrator\Helper\ComparisonRenderHelper;
 use Joomla\Database\ParameterType;
 use Joomla\Registry\Registry;
+
+require_once JPATH_ADMINISTRATOR . '/components/com_sameviewcomparisons/src/Helper/ComparisonRenderHelper.php';
 
 class JFormFieldSameviewcomparison extends SqlField
 {
 	protected function getOptions()
 	{
 		$options = parent::getOptions();
+		$this->appendPeriodLabels($options);
 		$currentValue = $this->currentSessionId();
 
 		if ($currentValue === '') {
@@ -104,6 +122,49 @@ class JFormFieldSameviewcomparison extends SqlField
 		array_unshift($options, $missingOption);
 
 		return $options;
+	}
+
+	/**
+	 * Enriches every regular (non-empty-value) option's already-resolved
+	 * title with its reference-to-capture period label, in place — the
+	 * `<option>` objects parent::getOptions() returns are mutated directly,
+	 * never replaced, so the header option (empty value, no Comparison to
+	 * describe) and any later-added missing option are both left untouched.
+	 */
+	private function appendPeriodLabels(array $options): void
+	{
+		$sessionIds = [];
+		foreach ($options as $option) {
+			if ((string) $option->value !== '') {
+				$sessionIds[] = (string) $option->value;
+			}
+		}
+
+		if (!$sessionIds) {
+			return;
+		}
+
+		$db = $this->getDatabase();
+		$query = $db->getQuery(true)
+			->select($db->quoteName(['session_id', 'manifest_json']))
+			->from($db->quoteName('#__sameview_comparisons'))
+			->whereIn($db->quoteName('session_id'), $sessionIds, ParameterType::STRING);
+		$db->setQuery($query);
+		$rows = $db->loadObjectList('session_id');
+
+		foreach ($options as $option) {
+			$sessionId = (string) $option->value;
+			if ($sessionId === '' || !isset($rows[$sessionId])) {
+				continue;
+			}
+
+			$manifest = json_decode((string) $rows[$sessionId]->manifest_json, true);
+			$periodLabel = ComparisonRenderHelper::periodLabelFor(is_array($manifest) ? $manifest : []);
+
+			if ($periodLabel !== '') {
+				$option->text = $option->text . ' (' . $periodLabel . ')';
+			}
+		}
 	}
 
 	/**

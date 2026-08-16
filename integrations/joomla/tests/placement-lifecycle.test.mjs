@@ -205,6 +205,17 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const modalFrame = page.frameLocator("iframe").last();
 				const rowCount = await modalFrame.locator('[data-testid="sameview-picker-row"]').count();
 				assert.ok(rowCount >= 1, "the picker must list at least the stored Comparison");
+
+				// Phase 24 audit follow-up: the second column header must name what
+				// its cells actually show (the reference-to-capture period label),
+				// not "Session ID" — a mislabelled header found during the Phase 24
+				// documentation audit.
+				const secondColumnHeader = await modalFrame
+					.locator('[data-testid="sameview-picker-list"] thead th')
+					.nth(1)
+					.innerText();
+				assert.equal(secondColumnHeader, "Reference → Capture");
+
 				await modalFrame.locator('[data-testid="sameview-picker-insert"]').first().click();
 				await page.waitForTimeout(500);
 
@@ -243,6 +254,34 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const sessionSelect = page.locator("select[name='jform[params][session_id]']");
 				const options = await sessionSelect.locator("option").allTextContents();
 				assert.ok(options.length > 1, "the SQL field must list the stored Comparison, not only its header option");
+
+				// Phase 24 audit follow-up: docs/JOOMLA_INTEGRATION.md "No Editor
+				// Preview" requires a regular option to identify its Comparison by
+				// title AND reference-to-capture period label, the same bar the
+				// Editors-XTD picker already meets via its own table column —
+				// derive the expected combined text the same way
+				// ComparisonRenderHelper::periodLabelFor() does, from the stored
+				// Comparison's own title/manifest_json, rather than hard-coding it.
+				// Extracted via MySQL's own JSON operator rather than round-
+				// tripping the raw (pretty-printed, tab/newline-formatted)
+				// manifest_json blob through dbQuery()/JSON.parse(): the mysql
+				// CLI escapes those literal control characters into visible
+				// backslash sequences in its text output, which breaks JSON.parse
+				// on the JS side — unrelated to the fix under test.
+				const expectedTitle = dbQuery(composeFile, `SELECT title FROM joom_sameview_comparisons WHERE session_id='${sessionId}';`);
+				const [referenceLabel, captureLabel] = dbQuery(
+					composeFile,
+					`SELECT manifest_json->>'$.presentation.referenceLabel', manifest_json->>'$.presentation.captureLabel' FROM joom_sameview_comparisons WHERE session_id='${sessionId}';`,
+				)
+					.split("\t")
+					.map((label) => (label === "NULL" ? "" : label));
+				const expectedPeriod = [referenceLabel, captureLabel].filter((label) => label !== "").join(" – ");
+				const expectedOptionText = expectedPeriod ? `${expectedTitle} (${expectedPeriod})` : expectedTitle;
+				assert.ok(
+					options.includes(expectedOptionText),
+					`the module picker must show title and reference-to-capture period label together (expected "${expectedOptionText}", got ${JSON.stringify(options)})`,
+				);
+
 				await sessionSelect.selectOption({ index: 1 });
 
 				// The module position field is a Choices.js-enhanced select
@@ -377,6 +416,16 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const selectedValueBefore = await sessionSelect.inputValue();
 				assert.match(selectedTextBefore, /Missing Comparison/, "the deleted Comparison must render as a selectable Missing option");
 				assert.equal(selectedValueBefore, sessionId, "the Missing option must still carry the real, original session_id");
+				// Phase 24 audit follow-up: the module picker's period-label
+				// enrichment (added for the regular-option case below) must never
+				// reach the missing option — it stays exactly the defined
+				// title/session_id-only Missing state, per
+				// docs/JOOMLA_INTEGRATION.md's own carve-out for this case.
+				assert.equal(
+					selectedTextBefore,
+					`Missing Comparison (${sessionId})`,
+					"the missing option must show only the session_id, never a period-label suffix",
+				);
 
 				// Only the unrelated module title is changed — the Comparison
 				// selection itself is left untouched, exactly as in the manual
@@ -426,6 +475,11 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const selectedValue = await sessionSelect.inputValue();
 				assert.match(selectedText, /Missing Comparison/);
 				assert.equal(selectedValue, sessionId);
+				assert.equal(
+					selectedText,
+					`Missing Comparison (${sessionId})`,
+					"the missing option must still show only the session_id, never a period-label suffix",
+				);
 			} finally {
 				await browser.close();
 			}
@@ -463,6 +517,17 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				await loginAsAdmin(page, baseUrl);
 
 				const restoredTitle = dbQuery(composeFile, `SELECT title FROM joom_sameview_comparisons WHERE session_id='${sessionId}';`);
+				// The module picker's period-label enrichment (Phase 24 audit
+				// follow-up) applies to this now-restored, regular option exactly
+				// like any other — expect "Title (Period)", not title alone.
+				const [restoredReferenceLabel, restoredCaptureLabel] = dbQuery(
+					composeFile,
+					`SELECT manifest_json->>'$.presentation.referenceLabel', manifest_json->>'$.presentation.captureLabel' FROM joom_sameview_comparisons WHERE session_id='${sessionId}';`,
+				)
+					.split("\t")
+					.map((label) => (label === "NULL" ? "" : label));
+				const restoredPeriod = [restoredReferenceLabel, restoredCaptureLabel].filter((label) => label !== "").join(" – ");
+				const restoredOptionText = restoredPeriod ? `${restoredTitle} (${restoredPeriod})` : restoredTitle;
 
 				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
 				await page.waitForSelector("#jform_title", { timeout: 10000 });
@@ -471,7 +536,7 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const selectedText = await sessionSelect.locator("option:checked").innerText();
 				const selectedValue = await sessionSelect.inputValue();
 				assert.doesNotMatch(selectedText, /Missing Comparison/);
-				assert.equal(selectedText, restoredTitle);
+				assert.equal(selectedText, restoredOptionText);
 				assert.equal(selectedValue, sessionId);
 			} finally {
 				await browser.close();
