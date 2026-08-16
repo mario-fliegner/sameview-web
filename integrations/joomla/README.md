@@ -17,23 +17,62 @@ The actual Joomla extension source lives at
 [`com_sameviewcomparisons/`](com_sameviewcomparisons/) — this exact
 directory name matches the Joomla component element it installs as.
 
-## Current scope (Phase 19)
+## Current scope (Phase 19–24)
 
-Extension lifecycle (install/remove) and storage foundation only:
+The full `Embed in website` Joomla integration, per
+[docs/JOOMLA_INTEGRATION.md](../../docs/JOOMLA_INTEGRATION.md) and
+[docs/IMPLEMENTATION_PLAN_V1.md](../../docs/IMPLEMENTATION_PLAN_V1.md)
+Phases 19–24, implemented and real-instance-verified against Joomla 6.1.2
+and Joomla 5.4.7:
 
-- a dedicated database table (`#__sameview_comparisons`) for Comparison
-  metadata;
-- a SameView-owned directory under Joomla's own `media/` folder
+- **One installable package** (`pkg_sameviewcomparisons`) bundling the
+  `com_sameviewcomparisons` component, the `plg_content_sameview` and
+  `plg_editors-xtd_sameview` companion plugins and the
+  `mod_sameview_comparison` companion module as a single native Joomla
+  extension install/uninstall unit.
+- **Storage foundation**: a dedicated database table
+  (`#__sameview_comparisons`) for Comparison metadata; a SameView-owned
+  directory under Joomla's own `media/` folder
   (`media/com_sameviewcomparisons/`), never under `images/` (the Media
-  Manager's default scanned root);
-- one native Joomla ACL permission (`core.manage` on the
-  `com_sameviewcomparisons` component asset), assignable through Joomla's
-  own Permissions interface.
-
-There is **no Comparison-facing behavior yet** — no seed import, no `Add
-comparison` workflow, no placement, no frontend rendering. See
-`docs/IMPLEMENTATION_PLAN_V1.md` Phase 19 for the exact scope and its "Not
-included" list.
+  Manager's default scanned root); one native Joomla ACL permission
+  (`core.manage` on the `com_sameviewcomparisons` component asset),
+  assignable through Joomla's own Permissions interface.
+- **First installation**: installing the package makes its bundled seed
+  Comparison immediately available, with no separate manual import step.
+- **Comparison lifecycle**: Add/Update/no-op/Delete through the
+  component's own `Add comparison` admin upload, using
+  `session.id`/Outcome Fingerprint for Add-vs-Update-vs-no-op detection.
+- **Placement**: content placement via a native editor button
+  (`plg_editors-xtd_sameview`) inserting a `{sameview session="..."}`
+  reference, resolved at render time by `plg_content_sameview`; module
+  placement via `mod_sameview_comparison`'s own native picker field. Both
+  pickers identify a Comparison by title and reference-to-capture period
+  label, never a preview.
+- **Plugin auto-enable**: a genuine first install enables both placement
+  plugins automatically; a later update/reinstall never re-enables a
+  plugin an operator has deliberately disabled.
+- **Update/reinstall lifecycle**: re-uploading the same package through
+  the native Extensions Manager (`Extensions → Manage → Install → Upload
+  Package File`) updates the already-installed extension in place,
+  preserving stored Comparisons and placements.
+- **Frontend delivery**: assets load only on pages that actually contain a
+  placement, via Joomla's native Web Asset system; each placement mounts
+  into its own open Shadow Root (Shadow DOM), so multiple placements and
+  multiple different Comparisons on one page stay fully isolated from
+  each other and from the host template.
+- **Comparison Library management**: the admin list view shows a
+  thumbnail, the reference-to-capture period, a usage count and the
+  concrete, linked placements (articles and modules) using each
+  Comparison.
+- **Editor-picker ACL**: the Editors-XTD picker (`layout=modal`) remains
+  usable by any user who already holds ordinary content-editing rights,
+  without requiring `core.manage` — only the Comparison Library itself and
+  Add/Delete require that permission.
+- **Module missing-Comparison state**: a module referencing a deleted
+  Comparison shows a selectable "Missing Comparison (`session.id`)" state
+  and can be re-saved independently (for example, changing only its
+  title) without losing the stored reference; re-importing the same
+  `session.id` restores the normal Comparison label automatically.
 
 ## No new dependencies
 
@@ -113,11 +152,17 @@ Manual test workflow:
 
 1. `docker compose -f docker-compose.sandbox.yml up -d` (or `start` if
    already created once).
-2. In the main repository, once SameView Web can generate a Joomla
-   package (Phase 21 onward), download the generated
-   `sameview-comparisons-joomla.zip`. Until then, use
-   `node scripts/build-package.mjs` here to build the same extension
-   package this repository's own automated tests use.
+2. Get the real, unified Joomla package that a customer would install:
+   either download it from SameView Web's own Output Inspector (`Embed in
+   website` → Joomla → Generate), or run `node
+   scripts/generate-joomla-artifact-for-verification.mjs <output-path>
+   [fixture-name]` from the repository root, which drives the real
+   running SameView Web application via Playwright and saves the same
+   `sameview-comparisons-joomla.zip` a customer would download. This is
+   distinct from this directory's own `scripts/build-package.mjs` above,
+   which only zips the bare `com_sameviewcomparisons/` component source
+   for `plugin-foundation.test.mjs`'s own narrower Phase 19 lifecycle
+   checks — never a seed Comparison, never the companion module/plugins.
 3. Open `http://localhost:8894/administrator` — login `admin` /
    `sameview-sandbox-1234`.
 4. **Extensions → Manage → Install → Upload Package File**, choose the
@@ -138,6 +183,28 @@ the rest of this repository. It assumes both version-matrix instances are
 already running and the package is already built; it does not manage the
 Docker lifecycle itself.
 
+Five further test files cover Phases 20–24 against the same two real
+instances, using the full `pkg_sameviewcomparisons` package (built via
+`node scripts/generate-joomla-artifact-for-verification.mjs`, not the
+narrower `build-package.mjs` above):
+
+- `add-comparison-lifecycle.test.mjs` — first installation, Add/Update/
+  no-op/Delete through the real `Add comparison` admin upload, rejected-
+  import atomicity.
+- `placement-lifecycle.test.mjs` — content placement via the editor
+  button, module placement, missing-Comparison states (including the
+  module's own independent-resave regression), re-import reactivation,
+  deliberate reselection, and full uninstall.
+- `frontend-delivery-lifecycle.test.mjs` — asset loading only where a
+  placement exists, cache/versioning, and Shadow DOM host isolation in
+  both directions against a deliberately hostile template.
+- `package-update-lifecycle.test.mjs` — reinstalling an already-installed
+  package through the native Extensions Manager as a genuine update,
+  preserving stored Comparisons and placements.
+- `comparison-library-management.test.mjs` — the admin list view's
+  thumbnail, reference-to-capture period, usage count and linked
+  placements.
+
 Per [docs/JOOMLA_INTEGRATION.md](../../docs/JOOMLA_INTEGRATION.md)
 "Testing", Docker + Playwright is the primary and default verification
 mechanism; no dedicated PHP-level test harness was introduced for
@@ -157,10 +224,9 @@ the shipped extension itself.
 ## Real findings from real-instance testing
 
 Several assumptions that looked reasonable when written were contradicted
-by real Joomla 6.1.2 / 5.4.7 behavior during Phase 19 verification and
+by real Joomla 6.1.2 / 5.4.7 behavior during Phase 19–24 verification and
 were corrected (with the reasoning recorded as comments at the exact
-point they matter, in `com_sameviewcomparisons/sameviewcomparisons.xml`,
-`script.php` and `admin/services/provider.php`):
+point they matter):
 
 - The manifest filename must be exactly `sameviewcomparisons.xml` (the
   element with its `com_` prefix stripped) — Joomla's general installer
@@ -191,3 +257,22 @@ point they matter, in `com_sameviewcomparisons/sameviewcomparisons.xml`,
   a real `<field type="rules" component="…" section="component" />`
   inside a `permissions` fieldset — an empty fieldset loads without error
   but never renders the `access.xml` actions.
+- `Joomla\CMS\Dispatcher\ComponentDispatcher::checkAccess()` enforces the
+  component's ACL permission (`core.manage`) unconditionally for every
+  backend request, before any controller — including this component's own
+  — is ever reached. Exempting the Editors-XTD picker (`layout=modal`)
+  from that requirement, per
+  [docs/JOOMLA_INTEGRATION.md](../../docs/JOOMLA_INTEGRATION.md)
+  "Permissions and Security", therefore needs its own dispatcher override
+  (`admin/src/Dispatcher/Dispatcher.php`); the matching check already in
+  `admin/src/Controller/DisplayController.php` is a second, independent
+  gate a request must also pass once the dispatcher lets it through.
+- `Joomla\CMS\MVC\Controller\FormController::save()` validates a module's
+  saved parameters against a `Form` object deliberately bound to no data
+  (`getForm($data, false)`), never the submitted or previously stored
+  values. A custom field whose available options depend on the module's
+  own current value — `mod_sameview_comparison/fields/sameviewcomparison.php`'s
+  missing-Comparison handling — can therefore never rely on that value
+  being populated during save; it must resolve the module's
+  already-persisted parameter directly from `#__modules`, keyed by the
+  module `id` Joomla still passes as a plain request parameter.

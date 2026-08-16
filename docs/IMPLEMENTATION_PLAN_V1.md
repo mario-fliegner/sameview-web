@@ -4,7 +4,7 @@
 
 This plan translates the approved specifications and the current repository baseline into an executable order for the remaining Version 1 work. It is not a product specification and does not replace one. If this plan conflicts with an approved specification, the specification remains authoritative.
 
-The browser-local workflow whose two outputs are downloadable Standalone HTML and a downloadable Static Microsite ZIP, both generated from the same shared presentation and interaction source, is complete (Phases 1–10 below). Version 1 scope has since expanded to include a third output, `Embed in website` — see [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs", [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md), [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md) and [JOOMLA_INTEGRATION.md](JOOMLA_INTEGRATION.md). `Embed in website` is approved Version 1 scope, implemented and verified for WordPress (Phases 11–18 below) and specified and planned for Joomla (Phases 19–24 below; not yet implemented or verified); this plan does not duplicate either platform's normative contract, only the executable order used to build them. Webflow and Squarespace are approved product scope but require their own feasibility research and platform-specific technical contracts before they can be planned — see Section 8. Hosted Publication and its infrastructure remain out of scope for this plan.
+The browser-local workflow whose two outputs are downloadable Standalone HTML and a downloadable Static Microsite ZIP, both generated from the same shared presentation and interaction source, is complete (Phases 1–10 below). Version 1 scope has since expanded to include a third output, `Embed in website` — see [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs", [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md), [WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md) and [JOOMLA_INTEGRATION.md](JOOMLA_INTEGRATION.md). `Embed in website` is approved Version 1 scope, implemented and verified for WordPress (Phases 11–18 below) and implemented and verified for Joomla (Phases 19–24 below); this plan does not duplicate either platform's normative contract, only the executable order used to build them. Webflow and Squarespace are approved product scope but require their own feasibility research and platform-specific technical contracts before they can be planned — see Section 8. Hosted Publication and its infrastructure remain out of scope for this plan.
 
 ## 2. Current Baseline
 
@@ -415,7 +415,7 @@ None of these phases duplicate the normative contracts in [EMBED_IN_WEBSITE.md](
 - **Not included:** Any integration with third-party Joomla full-page-caching or system-cache plugins' own purge mechanisms — explicitly not part of Version 1, per `JOOMLA_INTEGRATION.md` "Frontend Delivery". A site relying on such caching may need to purge it manually after a Comparison update; this is a documented, accepted limitation, not a defect to fix in this phase.
 - **Risks/open decisions:** None remaining; the host-isolation mechanism is already resolved and reused unchanged (Shadow DOM) — see Section 9.
 
-### Phase 24 – Joomla Real-Platform Integration and Release Readiness
+### Phase 24 – (Completed) Joomla Real-Platform Integration and Release Readiness
 
 - **Goal:** Verify the complete real Joomla customer workflow and quality gates before Joomla is offered as a supported Embed platform, mirroring Phase 18's role for WordPress.
 - **Deliverable:** Joomla extension + SameView Web, verified together.
@@ -427,7 +427,7 @@ None of these phases duplicate the normative contracts in [EMBED_IN_WEBSITE.md](
 - **Definition of Done:** The complete list in `EMBED_IN_WEBSITE.md` "Real-Platform Verification and Release Criteria" passes against a real, disposable Joomla instance covering the currently supported Joomla major version and the immediately previous major version (`JOOMLA_INTEGRATION.md` "Supported Joomla Versions"); Joomla can be offered as a supported Embed platform.
 - **Tests/manual:** Full real-instance Playwright verification across both supported Joomla versions; `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` for the SameView Web side.
 - **Not included:** Webflow, Squarespace (see Section 8); any Version 2 work.
-- **Risks/open decisions:** None, provided the artifact-format decision gate from Phase 21 is resolved by this point — see Section 9.
+- **Risks/open decisions:** None. The artifact-format decision gate from Phase 21 is resolved — see Section 9.
 
 ## 5. Recommended Iteration Order
 
@@ -556,4 +556,8 @@ Version 1's browser-local scope is complete when:
 
 ### Embed in Website – WordPress Scope (Complete)
 
-Version 1 scope has since expanded to include `Embed in website` ([PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs"). WordPress, the only Embed platform implemented here (Phases 11–18 above), is complete: the complete list in [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Real-Platform Verification and Release Criteria" has passed against real, disposable WordPress instances covering the currently supported WordPress major version and the immediately previous major version, per Phase 18's own Definition of Done above. Joomla, Webflow and Squarespace remain outside implementation scope (Section 8) until each has its own feasibility research and platform-specific technical contract.
+Version 1 scope has since expanded to include `Embed in website` ([PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Outputs"). WordPress, the first Embed platform implemented here (Phases 11–18 above), is complete: the complete list in [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Real-Platform Verification and Release Criteria" has passed against real, disposable WordPress instances covering the currently supported WordPress major version and the immediately previous major version, per Phase 18's own Definition of Done above. Webflow and Squarespace remain outside implementation scope (Section 8) until each has its own feasibility research and platform-specific technical contract.
+
+### Embed in Website – Joomla Scope (Complete)
+
+Joomla, the second Embed platform implemented here (Phases 19–24 above), is complete: the complete list in [EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md) "Real-Platform Verification and Release Criteria" has passed against real, disposable Joomla instances covering the currently supported Joomla major version and the immediately previous major version, per Phase 24's own Definition of Done above. Webflow and Squarespace remain outside implementation scope (Section 8) until each has its own feasibility research and platform-specific technical contract.
