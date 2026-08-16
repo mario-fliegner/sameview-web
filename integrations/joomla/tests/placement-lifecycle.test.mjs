@@ -40,6 +40,10 @@ import {
 } from "./docker-helpers.mjs";
 
 const ARTIFACT = join(JOOMLA_DIR, "tests", "artifact", "comparison-full-joomla.zip");
+// A second, distinct Comparison — only needed for the deliberate-reselection
+// regression below (Phase 24 Part B), reusing the same prebuilt fixture
+// add-comparison-lifecycle.test.mjs already relies on elsewhere.
+const MINIMAL_ARTIFACT = join(JOOMLA_DIR, "tests", "artifact", "comparison-minimal-joomla.zip");
 const CONTAINER_ZIP_PATH = "/var/www/html/tmp/sameview-comparisons-joomla.zip";
 
 async function readManifestSessionId(artifactPath) {
@@ -59,6 +63,7 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 		const { composeFile, baseUrl } = instance;
 		let sessionId;
 		let articleId;
+		let moduleId;
 
 		await t.test("installs the full pkg_sameviewcomparisons package", () => {
 			resetExtensionState(composeFile);
@@ -150,7 +155,19 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				);
 
 				await page.goto(`${baseUrl}/index.php?option=com_content&view=article&id=${articleId}`);
-				await page.waitForTimeout(1000);
+				// Waits for the actual mount-complete signal, not just the
+				// server-rendered [data-sameview-embed] host (present before the
+				// runtime ever runs): src/lib/comparison-presentation-runtime.ts
+				// `initInstance()` only sets `data-sameview-runtime-initialized`
+				// on `.presentation-canvas` once the Shadow Root is attached, its
+				// CSS has loaded, the markup is injected and every required
+				// descendant element has resolved — exactly the state the
+				// assertions below require. Playwright's locator engine pierces
+				// an open Shadow Root automatically, so this selector reaches
+				// through it without any special handling.
+				await page
+					.locator("[data-sameview-embed] [data-sameview-runtime-initialized='true']")
+					.waitFor({ state: "attached" });
 				assert.equal(await page.locator("[data-sameview-embed]").count(), 1);
 				const shadowMounted = await page
 					.locator("[data-sameview-embed]")
@@ -259,6 +276,14 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				const bodyText = await page.locator("body").innerText();
 				assert.doesNotMatch(bodyText, /Module XML data not available/i);
 
+				moduleId = Number(
+					dbQuery(
+						composeFile,
+						"SELECT id FROM joom_modules WHERE module IN ('sameview_comparison', 'mod_sameview_comparison') ORDER BY id DESC LIMIT 1;",
+					),
+				);
+				assert.ok(Number.isInteger(moduleId) && moduleId > 0);
+
 				await page.goto(`${baseUrl}/`);
 				await page.waitForTimeout(1000);
 				assert.equal(await page.locator("[data-sameview-embed]").count(), 1);
@@ -322,6 +347,90 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 			}
 		});
 
+		// Phase 24 Part B regression (real manual-sandbox finding, not caught
+		// by the automated suite before this fix): with the module above now
+		// genuinely pointing at a deleted Comparison (the previous test just
+		// deleted it through the real admin delete action), opening the
+		// module's own real admin edit form and saving it again — changing
+		// only an unrelated field — must succeed. Before the fix in
+		// fields/sameviewcomparison.php, Joomla's own OptionsRule rejected
+		// this exact, unmodified resubmission with "Invalid field: Comparison"
+		// (root cause: Joomla core validates module saves against a Form
+		// deliberately bound to no data — FormController::save() calls
+		// getForm($data, false) — so the field instance OptionsRule inspects
+		// always saw an empty value, and the missing-option override never
+		// fired). This must go through the real `module.save` submit path,
+		// never a direct DB shortcut — that is exactly what let this bug
+		// through undetected previously (see the "missing Comparison" test
+		// above, which only ever manipulates `params` via SQL).
+		await t.test("module admin form: Missing Comparison is shown, and an independent title-only re-save preserves the exact session_id", async () => {
+			const browser = await chromium.launch();
+			try {
+				const page = await browser.newPage();
+				await loginAsAdmin(page, baseUrl);
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
+				await page.waitForSelector("#jform_title", { timeout: 10000 });
+
+				const sessionSelect = page.locator("select[name='jform[params][session_id]']");
+				const selectedTextBefore = await sessionSelect.locator("option:checked").innerText();
+				const selectedValueBefore = await sessionSelect.inputValue();
+				assert.match(selectedTextBefore, /Missing Comparison/, "the deleted Comparison must render as a selectable Missing option");
+				assert.equal(selectedValueBefore, sessionId, "the Missing option must still carry the real, original session_id");
+
+				// Only the unrelated module title is changed — the Comparison
+				// selection itself is left untouched, exactly as in the manual
+				// reproduction. Plain ASCII only: docker-helpers.mjs `dbQuery()`
+				// invokes the mysql CLI without an explicit UTF-8 client
+				// charset, which mangles multi-byte characters (e.g. an em dash)
+				// on readback — unrelated to the fix under test, so avoided here
+				// rather than worked around.
+				const resavedTitle = `SameView Test Module ${versionLabel} (resaved while missing)`;
+				await page.fill("#jform_title", resavedTitle);
+
+				await page.evaluate(() => {
+					const f = document.getElementById("adminForm") || document.forms[0];
+					f.task.value = "module.save";
+					Joomla.submitform("module.save", f);
+				});
+				await page.waitForLoadState("networkidle").catch(() => {});
+
+				const bodyText = await page.locator("body").innerText();
+				assert.doesNotMatch(
+					bodyText,
+					/Invalid field/i,
+					"an independent re-save of an already-missing module must not be rejected by Joomla's own field validation",
+				);
+
+				const titleAfter = dbQuery(composeFile, `SELECT title FROM joom_modules WHERE id=${moduleId};`);
+				assert.equal(titleAfter, resavedTitle, "the save must have genuinely gone through, not merely redirected without persisting");
+
+				const paramsAfter = dbQuery(composeFile, `SELECT params FROM joom_modules WHERE id=${moduleId};`);
+				assert.ok(paramsAfter.includes(sessionId), "the module's session_id must round-trip completely unchanged");
+			} finally {
+				await browser.close();
+			}
+		});
+
+		await t.test("module admin form: reopening after the independent re-save still shows the missing state", async () => {
+			const browser = await chromium.launch();
+			try {
+				const page = await browser.newPage();
+				await loginAsAdmin(page, baseUrl);
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
+				await page.waitForSelector("#jform_title", { timeout: 10000 });
+
+				const sessionSelect = page.locator("select[name='jform[params][session_id]']");
+				const selectedText = await sessionSelect.locator("option:checked").innerText();
+				const selectedValue = await sessionSelect.inputValue();
+				assert.match(selectedText, /Missing Comparison/);
+				assert.equal(selectedValue, sessionId);
+			} finally {
+				await browser.close();
+			}
+		});
+
 		await t.test("re-importing the same session.id automatically reactivates both existing placements", async () => {
 			const browser = await chromium.launch();
 			try {
@@ -342,6 +451,72 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 				await page.goto(`${baseUrl}/`);
 				await page.waitForTimeout(1000);
 				assert.equal(await page.locator("[data-sameview-embed]").count(), 1);
+			} finally {
+				await browser.close();
+			}
+		});
+
+		await t.test("module admin form: shows the normal Comparison label again after re-import, no longer Missing", async () => {
+			const browser = await chromium.launch();
+			try {
+				const page = await browser.newPage();
+				await loginAsAdmin(page, baseUrl);
+
+				const restoredTitle = dbQuery(composeFile, `SELECT title FROM joom_sameview_comparisons WHERE session_id='${sessionId}';`);
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
+				await page.waitForSelector("#jform_title", { timeout: 10000 });
+
+				const sessionSelect = page.locator("select[name='jform[params][session_id]']");
+				const selectedText = await sessionSelect.locator("option:checked").innerText();
+				const selectedValue = await sessionSelect.inputValue();
+				assert.doesNotMatch(selectedText, /Missing Comparison/);
+				assert.equal(selectedText, restoredTitle);
+				assert.equal(selectedValue, sessionId);
+			} finally {
+				await browser.close();
+			}
+		});
+
+		// Phase 24 Part B regression: the fix must only ever re-admit the
+		// module's own already-persisted value as a synthetic option — a
+		// genuine, deliberate reselection of a different, currently-existing
+		// Comparison (the normal case, unrelated to the missing-state bug)
+		// must keep working exactly as before.
+		await t.test("module admin form: deliberately reselecting a different existing Comparison still works", async () => {
+			const browser = await chromium.launch();
+			try {
+				const page = await browser.newPage();
+				await loginAsAdmin(page, baseUrl);
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_sameviewcomparisons&view=upload`);
+				await page.setInputFiles('[data-testid="sameview-upload-file-input"]', MINIMAL_ARTIFACT);
+				await page.click('[data-testid="sameview-upload-submit"]');
+				await page.waitForLoadState("networkidle").catch(() => {});
+
+				const minimalSessionId = await readManifestSessionId(MINIMAL_ARTIFACT);
+				const row = dbQuery(composeFile, `SELECT session_id FROM joom_sameview_comparisons WHERE session_id='${minimalSessionId}';`);
+				assert.equal(row, minimalSessionId, "the second Comparison must be genuinely imported before it can be selected");
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
+				await page.waitForSelector("#jform_title", { timeout: 10000 });
+
+				const sessionSelect = page.locator("select[name='jform[params][session_id]']");
+				await sessionSelect.selectOption({ value: minimalSessionId });
+
+				await page.evaluate(() => {
+					const f = document.getElementById("adminForm") || document.forms[0];
+					f.task.value = "module.save";
+					Joomla.submitform("module.save", f);
+				});
+				await page.waitForLoadState("networkidle").catch(() => {});
+
+				const bodyText = await page.locator("body").innerText();
+				assert.doesNotMatch(bodyText, /Invalid field/i);
+
+				const paramsAfter = dbQuery(composeFile, `SELECT params FROM joom_modules WHERE id=${moduleId};`);
+				assert.ok(paramsAfter.includes(minimalSessionId), "the newly, deliberately selected session_id must be persisted");
+				assert.ok(!paramsAfter.includes(sessionId), "the old session_id must no longer be stored after a deliberate reselection");
 			} finally {
 				await browser.close();
 			}

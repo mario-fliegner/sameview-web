@@ -145,15 +145,19 @@ export function resetExtensionState(composeFile) {
 	try {
 		dbQuery(
 			composeFile,
-			// docs/IMPLEMENTATION_PLAN_V1.md Phase 23 finding: confirmed
-			// empirically against a real Joomla 6.1.2 instance that a module
-			// instance's own #__modules.module column stores the bare element
-			// (`sameview_comparison`, no "mod_" prefix) — unlike #__extensions,
-			// which (per the comment below) is inconsistent between prefixed
-			// and unprefixed. Filtering on the prefixed form here previously
-			// matched nothing, silently leaving every test-created module
-			// instance orphaned in #__modules across every subsequent reset.
-			"DELETE FROM joom_modules WHERE module='sameview_comparison'; " +
+			// docs/IMPLEMENTATION_PLAN_V1.md Phase 23/24 finding: confirmed
+			// empirically against real Joomla 6.1.2 and 5.4.7 instances that a
+			// module instance's own #__modules.module column is NOT
+			// consistently one fixed form — both 'sameview_comparison' (no
+			// "mod_" prefix) and 'mod_sameview_comparison' (with prefix) have
+			// each been observed as the actually-stored value, depending on
+			// install path. Filtering on only one of the two previously left
+			// the other variant's module instances orphaned in #__modules
+			// across every subsequent reset — matching both keeps this
+			// reliable regardless of which form the most recent module
+			// creation produced (mirrors the #__extensions cleanup below,
+			// which already matches both forms for the same reason).
+			"DELETE FROM joom_modules WHERE module IN ('sameview_comparison', 'mod_sameview_comparison'); " +
 				"DELETE FROM joom_extensions WHERE element='com_sameviewcomparisons' " +
 				"OR element='pkg_sameviewcomparisons' " +
 				// Confirmed empirically that the module's own

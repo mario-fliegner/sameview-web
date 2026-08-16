@@ -128,19 +128,33 @@ final class ComparisonRenderHelper
 		$comparisons = [];
 		foreach ($rows as $row) {
 			$manifest = json_decode((string) $row->manifest_json, true);
-			$presentation = is_array($manifest) ? ($manifest['presentation'] ?? []) : [];
-			$referenceLabel = is_string($presentation['referenceLabel'] ?? null) ? $presentation['referenceLabel'] : '';
-			$captureLabel = is_string($presentation['captureLabel'] ?? null) ? $presentation['captureLabel'] : '';
-			$periodLabel = trim($referenceLabel . ($referenceLabel !== '' && $captureLabel !== '' ? ' – ' : '') . $captureLabel);
 
 			$comparisons[] = [
 				'sessionId' => (string) $row->session_id,
 				'title' => (string) $row->title,
-				'periodLabel' => $periodLabel,
+				'periodLabel' => self::periodLabelFor(is_array($manifest) ? $manifest : []),
 			];
 		}
 
 		return $comparisons;
+	}
+
+	/**
+	 * The "reference → capture" period label, from the same already-localized
+	 * labels the Outcome Snapshot derived at generation time — never
+	 * recomputed from raw dates here (docs/EMBED_IN_WEBSITE.md "Editing
+	 * Boundary": Joomla is not a second SameView editor). Shared by
+	 * findActiveComparisons() above (the picker) and, as of
+	 * docs/IMPLEMENTATION_PLAN_V1.md Phase 24 Part A, the Comparison Library
+	 * list view — the exact same value, never computed twice.
+	 */
+	public static function periodLabelFor(array $manifest): string
+	{
+		$presentation = $manifest['presentation'] ?? [];
+		$referenceLabel = is_string($presentation['referenceLabel'] ?? null) ? $presentation['referenceLabel'] : '';
+		$captureLabel = is_string($presentation['captureLabel'] ?? null) ? $presentation['captureLabel'] : '';
+
+		return trim($referenceLabel . ($referenceLabel !== '' && $captureLabel !== '' ? ' – ' : '') . $captureLabel);
 	}
 
 	/**
@@ -237,12 +251,18 @@ final class ComparisonRenderHelper
 		return $row ?: null;
 	}
 
-	private static function assetDirFor(string $sessionId): string
+	/**
+	 * Public since docs/IMPLEMENTATION_PLAN_V1.md Phase 24 Part A: the
+	 * Comparison Library list view reuses this exact path to check for and
+	 * link a Comparison's already-stored reference.jpg as its thumbnail —
+	 * never a second, separately-maintained asset-path computation.
+	 */
+	public static function assetDirFor(string $sessionId): string
 	{
 		return JPATH_ROOT . '/media/' . self::ASSET_BASE_DIR . '/' . md5($sessionId);
 	}
 
-	private static function assetsUrlFor(string $sessionId): string
+	public static function assetsUrlFor(string $sessionId): string
 	{
 		return rtrim(Uri::root(), '/') . '/media/' . self::ASSET_BASE_DIR . '/' . md5($sessionId);
 	}

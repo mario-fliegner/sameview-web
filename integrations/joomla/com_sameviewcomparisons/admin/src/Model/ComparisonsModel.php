@@ -33,7 +33,12 @@ class ComparisonsModel extends ListModel
 		$query = $db->getQuery(true)
 			->select(
 				$db->quoteName(
-					['id', 'session_id', 'outcome_fingerprint', 'title', 'created', 'modified']
+					// docs/IMPLEMENTATION_PLAN_V1.md Phase 24 Part A: `manifest_json`
+					// added so the list view can derive the reference-to-capture
+					// period label (ComparisonRenderHelper::periodLabelFor()) —
+					// the same already-stored value the picker already uses,
+					// never recomputed from raw dates.
+					['id', 'session_id', 'outcome_fingerprint', 'title', 'manifest_json', 'created', 'modified']
 				)
 			)
 			->from($db->quoteName('#__sameview_comparisons'))

@@ -8,10 +8,17 @@
 	since a module's own configuration is a structured form, not freeform
 	text.
 
-	The Comparison picker uses Joomla's own core `sql` field type
-	(Joomla\CMS\Form\Field\SqlField) — a native list populated directly from
-	#__sameview_comparisons, no custom PHP field class. Title only, no
-	preview (docs/JOOMLA_INTEGRATION.md "No Editor Preview").
+	The Comparison picker is a thin subclass of Joomla's own core `sql`
+	field type (fields/sameviewcomparison.php, `type="sameviewcomparison"`,
+	extends Joomla\CMS\Form\Field\SqlField) — a native list populated
+	directly from #__sameview_comparisons, still no preview
+	(docs/JOOMLA_INTEGRATION.md "No Editor Preview"). The one thing the
+	subclass adds (docs/IMPLEMENTATION_PLAN_V1.md Phase 24 Part B, I fix):
+	if the module's own stored session_id no longer matches any row (the
+	referenced Comparison was deleted), that value is kept as one additional,
+	clearly-labelled "missing" option rather than silently dropped — see
+	that file's own header comment for the full reasoning and
+	docs/EMBED_IN_WEBSITE.md "Placement Behavior After Deletion".
 
 	The `<folder module="mod_sameview_comparison">services</folder>` value
 	must be this module's own full name, prefix included: confirmed
@@ -51,6 +58,7 @@
 		<folder module="mod_sameview_comparison">services</folder>
 		<folder>src</folder>
 		<folder>tmpl</folder>
+		<folder>fields</folder>
 	</files>
 	<languages>
 		<language tag="en-GB">language/en-GB/mod_sameview_comparison.ini</language>
@@ -59,11 +67,17 @@
 		<language tag="de-DE">language/de-DE/mod_sameview_comparison.sys.ini</language>
 	</languages>
 	<config>
-		<fields name="params">
+		<!--
+			addfieldpath resolves relative to JPATH_ROOT (confirmed against real
+			Joomla 6.1.2 core source, Joomla\CMS\Form\Form::syncPaths()) — this
+			module's own installed location once live, per the "must be this
+			module's own full name, prefix included" finding documented above.
+		-->
+		<fields name="params" addfieldpath="/modules/mod_sameview_comparison/fields">
 			<fieldset name="basic">
 				<field
 					name="session_id"
-					type="sql"
+					type="sameviewcomparison"
 					label="MOD_SAMEVIEW_COMPARISON_FIELD_SESSION_LABEL"
 					description="MOD_SAMEVIEW_COMPARISON_FIELD_SESSION_DESC"
 					query="SELECT session_id AS value, title AS text FROM #__sameview_comparisons ORDER BY modified DESC"
