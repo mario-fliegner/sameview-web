@@ -15,6 +15,18 @@
 // under test/fixtures/android-export/ — any other fixture in that directory
 // produces a package for a different session.id/title (needed to exercise
 // "adding a second, different Comparison").
+//
+// `public/generated/joomla-extension/` (the snapshot
+// src/lib/comparison-artifact-assets.ts `fetchJoomlaExtensionFiles()` reads
+// from) is only ever refreshed by `pnpm build:joomla-extension-assets`,
+// itself only run once as a `pnpm dev`/`pnpm build` prerequisite — never on
+// an ongoing file change. A `pnpm dev` server left running across edits to
+// integrations/joomla/** (the normal case while iterating on the Joomla
+// integration) therefore keeps serving a stale snapshot with no error,
+// silently producing a verification artifact that no longer matches the
+// current source. Re-running that same build step here, before touching the
+// dev server at all, makes this script self-sufficient regardless of
+// whether it starts a fresh server or reuses an already-running one.
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -70,6 +82,16 @@ function killProcessTree(child) {
 	} catch {
 		// Already exited.
 	}
+}
+
+const assetBuild = spawnSync(
+	"node",
+	["scripts/build-joomla-extension-assets.mjs"],
+	{ cwd: repoRoot, stdio: "inherit" },
+);
+if (assetBuild.status !== 0) {
+	console.error("Failed to build public/generated/joomla-extension/ — see output above.");
+	process.exit(assetBuild.status ?? 1);
 }
 
 const devServer = spawn("pnpm dev", {
