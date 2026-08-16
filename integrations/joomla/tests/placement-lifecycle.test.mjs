@@ -331,6 +331,66 @@ for (const [versionLabel, instance] of Object.entries(INSTANCES)) {
 			}
 		});
 
+		// Real manual-acceptance finding, confirmed against real Joomla
+		// 6.1.2/5.4.7 core source: ModuleModel::preprocessForm()
+		// (administrator/components/com_modules/src/Model/ModuleModel.php)
+		// only ever loads the module's regular .ini via
+		// Language::load($module, $client->path) — never .sys.ini — when
+		// building the module edit form. A name/description defined only in
+		// .sys.ini therefore rendered as a raw, untranslated key on this one
+		// screen (administrator/components/com_modules/tmpl/module/edit.php
+		// echoes $this->item->xml->name/->description through Text::_()),
+		// even though the same strings already resolved correctly elsewhere
+		// (Extensions Manage list, New Module selection card), which load
+		// language via a separate, sys.ini-based extension-discovery
+		// mechanism. Fixed by duplicating both keys into the regular .ini.
+		await t.test("module admin form: the edit screen's own name/description are translated, not raw XML keys", async () => {
+			const browser = await chromium.launch();
+			try {
+				const page = await browser.newPage();
+				await loginAsAdmin(page, baseUrl);
+
+				await page.goto(`${baseUrl}/administrator/index.php?option=com_modules&task=module.edit&id=${moduleId}&client_id=0`);
+				await page.waitForSelector("#jform_title", { timeout: 10000 });
+
+				const heading = await page.locator(".col-lg-9 h2").first().innerText();
+				assert.equal(
+					heading,
+					"SameView Comparison",
+					"the module edit form heading must show the translated name, not the raw mod_sameview_comparison XML element name",
+				);
+
+				const bodyText = await page.locator("body").innerText();
+				assert.doesNotMatch(
+					bodyText,
+					/MOD_SAMEVIEW_COMPARISON_XML_DESCRIPTION/,
+					"the module edit form must never show the raw, untranslated description key",
+				);
+				assert.match(
+					bodyText,
+					/Displays one existing SameView Comparison in this module position/,
+					"the module edit form must show the real translated English description text",
+				);
+
+				// The German regular .ini must carry the same two keys with the
+				// same values already established in the German .sys.ini —
+				// verified directly against the source file rather than driving
+				// the admin UI in German, since no existing test path switches
+				// the admin language and doing so here would be new scope.
+				const deIni = await readFile(
+					join(JOOMLA_DIR, "mod_sameview_comparison", "language", "de-DE", "mod_sameview_comparison.ini"),
+					"utf8",
+				);
+				assert.match(deIni, /^MOD_SAMEVIEW_COMPARISON="SameView-Vergleich"$/m);
+				assert.match(
+					deIni,
+					/^MOD_SAMEVIEW_COMPARISON_XML_DESCRIPTION="Zeigt einen vorhandenen SameView-Vergleich in dieser Modulposition an\. Wählen Sie den Vergleich nach Titel aus; hier wird keine Vorschau angezeigt\."$/m,
+				);
+			} finally {
+				await browser.close();
+			}
+		});
+
 		await t.test("missing Comparison: an unresolved session.id renders nothing and reserves no space", async () => {
 			const browser = await chromium.launch();
 			try {
