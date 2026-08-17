@@ -205,8 +205,18 @@ export interface Translations {
 		readonly downloadZipButton: string;
 		readonly downloadWordPressButton: string;
 		readonly wordPressInstallGuide: string;
+		// The documentation-link visible label, immediately below
+		// `wordPressInstallGuide`/`joomlaInstallGuide` above — see
+		// OutputInspector.tsx's own header comment on `SAMEVIEW_WEBSITE_BASE_URL`
+		// for the destination URLs these accompany. `opensInNewTabSuffix` is
+		// shared by both platforms' links — appended via `.visually-hidden` so
+		// it joins the accessible name without appearing visually (docs/EMBED_IN_WEBSITE.md
+		// "Output Inspector Behavior").
+		readonly wordPressDocLinkLabel: string;
 		readonly downloadJoomlaButton: string;
 		readonly joomlaInstallGuide: string;
+		readonly joomlaDocLinkLabel: string;
+		readonly opensInNewTabSuffix: string;
 		readonly progressPreparingComparison: string;
 		readonly progressProcessingImages: string;
 		readonly progressBuildingOutput: string;
@@ -405,9 +415,12 @@ export const translations: Record<Locale, Translations> = {
 			downloadWordPressButton: "Generate for WordPress",
 			wordPressInstallGuide:
 				"Install this file through WordPress → Plugins → Add New → Upload Plugin. If SameView is already installed on the site, use SameView → Add comparison instead.",
+			wordPressDocLinkLabel: "WordPress installation guide",
 			downloadJoomlaButton: "Generate for Joomla",
 			joomlaInstallGuide:
 				"Install this file through Joomla → Extensions → Manage → Install → Upload Package File. If SameView is already installed on the site, use SameView → Add comparison instead.",
+			joomlaDocLinkLabel: "Joomla installation guide",
+			opensInNewTabSuffix: "(opens in a new tab)",
 			progressPreparingComparison: "Preparing comparison…",
 			progressProcessingImages: "Processing images…",
 			progressBuildingOutput: "Building output…",
@@ -611,9 +624,12 @@ export const translations: Record<Locale, Translations> = {
 			downloadWordPressButton: "Für WordPress erstellen",
 			wordPressInstallGuide:
 				"Installieren Sie diese Datei über WordPress → Plugins → Installieren → Plugin hochladen. Ist SameView auf der Website bereits installiert, verwenden Sie stattdessen SameView → Vergleich hinzufügen.",
+			wordPressDocLinkLabel: "WordPress-Installationsanleitung",
 			downloadJoomlaButton: "Für Joomla erstellen",
 			joomlaInstallGuide:
 				"Installieren Sie diese Datei über Joomla → Erweiterungen → Verwalten → Installieren → Paketdatei hochladen. Ist SameView auf der Website bereits installiert, verwenden Sie stattdessen SameView → Vergleich hinzufügen.",
+			joomlaDocLinkLabel: "Joomla-Installationsanleitung",
+			opensInNewTabSuffix: "(öffnet in einem neuen Tab)",
 			progressPreparingComparison: "Vergleich wird vorbereitet…",
 			progressProcessingImages: "Bilder werden verarbeitet…",
 			progressBuildingOutput: "Ausgabe wird erstellt…",

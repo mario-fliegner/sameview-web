@@ -184,7 +184,7 @@ test("Create Output opens the Output Inspector with Standalone HTML selected, Re
 	expect(await embedCard.evaluate((element) => element.tagName)).toBe("BUTTON");
 	await expect(embedCard).toContainText("Embed in website");
 	await expect(embedCard).toContainText(
-		"Add this comparison to your website through WordPress.",
+		"Add this comparison directly to your website.",
 	);
 
 	// docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "shown directly on
@@ -384,7 +384,7 @@ test("Embed in website's card name, description and platform selectors render in
 	const embedCard = page.getByTestId("output-card-embed-in-website");
 	await expect(embedCard).toContainText("In Website einbetten");
 	await expect(embedCard).toContainText(
-		"Diese Vergleichsansicht per WordPress in Ihre Website einbinden.",
+		"Diese Vergleichsansicht direkt in Ihre Website einbinden.",
 	);
 	// WordPress and Joomla remain untranslated in both locales (brand names).
 	await expect(page.getByTestId("output-platform-wordpress")).toHaveText(
@@ -691,6 +691,200 @@ test("generating for Joomla downloads sameview-comparisons-joomla.zip containing
 	await expect(page.getByTestId("output-joomla-install-guide")).toBeVisible();
 	const primaryAction = page.getByTestId("output-primary-action");
 	await expect(primaryAction).toHaveText(/download again/i);
+});
+
+// Platform-specific installation-guide link (docs/EMBED_IN_WEBSITE.md
+// "Output Inspector Behavior"): a quiet, always-new-tab link directly below
+// each platform's own install-guide hint. Uses stable data-testids
+// throughout, never the translated link text, for the functional
+// href/target/rel/isolation assertions — only the two dedicated copy
+// assertions below intentionally check the visible/accessible text itself
+// (docs/AI_ENGINEERING_GUIDE.md "Testing"). The Joomla website route itself
+// is not requested here — only the generated `href` is asserted — since
+// those pages are a separate, not-yet-implemented task.
+test.describe("platform documentation link", () => {
+	test("WordPress (EN): correct href, opens in a new tab, and no Joomla link is present", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await openOutputInspector(page);
+		await page.getByTestId("output-card-embed-in-website").click();
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+
+		const link = page.getByTestId("output-wordpress-doc-link");
+		await expect(link).toBeVisible();
+		// Visible text (a loose containment check: the element's own
+		// `textContent` also includes the visually-hidden new-tab suffix
+		// below, so an exact match here would be brittle/incorrect) plus the
+		// decorative arrow, confirmed separately as `aria-hidden`.
+		await expect(link).toContainText("WordPress installation guide");
+		await expect(link.locator('[aria-hidden="true"]')).toHaveText("→");
+		await expect(link).toHaveAttribute(
+			"href",
+			"https://sameview.app/en/wordpress/",
+		);
+		await expect(link).toHaveAttribute("target", "_blank");
+		const rel = await link.getAttribute("rel");
+		expect(rel).toContain("noopener");
+		expect(rel).toContain("noreferrer");
+		await expect(link).toHaveAccessibleName(
+			"WordPress installation guide (opens in a new tab)",
+		);
+
+		await expect(page.getByTestId("output-joomla-doc-link")).toHaveCount(0);
+	});
+
+	test("WordPress (DE): correct localized copy and href, new-tab behavior unchanged", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await switchToGerman(page);
+		await openOutputInspector(page);
+		await page.getByTestId("output-card-embed-in-website").click();
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+
+		const link = page.getByTestId("output-wordpress-doc-link");
+		await expect(link).toContainText("WordPress-Installationsanleitung");
+		await expect(link.locator('[aria-hidden="true"]')).toHaveText("→");
+		await expect(link).toHaveAttribute(
+			"href",
+			"https://sameview.app/de/wordpress/",
+		);
+		await expect(link).toHaveAttribute("target", "_blank");
+		const rel = await link.getAttribute("rel");
+		expect(rel).toContain("noopener");
+		expect(rel).toContain("noreferrer");
+		await expect(link).toHaveAccessibleName(
+			"WordPress-Installationsanleitung (öffnet in einem neuen Tab)",
+		);
+	});
+
+	test("Joomla (EN): correct planned href, opens in a new tab, and no WordPress link is present", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await openOutputInspector(page);
+		await page.getByTestId("output-card-embed-in-website").click();
+		await page.getByTestId("output-platform-joomla").click();
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+
+		const link = page.getByTestId("output-joomla-doc-link");
+		await expect(link).toBeVisible();
+		await expect(link).toContainText("Joomla installation guide");
+		await expect(link.locator('[aria-hidden="true"]')).toHaveText("→");
+		await expect(link).toHaveAttribute(
+			"href",
+			"https://sameview.app/en/joomla/",
+		);
+		await expect(link).toHaveAttribute("target", "_blank");
+		const rel = await link.getAttribute("rel");
+		expect(rel).toContain("noopener");
+		expect(rel).toContain("noreferrer");
+		await expect(link).toHaveAccessibleName(
+			"Joomla installation guide (opens in a new tab)",
+		);
+
+		await expect(page.getByTestId("output-wordpress-doc-link")).toHaveCount(0);
+	});
+
+	test("Joomla (DE): correct localized copy and planned href, new-tab behavior unchanged", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await switchToGerman(page);
+		await openOutputInspector(page);
+		await page.getByTestId("output-card-embed-in-website").click();
+		await page.getByTestId("output-platform-joomla").click();
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+
+		const link = page.getByTestId("output-joomla-doc-link");
+		await expect(link).toContainText("Joomla-Installationsanleitung");
+		await expect(link.locator('[aria-hidden="true"]')).toHaveText("→");
+		await expect(link).toHaveAttribute(
+			"href",
+			"https://sameview.app/de/joomla/",
+		);
+		await expect(link).toHaveAttribute("target", "_blank");
+		const rel = await link.getAttribute("rel");
+		expect(rel).toContain("noopener");
+		expect(rel).toContain("noreferrer");
+		await expect(link).toHaveAccessibleName(
+			"Joomla-Installationsanleitung (öffnet in einem neuen Tab)",
+		);
+	});
+
+	test("no platform documentation link appears for Standalone HTML or Static Microsite", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await openOutputInspector(page);
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+		await expect(page.getByTestId("output-wordpress-doc-link")).toHaveCount(0);
+		await expect(page.getByTestId("output-joomla-doc-link")).toHaveCount(0);
+
+		await page.getByTestId("output-card-static-microsite").click();
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+		await expect(page.getByTestId("output-wordpress-doc-link")).toHaveCount(0);
+		await expect(page.getByTestId("output-joomla-doc-link")).toHaveCount(0);
+	});
+
+	// docs/APPLICATION_LAYOUT.md "Language Selector": switching language never
+	// resets the active workspace — the already-generated Embed result and
+	// its Output Inspector state (`phase === "ready"`) must survive the
+	// switch, with only the doc link's own href/copy updating to match.
+	test("switching UI locale after a completed Embed generation updates the documentation link without resetting workspace/output state", async ({
+		page,
+	}) => {
+		await importFullFixture(page);
+		await openOutputInspector(page);
+		await page.getByTestId("output-card-embed-in-website").click();
+
+		await Promise.all([
+			page.waitForEvent("download"),
+			page.getByTestId("output-primary-action").click(),
+		]);
+
+		const primaryAction = page.getByTestId("output-primary-action");
+		await expect(primaryAction).toHaveText(/download again/i);
+		await expect(page.getByTestId("output-wordpress-doc-link")).toHaveAttribute(
+			"href",
+			"https://sameview.app/en/wordpress/",
+		);
+
+		await switchToGerman(page);
+
+		// Still the completed/ready state (not reset back to the initial
+		// Generate action), and the workspace itself is unaffected.
+		await expect(primaryAction).toHaveText(/erneut herunterladen/i);
+		await expect(page.getByTestId("output-wordpress-doc-link")).toHaveAttribute(
+			"href",
+			"https://sameview.app/de/wordpress/",
+		);
+		await expect(page.getByTestId("workspace-active")).toBeVisible();
+	});
 });
 
 test("the Presentation Preview stays visible and unchanged while the Output Inspector is open", async ({

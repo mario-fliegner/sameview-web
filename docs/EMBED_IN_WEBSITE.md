@@ -32,6 +32,8 @@ Changing the selected platform changes only the target/packaging of the next gen
 
 After successful generation, SameView Web shows a short platform-specific installation/integration guide directly in the Output Inspector. There is no wizard, modal or separate workflow page. The Presentation Preview remains visible throughout, per [USER_WORKFLOW.md](USER_WORKFLOW.md) "Inspector Transition". The appropriate follow-up action, such as downloading the generated result again, remains available.
 
+Directly below that installation/integration guide, SameView provides a platform-specific installation-guide link to the corresponding SameView website documentation. The guide destination follows the current SameView Web UI locale. The guide opens in a new browser tab, leaving the active SameView Web workspace and Output Inspector state untouched in the original tab. Only the currently selected platform's guide link is shown; the two platforms' links are never shown at the same time. The current supported mappings are WordPress and Joomla.
+
 ## Editing Boundary
 
 SameView Web is the place where a Comparison is created and configured. A target platform is not another SameView editor (see [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-003 "Rules and Limitations"). No target-platform controls are provided for title, description, dates, location, Presentation visibility, canvas/background, frame, corner radius, slider labels, branding, fonts, or any other SameView Presentation setting (F-003, F-004, [COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md)). A target platform provides only the minimum controls required to manage, select, place and display already generated Comparisons.

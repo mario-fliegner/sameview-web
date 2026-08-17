@@ -1962,6 +1962,30 @@ html:has(.workspace-active__preview--fullscreen) {
 	font-size: 0.75rem;
 }
 
+/* Platform-specific documentation link (docs/EMBED_IN_WEBSITE.md "Output
+   Inspector Behavior"), directly beneath its own platform's install-guide
+   hint above — the same `-0.25rem` pull-up that hint already uses toward
+   its own preceding field-row, so the two read as one associated
+   instruction+link pair rather than two independently spaced items. A
+   dedicated class, not a reuse of `.app-footer__nav a` (would couple the
+   Output Inspector to footer-specific styling) — but the same established
+   idle/hover color pair as that class: muted at rest, brand accent plus
+   underline on hover/focus-visible. Quiet inline text, deliberately not a
+   button: no padding, no border, no background. */
+.output-inspector__doc-link {
+	display: inline-block;
+	margin: -0.25rem 0 0;
+	color: #c7ccd6;
+	font-size: 0.75rem;
+	text-decoration: none;
+}
+
+.output-inspector__doc-link:hover,
+.output-inspector__doc-link:focus-visible {
+	color: #4f8cff;
+	text-decoration: underline;
+}
+
 .output-inspector__progress {
 	display: flex;
 	flex-direction: column;

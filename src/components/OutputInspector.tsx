@@ -34,6 +34,7 @@
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useLocale } from "../i18n/LocaleContext";
+import type { Locale } from "../i18n/translations";
 import type { ComparisonPresentation } from "../lib/comparison-presentation";
 import {
 	type GenerateComparisonOutputPhase,
@@ -98,6 +99,22 @@ function waitForNextPaint(): Promise<void> {
 // docs/BRAND_GUIDE.md Brand Identity Color — the same dark background used
 // throughout this application; the generated artifact's own `theme-color`.
 const THEME_COLOR = "#0D1424";
+
+// The public SameView website (docs/EMBED_IN_WEBSITE.md "Output Inspector
+// Behavior") — same constant value and the same `${base}/${locale}/...`
+// shape src/components/AppFooter.tsx's own `LEGAL_BASE_URL` already uses for
+// its locale-specific sameview.app links, reused here rather than introduced
+// as a second, independently named base URL. The WordPress destination
+// (`/en/wordpress/`, `/de/wordpress/`) was verified against the actual
+// sameview-website routes; the Joomla destination (`/en/joomla/`,
+// `/de/joomla/`) is the approved planned route, wired now per that same
+// document even though its pages do not exist yet — see this component's
+// own call sites below for why no availability check exists for either.
+const SAMEVIEW_WEBSITE_BASE_URL = "https://sameview.app";
+
+function embedPlatformDocUrl(platform: EmbedPlatform, locale: Locale): string {
+	return `${SAMEVIEW_WEBSITE_BASE_URL}/${locale}/${platform}/`;
+}
 
 export default function OutputInspector({
 	currentWorkingState,
@@ -514,29 +531,65 @@ export default function OutputInspector({
 
 			{/* docs/EMBED_IN_WEBSITE.md "Output Inspector Behavior": "After
 			    successful generation, SameView Web shows a short platform-specific
-			    installation/integration guide directly in the Output Inspector.
-			    There is no wizard, modal or separate workflow page." Deferred from
-			    Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md Phase 12 "Not included":
-			    "post-generation installation guidance content (Phase 15)"). */}
+			    installation/integration guide directly in the Output Inspector...
+			    Directly below it, SameView provides a platform-specific
+			    installation-guide link... The current supported mappings are
+			    WordPress and Joomla." Deferred from Phase 12 (docs/IMPLEMENTATION_PLAN_V1.md
+			    Phase 12 "Not included": "post-generation installation guidance
+			    content (Phase 15)"). The documentation link's own destination
+			    (`embedPlatformDocUrl` above) and copy carry no availability check
+			    of their own — see that function's own comment for why. */}
 			{phase === "ready" &&
 				outputType === "embed-in-website" &&
 				embedPlatform === "wordpress" && (
-					<p
-						className="output-inspector__hint"
-						data-testid="output-wordpress-install-guide"
-					>
-						{t.outputInspector.wordPressInstallGuide}
-					</p>
+					<>
+						<p
+							className="output-inspector__hint"
+							data-testid="output-wordpress-install-guide"
+						>
+							{t.outputInspector.wordPressInstallGuide}
+						</p>
+						<a
+							className="output-inspector__doc-link"
+							data-testid="output-wordpress-doc-link"
+							href={embedPlatformDocUrl("wordpress", locale)}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{t.outputInspector.wordPressDocLinkLabel}
+							<span aria-hidden="true"> →</span>
+							<span className="visually-hidden">
+								{" "}
+								{t.outputInspector.opensInNewTabSuffix}
+							</span>
+						</a>
+					</>
 				)}
 			{phase === "ready" &&
 				outputType === "embed-in-website" &&
 				embedPlatform === "joomla" && (
-					<p
-						className="output-inspector__hint"
-						data-testid="output-joomla-install-guide"
-					>
-						{t.outputInspector.joomlaInstallGuide}
-					</p>
+					<>
+						<p
+							className="output-inspector__hint"
+							data-testid="output-joomla-install-guide"
+						>
+							{t.outputInspector.joomlaInstallGuide}
+						</p>
+						<a
+							className="output-inspector__doc-link"
+							data-testid="output-joomla-doc-link"
+							href={embedPlatformDocUrl("joomla", locale)}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{t.outputInspector.joomlaDocLinkLabel}
+							<span aria-hidden="true"> →</span>
+							<span className="visually-hidden">
+								{" "}
+								{t.outputInspector.opensInNewTabSuffix}
+							</span>
+						</a>
+					</>
 				)}
 		</aside>
 	);
