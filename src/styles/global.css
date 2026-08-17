@@ -2008,7 +2008,17 @@ html:has(.workspace-active__preview--fullscreen) {
 	font-weight: 600;
 }
 
+/* `margin-block-start` adds to (not replaces) `.output-inspector`'s own
+   `1rem` flex `gap` — additive, not "greater wins" (confirmed empirically,
+   consistent with the identical finding for
+   `.edit-inspector__create-output-button`) — so the resulting effective
+   separation above this button is 1rem + 0.5rem = 1.5rem (24px), a smaller,
+   deliberately non-matching step than the Edit Inspector's own 2.25rem
+   total: this button is already full-width and brand-colored, so it needs
+   less additional separation to read as clearly distinct from the helper
+   text above it. Width/height/padding/radius are unchanged. */
 .output-inspector__primary-button {
+	margin-block-start: 0.5rem;
 	padding: 0.625rem 1rem;
 	border: 1px solid #4f8cff;
 	border-radius: 0.5rem;

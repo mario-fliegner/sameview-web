@@ -392,9 +392,8 @@ export const translations: Record<Locale, Translations> = {
 			micrositeDescription:
 				"A ZIP with an index.html and local assets, ready for static webspace.",
 			embedName: "Embed in website",
-			embedDescription:
-				"Add this comparison to your website through WordPress.",
-			embedPlatformLabel: "Platform",
+			embedDescription: "Add this comparison directly to your website.",
+			embedPlatformLabel: "Choose a platform",
 			useCurrentSliderPositionLabel: "Use current slider position",
 			useCurrentSliderPositionHint:
 				"Starts the output at the slider position currently shown in the preview.",
@@ -599,8 +598,8 @@ export const translations: Record<Locale, Translations> = {
 				"Ein ZIP mit index.html und lokalen Assets, bereit für statischen Webspace.",
 			embedName: "In Website einbetten",
 			embedDescription:
-				"Diese Vergleichsansicht per WordPress in Ihre Website einbinden.",
-			embedPlatformLabel: "Plattform",
+				"Diese Vergleichsansicht direkt in Ihre Website einbinden.",
+			embedPlatformLabel: "Plattform wählen",
 			useCurrentSliderPositionLabel: "Aktuelle Slider-Position verwenden",
 			useCurrentSliderPositionHint:
 				"Startet die Ausgabe mit der aktuell in der Vorschau eingestellten Slider-Position.",
