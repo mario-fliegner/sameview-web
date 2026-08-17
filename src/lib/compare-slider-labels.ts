@@ -22,8 +22,15 @@ export interface CompareSliderLabelFallbacks {
 	// at its own stored precision (Android: compare_label_past/present).
 	readonly past: string;
 	readonly present: string;
-	// Level 5: no reference.date at all (Android: compare_label_reference/current).
-	readonly reference: string;
+	// Level 5 (right/capture side): no reference.date at all (Android:
+	// compare_label_current). The left/reference side of Level 5 deliberately
+	// has no fallback string of its own here — see `referenceFallbackLabel`
+	// below: docs/COMPARISON_PRESENTATION.md "Slider Date Labels" requires the
+	// same Reference Label derivation IMPORTED_COMPARISON_V1.md already
+	// defines, i.e. the one canonical absent-date fallback
+	// (docs/IMPORTED_COMPARISON_V1.md "Derived Slider Labels" > "Reference
+	// Label": "absent → localized fallback meaning 'Then'"), not a second,
+	// independently worded one coined for this on-image label alone.
 	readonly current: string;
 }
 
@@ -39,15 +46,21 @@ function monthAbbreviation(date: Date, locale: Locale): string {
 // referenceDate: ISO 8601 at year ("YYYY"), month ("YYYY-MM") or day
 // ("YYYY-MM-DD") precision, as stored in reference.date; undefined when
 // absent (docs/IMPORTED_COMPARISON_V1.md "Reference Label" precision table).
+// referenceFallbackLabel: the same canonical absent-date Reference Label
+// fallback src/lib/comparison-presentation.ts's `deriveReferenceLabel`
+// already uses for the sidebar Time block (`DeriveComparisonPresentationOptions.referenceFallbackLabel`)
+// — passed through unchanged so the on-image label and the sidebar label
+// never carry two independently worded fallbacks for the same absent value.
 export function computeCompareSliderLabels(
 	referenceDate: string | undefined,
 	captureTimestampMs: number,
 	locale: Locale,
+	referenceFallbackLabel: string,
 	fallbacks: CompareSliderLabelFallbacks,
 ): CompareSliderLabels {
 	// Level 5 — no reference.date.
 	if (!referenceDate) {
-		return { left: fallbacks.reference, right: fallbacks.current };
+		return { left: referenceFallbackLabel, right: fallbacks.current };
 	}
 
 	const refYear = Number(referenceDate.slice(0, 4));

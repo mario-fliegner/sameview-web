@@ -237,7 +237,11 @@ describe("applyBrandingNone", () => {
 });
 
 describe("applyBrandingSymbol", () => {
-	test("sets branding.type/builtinId and clears any branding asset", () => {
+	// Custom Image -> Built-in Symbol: a genuine branding-type change, not
+	// the same-symbol-reselection no-op below (that guard only ever applies
+	// while `type` is already "builtin") — must clear the custom image asset
+	// exactly as before.
+	test("Custom Image -> Built-in Symbol: sets branding.type/builtinId and clears the custom image asset", () => {
 		const cws = fakeCurrentWorkingState(
 			{ branding: { type: "image" } },
 			{ brandingHandleBytes: new Uint8Array([1]) },
@@ -249,20 +253,62 @@ describe("applyBrandingSymbol", () => {
 		assert.equal(next.files.brandingHandleBytes, undefined);
 	});
 
-	// The crux of the whole feature: re-selecting the very same id an import
-	// already carried a raster asset for must still clear that asset, so the
-	// Handle switches from the imported PNG to the shared vector registry —
-	// otherwise a fresh web selection could be silently indistinguishable
-	// from an untouched import.
-	test("clears an already-imported branding asset even when re-selecting the same builtinId", () => {
+	// Strategy D (docs analysis "Imported Built-in Symbol changes size after
+	// reselecting the same symbol"): re-selecting the exact builtinId that is
+	// already the active, still-asset-backed branding is not a "fresh"
+	// selection — nothing about the effective branding changes — so it must
+	// now be a true no-op: the imported raster stays intact and
+	// `resolveHandleBranding` keeps reporting "asset", never switching to the
+	// smaller Web vector-symbol geometry merely because the user re-clicked
+	// the tile that was already selected. Same no-op convention as
+	// `applyBrandingSymbolColor`'s own guard below: the exact same object is
+	// returned, not merely an equivalent one.
+	test("re-selecting the same builtinId while its imported asset is still active is a true no-op", () => {
+		const originalBytes = new Uint8Array([1, 2, 3]);
 		const cws = fakeCurrentWorkingState(
-			{ branding: { type: "builtin", builtinId: "star" } },
-			{ brandingHandleBytes: new Uint8Array([1, 2, 3]) },
+			{
+				branding: {
+					type: "builtin",
+					builtinId: "star",
+					updatedAtMs: 1000,
+					symbolColor: "dark",
+				},
+			},
+			{ brandingHandleBytes: originalBytes },
+			{ lastBuiltinId: "star" },
 		);
 		const next = applyBrandingSymbol(cws, "star");
 
-		assert.equal(next.files.brandingHandleBytes, undefined);
-		assert.deepEqual(resolveHandleBranding(next), {
+		assert.equal(next, cws);
+		assert.equal(next.files.brandingHandleBytes, originalBytes);
+		assert.equal(getBrandingBuiltinId(next), "star");
+		assert.equal(next.metadata.raw.branding.updatedAtMs, 1000);
+		assert.deepEqual(next.brandingDraft, cws.brandingDraft);
+		assert.deepEqual(resolveHandleBranding(next), { kind: "asset" });
+	});
+
+	// Once the imported asset has genuinely been cleared (a different symbol
+	// became active in between), returning to the original id must NOT
+	// resurrect it: that is a genuine Web selection, on the vector path,
+	// exactly like any other symbol-to-symbol switch — the no-op guard above
+	// only ever matches while an asset is still actually present.
+	test("selecting a different symbol clears the imported asset, and returning to the original id does not resurrect it", () => {
+		let cws = fakeCurrentWorkingState(
+			{ branding: { type: "builtin", builtinId: "star" } },
+			{ brandingHandleBytes: new Uint8Array([1, 2, 3]) },
+		);
+
+		cws = applyBrandingSymbol(cws, "heart");
+		assert.equal(cws.files.brandingHandleBytes, undefined);
+		assert.deepEqual(resolveHandleBranding(cws), {
+			kind: "symbol",
+			builtinId: "heart",
+			color: "#17202F",
+		});
+
+		cws = applyBrandingSymbol(cws, "star");
+		assert.equal(cws.files.brandingHandleBytes, undefined);
+		assert.deepEqual(resolveHandleBranding(cws), {
 			kind: "symbol",
 			builtinId: "star",
 			color: "#17202F",

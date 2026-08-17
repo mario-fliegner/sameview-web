@@ -41,6 +41,17 @@
 // other half of that same fix). WorkspaceActive survives the Edit/Output
 // switch (it is the component that renders both), so it is the smallest
 // state owner this can move to without any other structural change.
+//
+// Each section's descriptive subline (docs/APPLICATION_LAYOUT.md "Edit
+// Inspector" > "Structure") is a `<p>` sibling placed after the toggle
+// `<button>`'s own `</h2>`, deliberately outside both the `<h2>` (which must
+// contain only the actual heading text) and the `<button>` (whose accessible
+// name must stay exactly the heading — "Details"/"Presentation"/"Branding" —
+// never the description text appended to it). Rendered unconditionally,
+// independent of `isComparisonInformationExpanded`/`isPresentationExpanded`/
+// `isBrandingExpanded`, so it never changes the header's own height on
+// expand/collapse and gives the initially-open Details section the same
+// orientation text as the two collapsed sections beside it.
 
 import { useLocale } from "../i18n/LocaleContext";
 import type { CurrentWorkingState } from "../lib/workspace-state";
@@ -124,6 +135,12 @@ export default function EditInspector({
 						/>
 					</button>
 				</h2>
+				<p
+					className="edit-inspector__section-description"
+					data-testid="edit-inspector-comparison-information-description"
+				>
+					{t.editInspector.comparisonInformationDescription}
+				</p>
 				{isComparisonInformationExpanded && (
 					<div
 						id={COMPARISON_INFORMATION_BODY_ID}
@@ -163,6 +180,12 @@ export default function EditInspector({
 						/>
 					</button>
 				</h2>
+				<p
+					className="edit-inspector__section-description"
+					data-testid="edit-inspector-presentation-description"
+				>
+					{t.editInspector.presentation.description}
+				</p>
 				{isPresentationExpanded && (
 					<div
 						id={PRESENTATION_BODY_ID}
@@ -199,6 +222,12 @@ export default function EditInspector({
 						/>
 					</button>
 				</h2>
+				<p
+					className="edit-inspector__section-description"
+					data-testid="edit-inspector-branding-description"
+				>
+					{t.editInspector.branding.description}
+				</p>
 				{isBrandingExpanded && (
 					<div id={BRANDING_BODY_ID} className="edit-inspector__section-body">
 						<BrandingSection

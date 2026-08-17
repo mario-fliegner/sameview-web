@@ -321,6 +321,7 @@ export function deriveComparisonPresentation(
 			getNestedString(raw, "reference", "date"),
 			metadata.captureTimestampMs,
 			locale,
+			options.referenceFallbackLabel,
 			options.sliderLabelFallbacks,
 		),
 	};

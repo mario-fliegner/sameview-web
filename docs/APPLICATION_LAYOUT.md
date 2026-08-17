@@ -831,13 +831,15 @@ The inspector should fit into the supported desktop viewport without requiring v
 
 The inspector consists of three collapsible sections:
 
-- Comparison information
+- Details
 - Presentation
 - Branding
 
 The Edit Inspector itself is only a vertical layout container for these sections. It does not present a single shared bordered panel around all of them.
 
 Each section has its own panel surface: its own border, its own background, its own padding, its own heading and its own independent collapse control.
+
+Each section's heading is accompanied by a short descriptive subline identifying that section's contents/purpose, visible regardless of whether the section is expanded or collapsed. The subline is not part of the heading's own accessible name.
 
 A clear visual gap separates each section from the next.
 
@@ -849,11 +851,11 @@ The currently open section may be closed again by interacting with it the same w
 
 Initial expanded/collapsed state per section, subject to the accordion rule above:
 
-- Comparison information: expanded by default
+- Details: expanded by default
 - Presentation: collapsed by default
 - Branding: collapsed by default
 
-At most one section is open at a time; Comparison information is the only section that starts open.
+At most one section is open at a time; Details is the only section that starts open.
 
 Users may collapse individual sections to reduce visual complexity.
 
@@ -886,7 +888,7 @@ Changes are reflected immediately in the viewer.
 
 ---
 
-## Comparison information
+## Details
 
 ### Title
 

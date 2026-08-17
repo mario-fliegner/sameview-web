@@ -1917,6 +1917,58 @@ test("toggling Show Slider Date Labels off hides the on-image reference/capture 
 	);
 });
 
+test("clearing the Reference Date shows the canonical 'Then'/'Current' on-image slider labels rather than hiding the left label (docs/IMPORTED_COMPARISON_V1.md 'Derived Slider Labels': absent reference.date)", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	// A wide stage so the on-image labels' own edge-collision auto-hide
+	// (docs/COMPARISON_PRESENTATION.md Part 2 "Handle": each label
+	// independently disappears once its own measured bounds would reach or
+	// cross the corresponding Viewer edge — unchanged by this fix, and not
+	// itself under test here) has ample room on both sides, isolating the
+	// one thing this regression test actually verifies: which fallback
+	// wording is fed into that unchanged collision logic once
+	// reference.date is absent.
+	await page.setViewportSize({ width: 1400, height: 900 });
+	// Show Slider Date Labels defaults to On (docs/COMPARISON_PRESENTATION.md
+	// Part 3 "Comparison Stage") and is never toggled in this test.
+
+	const slider = page.getByTestId("comparison-slider");
+	const sliderBox = await slider.boundingBox();
+	if (!sliderBox) throw new Error("comparison-slider has no bounding box");
+	await page.mouse.move(
+		sliderBox.x + sliderBox.width / 2,
+		sliderBox.y + sliderBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		sliderBox.x + sliderBox.width / 2,
+		sliderBox.y + sliderBox.height / 2,
+	);
+	await page.mouse.up();
+
+	// reference.date is "2024" (YYYY precision) in this fixture — both labels
+	// already visible before the edit under test.
+	await expect(page.getByTestId("comparison-slider-label-left")).toBeVisible();
+	await expect(page.getByTestId("comparison-slider-label-right")).toBeVisible();
+
+	await page.getByTestId("edit-reference-date-input").fill("");
+
+	// The left/reference-side label must still render, using the same
+	// canonical fallback ("Then") the sidebar reference label already uses
+	// for an absent date — not the formerly independent, wider "Reference"
+	// wording that made the label collide with the Stage edge and disappear.
+	await expect(page.getByTestId("comparison-slider-label-left")).toHaveText(
+		"Then",
+	);
+	await expect(page.getByTestId("comparison-reference-label")).toHaveText(
+		"Then",
+	);
+	await expect(page.getByTestId("comparison-slider-label-right")).toHaveText(
+		"Current",
+	);
+});
+
 test("the Presentation section starts collapsed and can be expanded and re-collapsed", async ({
 	page,
 }) => {
@@ -2006,6 +2058,64 @@ test("Comparison Information starts expanded and Presentation starts collapsed, 
 	}
 	expect(secondBox.y - (firstBox.y + firstBox.height)).toBeGreaterThan(4);
 	expect(thirdBox.y - (secondBox.y + secondBox.height)).toBeGreaterThan(4);
+});
+
+// docs/APPLICATION_LAYOUT.md "Structure": "Each section's heading is
+// accompanied by a short descriptive subline identifying that section's
+// contents/purpose, visible regardless of whether the section is expanded
+// or collapsed. The subline is not part of the heading's own accessible
+// name." Uses stable data-testids, never the translated subline copy
+// itself (docs/AI_ENGINEERING_GUIDE.md "Testing").
+test("each accordion section's descriptive subline is visible in both states and never joins the toggle's accessible name", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+
+	// Details starts expanded (the documented default) — its subline must
+	// already be visible, not only once collapsed.
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-description"),
+	).toBeVisible();
+	// Presentation/Branding start collapsed — their sublines must already be
+	// visible too, not only Details'.
+	await expect(
+		page.getByTestId("edit-inspector-presentation-description"),
+	).toBeVisible();
+	await expect(
+		page.getByTestId("edit-inspector-branding-description"),
+	).toBeVisible();
+
+	// The toggle buttons' accessible names stay exactly the heading text —
+	// the description must never be concatenated into it.
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-toggle"),
+	).toHaveAccessibleName("Details");
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAccessibleName("Presentation");
+	await expect(
+		page.getByTestId("edit-inspector-branding-toggle"),
+	).toHaveAccessibleName("Branding");
+
+	// Expanding/collapsing a section leaves every subline rendered — no
+	// section's own subline is conditioned on its expanded state.
+	await page.getByTestId("edit-inspector-presentation-toggle").click();
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAttribute("aria-expanded", "true");
+	await expect(
+		page.getByTestId("edit-inspector-comparison-information-description"),
+	).toBeVisible();
+	await expect(
+		page.getByTestId("edit-inspector-presentation-description"),
+	).toBeVisible();
+	await expect(
+		page.getByTestId("edit-inspector-branding-description"),
+	).toBeVisible();
+	// Accessible names remain unaffected by the expand/collapse transition.
+	await expect(
+		page.getByTestId("edit-inspector-presentation-toggle"),
+	).toHaveAccessibleName("Presentation");
 });
 
 // docs/APPLICATION_LAYOUT.md "Structure": "The Edit Inspector behaves as a
@@ -2306,6 +2416,53 @@ test("imported built-in branding pre-selects Symbol/Star and the Handle renders 
 		"data-branding-kind",
 		"asset",
 	);
+});
+
+test("re-selecting the already-active imported built-in symbol is a no-op: the Handle keeps rendering the imported asset at its unchanged size", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	// Declared `width`/`height` SVG attributes of the rendered raster content
+	// box — the same 54-unit-viewBox geometry contract
+	// test/e2e/comparison-slider-handle-geometry.spec.ts's own "content size"
+	// test reads, so a real box-size change (72% -> 57.6%) would be caught
+	// here exactly as it would there.
+	const before = await page
+		.locator('[data-testid="comparison-slider-handle"] > image')
+		.evaluate((el) => ({
+			width: el.getAttribute("width"),
+			height: el.getAttribute("height"),
+		}));
+
+	// Click the Star tile that is already selected (docs analysis "Imported
+	// Built-in Symbol changes size after reselecting the same symbol",
+	// Strategy D) — src/lib/branding.ts `applyBrandingSymbol` must treat this
+	// as a true no-op rather than clearing the imported asset merely because
+	// an explicit tile click occurred.
+	await page.getByTestId("edit-branding-symbol-star").click();
+
+	await expect(page.getByTestId("edit-branding-symbol-star")).toHaveAttribute(
+		"aria-checked",
+		"true",
+	);
+	// Still the imported raster, not the smaller Web vector-symbol geometry.
+	await expect(page.getByTestId("comparison-slider-handle")).toHaveAttribute(
+		"data-branding-kind",
+		"asset",
+	);
+	const after = await page
+		.locator('[data-testid="comparison-slider-handle"] > image')
+		.evaluate((el) => ({
+			width: el.getAttribute("width"),
+			height: el.getAttribute("height"),
+		}));
+	expect(after).toEqual(before);
 });
 
 test("selecting a different built-in symbol switches the Handle to the shared vector registry", async ({
@@ -2809,6 +2966,51 @@ test("Dark resolves to exactly #17202F and Brand to exactly #4F8CFF", async ({
 
 	await page.getByTestId("edit-branding-color-dark").click();
 	await expect(symbolFillLocator(page)).toHaveAttribute("fill", "#17202F");
+});
+
+test("Dark and Brand show the same color chip already established by Presentation's color controls, Custom shows none", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+	await page.getByTestId("edit-branding-symbol-fire").click();
+
+	const darkChip = page
+		.getByTestId("edit-branding-color-dark")
+		.locator(".presentation-options__chip");
+	const brandChip = page
+		.getByTestId("edit-branding-color-brand")
+		.locator(".presentation-options__chip");
+
+	await expect(darkChip).toHaveCount(1);
+	await expect(darkChip).toHaveCSS("background-color", "rgb(23, 32, 47)"); // #17202F
+	await expect(brandChip).toHaveCount(1);
+	await expect(brandChip).toHaveCSS("background-color", "rgb(79, 140, 255)"); // #4F8CFF
+
+	// Custom deliberately carries no chip on the segmented button itself —
+	// the same established Presentation convention (Background/Frame/Text's
+	// own Custom options), since the actual current custom color is already
+	// represented by CustomColorFields' own swatch once Custom is selected.
+	await expect(
+		page
+			.getByTestId("edit-branding-color-custom")
+			.locator(".presentation-options__chip"),
+	).toHaveCount(0);
+});
+
+test("the top-level Branding None/Symbol/Custom selector stays chip-less", async ({
+	page,
+}) => {
+	await importFullFixture(page);
+	await expandBrandingSection(page);
+
+	for (const option of ["none", "symbol", "custom"]) {
+		await expect(
+			page
+				.getByTestId(`edit-branding-option-${option}`)
+				.locator(".presentation-options__chip"),
+		).toHaveCount(0);
+	}
 });
 
 test("Custom uses the same HEX color picker behavior as Presentation's Custom colors", async ({

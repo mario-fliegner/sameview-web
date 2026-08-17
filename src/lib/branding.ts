@@ -111,13 +111,25 @@ export function applyBrandingNone(
 	return withBranding(cws, undefined, undefined, cws.brandingDraft);
 }
 
-// Every fresh symbol selection made in SameView Web clears any previously
+// A fresh symbol selection made in SameView Web clears any previously
 // imported `brandingHandleBytes` (docs/IMPORTED_COMPARISON_V1.md "Session
 // Branding" F-004 addendum: a newly selected built-in symbol is rendered
-// from the shared registry, never from a raster asset) — including when the
-// user re-selects the very same id an import already carried, so
-// `resolveHandleBranding` below can tell "imported, still has its PNG"
-// apart from "freshly chosen in the browser" without a separate flag.
+// from the shared registry, never from a raster asset) — including a
+// selection reached via a detour through another symbol, None or Custom
+// Image, so `resolveHandleBranding` below can tell "imported, still has its
+// PNG" apart from "freshly chosen in the browser" without a separate flag.
+//
+// The one exception is the guard immediately below: re-selecting the exact
+// `builtinId` that is *already* the active, still-asset-backed branding is
+// not a "fresh" selection at all — nothing about the effective branding
+// would change — so it is a true no-op rather than a second, indistinguishable
+// path to the same "clear the asset" outcome. This still relies solely on
+// already-existing state (`getBrandingType`/`getBrandingBuiltinId`/
+// `files.brandingHandleBytes`), so the "tell imported apart from freshly
+// chosen without a separate flag" property above is unaffected: the moment
+// *any* other symbol, None or Custom Image becomes active in between, the
+// asset is cleared exactly as before and this guard can never fire again for
+// that `builtinId`, imported or not.
 //
 // Also records `builtinId` into `brandingDraft.lastBuiltinId` (docs/FEATURE_SPECIFICATION.md
 // F-004: a click "activates it and" the retained memory "remembers the id")
@@ -143,6 +155,19 @@ export function applyBrandingSymbol(
 	cws: CurrentWorkingState,
 	builtinId: BuiltinSymbolId,
 ): CurrentWorkingState {
+	// Re-selecting the exact symbol an import (or an earlier explicit
+	// selection) already left active, while its raster asset is still
+	// present, changes nothing observable — same convention as
+	// `applyBrandingSymbolColor` below's own no-op guard: return `cws`
+	// unchanged rather than manufacture an equivalent-but-different object.
+	if (
+		getBrandingType(cws) === "builtin" &&
+		getBrandingBuiltinId(cws) === builtinId &&
+		cws.files.brandingHandleBytes
+	) {
+		return cws;
+	}
+
 	const color = cws.brandingDraft.lastSymbolColor;
 	const branding: Record<string, unknown> = {
 		type: "builtin",

@@ -954,6 +954,23 @@ html:has(.workspace-active__preview--fullscreen) {
 	border-block-end-color: #4f8cff;
 }
 
+/* Short, always-visible accordion subline (docs/APPLICATION_LAYOUT.md "Edit
+   Inspector" > "Structure") — a dedicated class rather than reusing
+   `.output-inspector__hint` directly (that class belongs to a different
+   component's own field-row helper text; a same-named/same-valued sibling
+   here keeps the two visually identical without semantically coupling
+   Edit Inspector to Output Inspector internals). Same established
+   secondary-text token values used throughout this stylesheet: 0.75rem,
+   `#c7ccd6`. Rendered unconditionally (not only while collapsed), so it
+   never shifts the header's own height on expand/collapse — see
+   EditInspector.tsx's own header comment. */
+.edit-inspector__section-description {
+	margin: 0.125rem 0 0;
+	color: #c7ccd6;
+	font-size: 0.75rem;
+	line-height: 1.3;
+}
+
 /* A very subtle hairline separates the toggle from the body once expanded
    (Phase 6 UX Polish) — the same "quiet, minimal" separation used by tools
    like Figma/Linear/GitHub, not a heavy panel-internal border: low-contrast
@@ -1751,19 +1768,29 @@ html:has(.workspace-active__preview--fullscreen) {
 }
 
 /* "Create Output" (docs/APPLICATION_LAYOUT.md "Output Inspector") — the
-   Edit Inspector's own last child, after its three accordion sections
-   (`.edit-inspector`'s existing flex `gap` already spaces it identically to
-   the gap between those sections); a workspace action, not a fourth
-   section. Deliberately still a direct child of the single `<aside>` root
-   EditInspector returns — `.inert-region`'s `display: contents` in
-   src/components/WorkspaceActive.tsx unwraps EditInspector's own root
-   directly into `.workspace-active__layout`'s CSS Grid, so EditInspector
-   returning more than one root element would silently add a second,
-   unintended grid item there instead of staying inside the Inspector's own
-   column (confirmed by an actual regression this caused, not a theoretical
-   concern). */
+   Edit Inspector's own last child, after its three accordion sections; a
+   workspace action, not a fourth section. `margin-block-start: 1.5rem`
+   below adds to (not replaces — a flex `gap` and a child's own margin are
+   additive, confirmed empirically) `.edit-inspector`'s own `0.75rem` flex
+   `gap`, so the total space above this button becomes 2.25rem — clearly
+   more than the 0.75rem separating the three accordion sections from each
+   other — so the button reads as visually separated from that group rather
+   than as a fourth member of it. `1.5rem` itself reuses the same value
+   already established elsewhere in this file for separating an action row
+   from the content above it (`.replacement-mode__actions`) rather than
+   inventing a new spacing value. Width/height/padding/radius are
+   unchanged — the confirmed issue was grouping, not button size.
+   Deliberately still a direct child of the
+   single `<aside>` root EditInspector returns — `.inert-region`'s
+   `display: contents` in src/components/WorkspaceActive.tsx unwraps
+   EditInspector's own root directly into `.workspace-active__layout`'s CSS
+   Grid, so EditInspector returning more than one root element would
+   silently add a second, unintended grid item there instead of staying
+   inside the Inspector's own column (confirmed by an actual regression
+   this caused, not a theoretical concern). */
 .edit-inspector__create-output-button {
 	align-self: flex-start;
+	margin-block-start: 1.5rem;
 	padding: 0.625rem 1rem;
 	border: 1px solid #4f8cff;
 	border-radius: 0.5rem;

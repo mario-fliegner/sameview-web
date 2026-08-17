@@ -475,7 +475,6 @@ export default function WorkspaceActive({
 				sliderLabelFallbacks: {
 					past: t.workspace.sliderPastLabel,
 					present: t.workspace.sliderPresentLabel,
-					reference: t.workspace.sliderReferenceLabel,
 					current: t.workspace.sliderCurrentLabel,
 				},
 				durationLabelFallbacks: {
@@ -492,7 +491,6 @@ export default function WorkspaceActive({
 			t.workspace.referenceFallbackLabel,
 			t.workspace.sliderPastLabel,
 			t.workspace.sliderPresentLabel,
-			t.workspace.sliderReferenceLabel,
 			t.workspace.sliderCurrentLabel,
 			t.workspace.durationYearLabel,
 			t.workspace.durationYearsLabel,

@@ -186,7 +186,7 @@ describe("deriveComparisonPresentation", () => {
 		assert.equal(result.referenceLabel, "6. Mai 2024");
 	});
 
-	test("sliderLabels falls back to the reference/current wording when reference.date is absent", () => {
+	test("sliderLabels falls back to the canonical referenceFallbackLabel/current wording when reference.date is absent", () => {
 		const result = deriveComparisonPresentation(
 			metadataWithRaw({}, Date.UTC(2026, 6, 27)),
 			"en",
@@ -196,8 +196,13 @@ describe("deriveComparisonPresentation", () => {
 				durationLabelFallbacks: DURATION_LABEL_FALLBACKS,
 			},
 		);
+		// docs/COMPARISON_PRESENTATION.md "Slider Date Labels": derived using
+		// the same rules as IMPORTED_COMPARISON_V1.md's Derived Slider Labels —
+		// the on-image left label reuses the same canonical `referenceFallbackLabel`
+		// (FALLBACK, "Then") the sidebar referenceLabel uses, not a separate
+		// slider-only wording.
 		assert.deepEqual(result.sliderLabels, {
-			left: "Reference",
+			left: FALLBACK,
 			right: "Current",
 		});
 	});

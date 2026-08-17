@@ -162,7 +162,6 @@ export default function OutputInspector({
 				sliderLabelFallbacks: {
 					past: t.workspace.sliderPastLabel,
 					present: t.workspace.sliderPresentLabel,
-					reference: t.workspace.sliderReferenceLabel,
 					current: t.workspace.sliderCurrentLabel,
 				},
 				durationLabelFallbacks: {

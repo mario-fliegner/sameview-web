@@ -89,6 +89,10 @@ export interface Translations {
 	readonly editInspector: {
 		readonly heading: string;
 		readonly comparisonInformationHeading: string;
+		// Short, always-visible accordion subline (docs/APPLICATION_LAYOUT.md
+		// "Edit Inspector" > "Structure") — never part of the toggle button's
+		// accessible name; see EditInspector.tsx's own header comment.
+		readonly comparisonInformationDescription: string;
 		readonly titleLabel: string;
 		readonly showTitleLabel: string;
 		readonly descriptionLabel: string;
@@ -111,6 +115,7 @@ export interface Translations {
 		readonly locationCountryLabel: string;
 		readonly presentation: {
 			readonly heading: string;
+			readonly description: string;
 			readonly colorsLegend: string;
 			readonly backgroundLegend: string;
 			readonly backgroundOptions: {
@@ -155,6 +160,7 @@ export interface Translations {
 		};
 		readonly branding: {
 			readonly heading: string;
+			readonly description: string;
 			readonly options: {
 				readonly none: string;
 				readonly symbol: string;
@@ -279,7 +285,9 @@ export const translations: Record<Locale, Translations> = {
 		},
 		editInspector: {
 			heading: "Edit Inspector",
-			comparisonInformationHeading: "Comparison information",
+			comparisonInformationHeading: "Details",
+			comparisonInformationDescription:
+				"Title, description, dates and location",
 			titleLabel: "Title",
 			showTitleLabel: "Show title",
 			descriptionLabel: "Description",
@@ -302,6 +310,7 @@ export const translations: Record<Locale, Translations> = {
 			locationCountryLabel: "Country",
 			presentation: {
 				heading: "Presentation",
+				description: "Colors, typography, shape and slider labels",
 				colorsLegend: "Colors",
 				backgroundLegend: "Background",
 				backgroundOptions: {
@@ -346,6 +355,7 @@ export const translations: Record<Locale, Translations> = {
 			},
 			branding: {
 				heading: "Branding",
+				description: "Symbol or image for the slider handle",
 				options: {
 					none: "None",
 					symbol: "Symbol",
@@ -479,7 +489,9 @@ export const translations: Record<Locale, Translations> = {
 		},
 		editInspector: {
 			heading: "Bearbeitungsbereich",
-			comparisonInformationHeading: "Vergleichsinformationen",
+			comparisonInformationHeading: "Details",
+			comparisonInformationDescription:
+				"Titel, Beschreibung, Datumsangaben und Ort",
 			titleLabel: "Titel",
 			showTitleLabel: "Titel anzeigen",
 			descriptionLabel: "Beschreibung",
@@ -503,6 +515,7 @@ export const translations: Record<Locale, Translations> = {
 			locationCountryLabel: "Land",
 			presentation: {
 				heading: "Präsentation",
+				description: "Farben, Typografie, Form und Slider-Beschriftungen",
 				colorsLegend: "Farben",
 				backgroundLegend: "Hintergrund",
 				backgroundOptions: {
@@ -547,6 +560,7 @@ export const translations: Record<Locale, Translations> = {
 			},
 			branding: {
 				heading: "Branding",
+				description: "Symbol oder Bild für das Slider-Handle",
 				options: {
 					none: "Kein",
 					symbol: "Symbol",

@@ -10,19 +10,40 @@ import { computeCompareSliderLabels } from "../../src/lib/compare-slider-labels.
 const FALLBACKS = {
 	past: "Past",
 	present: "Present",
-	reference: "Reference",
 	current: "Current",
 };
 
+// The canonical absent-date Reference Label fallback
+// (docs/IMPORTED_COMPARISON_V1.md "Derived Slider Labels" > "Reference
+// Label": "absent → localized fallback meaning 'Then'") — the same value
+// src/lib/comparison-presentation.ts's `deriveReferenceLabel` already uses
+// for the sidebar Time block, now also the on-image slider label's own
+// Level 5 left value (see src/lib/compare-slider-labels.ts's own header
+// comment on `CompareSliderLabelFallbacks`).
+const REFERENCE_FALLBACK_EN = "Then";
+const REFERENCE_FALLBACK_DE = "Damals";
+
 describe("computeCompareSliderLabels", () => {
-	test("Level 5: falls back to Reference/Current when reference.date is absent", () => {
+	test("Level 5: falls back to the canonical Reference fallback / Current when reference.date is absent", () => {
 		const result = computeCompareSliderLabels(
 			undefined,
 			Date.UTC(2026, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
-		assert.deepEqual(result, { left: "Reference", right: "Current" });
+		assert.deepEqual(result, { left: "Then", right: "Current" });
+	});
+
+	test("Level 5: uses the locale-appropriate canonical Reference fallback (German)", () => {
+		const result = computeCompareSliderLabels(
+			undefined,
+			Date.UTC(2026, 6, 27),
+			"de",
+			REFERENCE_FALLBACK_DE,
+			FALLBACKS,
+		);
+		assert.deepEqual(result, { left: "Damals", right: "Current" });
 	});
 
 	test("Level 1: different years produce bare year labels", () => {
@@ -30,6 +51,7 @@ describe("computeCompareSliderLabels", () => {
 			"2019",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "2019", right: "2024" });
@@ -40,6 +62,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "Past", right: "Present" });
@@ -50,6 +73,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-01",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "Jan 2024", right: "Jul 2024" });
@@ -60,6 +84,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-07",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "Past", right: "Present" });
@@ -70,6 +95,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-07-06",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "6 Jul", right: "27 Jul" });
@@ -80,6 +106,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-07-27",
 			Date.UTC(2024, 6, 27),
 			"en",
+			REFERENCE_FALLBACK_EN,
 			FALLBACKS,
 		);
 		assert.deepEqual(result, { left: "27 Jul", right: "27 Jul" });
@@ -90,6 +117,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-01",
 			Date.UTC(2024, 6, 27),
 			"de",
+			REFERENCE_FALLBACK_DE,
 			FALLBACKS,
 		);
 		// Fixed order (month, then year) regardless of locale — only the
@@ -104,6 +132,7 @@ describe("computeCompareSliderLabels", () => {
 			"2024-07-06",
 			Date.UTC(2024, 6, 27),
 			"de",
+			REFERENCE_FALLBACK_DE,
 			FALLBACKS,
 		);
 		const julDe = new Intl.DateTimeFormat("de", { month: "short" }).format(

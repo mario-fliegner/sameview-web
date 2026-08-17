@@ -42,6 +42,10 @@ import {
 	type BuiltinSymbolId,
 	getSymbolViewBox,
 } from "../lib/builtin-branding-symbols";
+import {
+	SYMBOL_COLOR,
+	SYMBOL_COLOR_BRAND,
+} from "../lib/comparison-handle-geometry";
 import { useObjectUrl } from "../lib/use-object-url";
 import type { CurrentWorkingState } from "../lib/workspace-state";
 import CustomColorFields from "./CustomColorFields";
@@ -311,10 +315,12 @@ export default function BrandingSection({
 								{
 									value: "dark",
 									label: t.editInspector.branding.colorOptions.dark,
+									chipColor: SYMBOL_COLOR,
 								},
 								{
 									value: "brand",
 									label: t.editInspector.branding.colorOptions.brand,
+									chipColor: SYMBOL_COLOR_BRAND,
 								},
 								{
 									value: "custom",
@@ -394,6 +400,7 @@ export default function BrandingSection({
 interface OptionGroupOption {
 	readonly value: string;
 	readonly label: string;
+	readonly chipColor?: string;
 }
 
 interface OptionGroupProps {
@@ -411,10 +418,16 @@ interface OptionGroupProps {
 	readonly disabled?: boolean;
 }
 
-// docs/APPLICATION_LAYOUT.md "Branding": "Single-row option group" — no
-// color chips, so this is the plain variant of
-// PresentationSection.tsx's own `OptionGroup` (its Corners options use the
-// identical plain shape).
+// docs/APPLICATION_LAYOUT.md "Branding": the top-level None/Symbol/Custom
+// group is a plain "Single-row option group" — no color chips, so its own
+// call site below never sets `chipColor`. The Color group (Dark/Brand/
+// Custom) reuses this same local component but does set `chipColor` for
+// Dark/Brand, mirroring PresentationSection.tsx's own `OptionGroup` chip
+// rendering exactly (including the identical accessibility treatment —
+// `aria-hidden`, decorative only, the label already conveys the option's
+// meaning). Custom carries no `chipColor` here either, exactly like
+// Background/Frame/Text's own Custom options: the actual current custom
+// color is represented by CustomColorFields' swatch instead.
 function OptionGroup({
 	legend,
 	testIdPrefix,
@@ -443,6 +456,13 @@ function OptionGroup({
 					disabled={disabled}
 					onClick={() => onSelect(option.value)}
 				>
+					{option.chipColor && (
+						<span
+							className="presentation-options__chip"
+							style={{ background: option.chipColor }}
+							aria-hidden="true"
+						/>
+					)}
 					{option.label}
 				</button>
 			))}
