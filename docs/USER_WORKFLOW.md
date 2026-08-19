@@ -63,15 +63,179 @@ Users may discover SameView Web through `sameview.app`. The main website provide
 
 ### Public Viewing
 
-Users may directly access a published outcome for viewing. This entry is limited to experiencing the published comparison and does not provide an editable workspace.
+Users may directly access a published outcome for viewing. This entry is limited to experiencing the published comparison and does not provide an editable workspace. For a Hosted Comparison specifically, this is the public recipient workflow described in "Hosted Comparison Workflow" below.
 
 ### Publication Management
 
-Owners may access the management context for an existing publication. Publication management is separate from workspace editing and does not create a workspace.
+Owners may access the management context for an existing publication. Publication management is separate from workspace editing and does not create a workspace. For a Hosted Comparison specifically, this is the management-link recovery and `Online comparisons` workflow described in "Hosted Comparison Workflow" below.
 
 ### Entry Independence
 
 An entry point determines only how an existing comparison becomes available or whether a published outcome is opened for viewing or management. It does not determine the workspace type, the subsequent workflow or the content of the workspace. Every entry that makes a comparison available for editing leads to the same workspace model.
+
+## Hosted Comparison Workflow
+
+**Status: Complete**
+
+This section describes the user workflow for Hosted Comparison: publishing a SameView Comparison online, managing that publication, and the experience of someone who receives its public link. It complements [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Hosted Comparison" and [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-006/F-007 without redefining them, and does not define screens, components, layouts, routes or APIs.
+
+The initial Hosted workflow begins from an existing local SameView Android Comparison. SameView Android is the first intended Hosted publishing client; a future SameView Web Hosted-publishing workflow is mentioned only where relevant and is not specified in detail here — see "Future SameView Web Publishing" below.
+
+### Host Online Entry Point
+
+From an existing Comparison, the user can choose `Host online`. This opens a Hosted configuration/preview step before anything is published; choosing `Host online` does not itself publish anything.
+
+### Hosted Configuration and Preview
+
+Before a first Publish, the user reviews and selects the approved Hosted Presentation for that Comparison:
+
+- Title
+- Description
+- Date
+- Location
+- slider branding
+- Dark / Light background
+- Rounded / Sharp comparison image corners
+
+The interactive presentation offered is Split/Slider only; there is no Side-by-Side Hosted mode and no Hosted quality selector. The initial slider position defaults to the exact midpoint; Version 1 does not offer an option to publish the current preview position instead.
+
+The user sees the intended public result before confirming Publish; what the user previewed and configured is what gets published.
+
+### First Publish
+
+1. The user chooses `Host online` from an existing Comparison.
+2. The user reviews and configures the Hosted Presentation.
+3. The user confirms Publish.
+4. The app prepares privacy-safe temporary upload data from the Comparison.
+5. The Comparison is published online.
+6. On success, the Comparison now has one Hosted Publication.
+7. The user receives the Hosted sharing/result actions described in "Successful Hosted Result" below.
+
+If Publish fails, the Comparison is not published, and the user remains in the Hosted configuration/preview step with their selections preserved.
+
+### Successful Hosted Result
+
+After a successful Publish, the user has access to:
+
+- View online
+- Copy public link
+- Share
+- QR code
+- Private management link
+
+The user also understands that the Publication can later be updated (`Update online`) or removed (`Delete online`) — see below. The public link remains stable across any later authorized update.
+
+### QR Workflow
+
+The QR code represents the public Hosted link. From the user's perspective:
+
+- the user can display the QR code for another person to scan;
+- the user can share the QR code itself as an image/file, since the publishing device is often a phone and merely displaying the QR code is not always sufficient;
+- the user can save the QR code;
+- the user can copy the underlying public link directly, without scanning.
+
+### Existing Hosted Publication
+
+When a Comparison already has a Hosted Publication managed by the current app installation, the workflow does not encourage creating another Publication for it — a Comparison has at most one active Hosted Publication. Instead, the user manages the existing Publication, with the same owner actions available as after a first Publish, plus `Update online` and `Delete online`.
+
+### Unauthorized Existing Publication
+
+If a Publish attempt corresponds to a Comparison that already has an active Hosted Publication, but the current app installation does not have management authority over it, the workflow does not create a second Hosted Publication. The user sees a neutral failure/status that does not reveal who owns or manages the existing Publication, does not reveal further management information about it, and does not provide a replacement management credential.
+
+### Update Online
+
+1. The user opens the local Comparison.
+2. The user chooses `Update online`.
+3. The user reviews and adjusts the Hosted configuration/preview as needed.
+4. The user confirms.
+5. The Hosted Publication is replaced with the complete updated state.
+6. The existing public link remains unchanged.
+
+If the update fails, the previously published, working Hosted version remains available online.
+
+### Delete Online from an Existing Local Comparison
+
+1. The user chooses `Delete online`.
+2. Explicit confirmation is required.
+3. On confirmation and success: the Hosted Publication is removed, the public link no longer shows the Comparison, the local Comparison remains untouched, and the local Hosted management relationship is removed.
+4. On failure: the local Comparison remains, and the local Hosted management state remains so the deletion can be retried.
+
+### Local Comparison Deletion When a Hosted Publication Exists
+
+This workflow is stated explicitly because it is easy to misunderstand: deleting a local Comparison and deleting its Hosted Publication are separate decisions.
+
+1. The user requests deletion of the local Comparison.
+2. The existing local deletion confirmation is shown and confirmed.
+3. If this app installation manages an online Hosted Publication for that Comparison, a second, separate decision is shown: whether the online version should also be deleted. The default selection is No / keep online.
+4. Local deletion proceeds independently of this second decision and of Hosted/network availability — a Hosted or network failure never blocks the user from deleting their local Comparison.
+
+If the user keeps the Publication online: the local Comparison is deleted, the Hosted Publication remains available, and the local Hosted management entry remains available through `Online comparisons`.
+
+If the user also requests online deletion: the local Comparison is deleted first, regardless of network availability; online deletion is then attempted; success removes the Hosted Publication and its local management entry; failure leaves the Hosted Publication and its local management entry intact, and the user is clearly told that the local Comparison was deleted but the online version was not; the user can retry the online deletion later from `Online comparisons`.
+
+### `Online Comparisons`
+
+`Online comparisons` is a secondary Android management workflow, not a cloud library or account — it is not synchronized from a user account. It lists the Hosted Publications for which the current app installation retains management authority.
+
+For each listed Publication, the user has access to: View online, Copy public link, Share, QR code, Private management link, Delete online. If the corresponding local Comparison still exists, `Open comparison` and `Update online` are also available; if it no longer exists, those two are not offered, while sharing and Hosted management remain possible.
+
+### Management-Link Recovery
+
+The private management link can be copied or saved by the user. Opening a valid private management link allows management of that Hosted Publication from a browser or device even when the original local Comparison was deleted, or the original Android installation is unavailable; the management surface allows the Hosted management actions supported by Version 1 from there.
+
+Recovery restores management access to the Hosted Publication. It does not restore, download or recreate the original local Comparison — Hosted Comparison is not cloud backup. If both the local management capability and the private management link are lost, there is no automatic restoration of ownership.
+
+### Public Recipient Workflow
+
+A recipient of a public Hosted link:
+
+1. receives the public link or scans its QR code;
+2. opens the Hosted Comparison in a browser;
+3. sees the interactive Comparison slider without needing to install SameView;
+4. can interact with the published Comparison;
+5. sees only the metadata/presentation the publisher selected;
+6. can access a restrained SameView service information/footer;
+7. can choose `Report this content`.
+
+A recipient never receives editing or management authority merely by having the public link.
+
+### Report This Content
+
+1. The public-viewer user selects `Report this content`.
+2. A SameView-hosted report flow opens for the current Publication.
+3. The user submits the required report information.
+4. No SameView account is required to submit a report.
+5. No file attachments are accepted in Version 1.
+6. Submitting a report does not automatically remove the Publication.
+7. The user receives an appropriate acknowledgement that the report was submitted.
+
+### Public Viewer Failure Workflows
+
+- **Comparison not available:** for a deleted, nonexistent or otherwise publicly unavailable Publication, the viewer shows a neutral unavailable state, without disclosing whether it previously existed, who managed it, or why it is unavailable.
+- **Temporary technical problem:** distinguished from the not-available state above; the user may retry where useful.
+- **Missing required image:** the viewer does not show a broken, half-working Comparison.
+- **Optional branding failure:** the Comparison remains usable, degrading gracefully where possible.
+- **JavaScript unavailable:** the viewer shows a concise message that JavaScript is required for the interactive Comparison.
+
+### Offline and Network Behavior
+
+Normal SameView local use — capture, comparison, editing and local/export behavior — remains fully usable without network connectivity. `Host online`, `Update online` and `Delete online` require network access to reach the Hosted service. Being unable to reach the Hosted service does not break local Comparison use, and local deletion of a Comparison remains possible regardless of Hosted connectivity — see "Local Comparison Deletion When a Hosted Publication Exists" above.
+
+### Publication Lifetime
+
+A Hosted Publication has no normal expiration countdown and no 30-day expiry flow. It remains online until the user explicitly deletes it, or it is removed for a service/legal/abuse reason described in [DATA_AND_PRIVACY.md](DATA_AND_PRIVACY.md).
+
+### No Account Workflow
+
+Hosted Comparison management in Version 1 is accountless. The workflow does not include sign-up, login, password reset, an ownership email, or an account dashboard.
+
+### No Hosted Email Delivery
+
+The workflow does not include a SameView-operated `Email me this link` action. The user shares the public link through the ordinary system share sheet, which may include their own mail client.
+
+### Future SameView Web Publishing
+
+SameView Android is the first intended Hosted publishing client. SameView Web may later gain an equivalent Hosted-publishing workflow against the same Hosted service; that future Web workflow is not specified in detail here.
 
 ## Workspace Model
 

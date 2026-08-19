@@ -25,7 +25,7 @@ It does not redefine:
 | F-004 | Configure Comparison Branding | Current Version 1 |
 | F-005 | Generate Comparison Output | Current Version 1 |
 | F-006 | Publish Hosted Comparison (planned) | Planned Version 2 |
-| F-007 | Manage Hosted Comparisons (planned) | Planned Version 2 |
+| F-007 | View Hosted Comparison (planned) | Planned Version 2 |
 
 ## Specification Principles
 
@@ -269,9 +269,7 @@ The currently supported Version 1 output types are:
 
 Embed in website is an approved Version 1 output type, not yet implemented, specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md); platform-specific technical contracts are specified separately, for example [docs/WORDPRESS_INTEGRATION.md](WORDPRESS_INTEGRATION.md).
 
-The output type planned for Version 2 is:
-
-- Hosted Comparison
+Hosted Comparison is a related but separate Version 2 capability: publishing an interactive online Comparison rather than generating a downloadable output artifact. It is not a comparison output type of this feature and is specified separately by Feature F-006 and Feature F-007.
 
 Additional comparison output types may be introduced in future versions.
 
@@ -350,7 +348,218 @@ After successful generation:
 - Previously generated outputs remain unchanged.
 - A previously generated output may be downloaded again only while the selected output type and output-specific settings still match those it was generated with; a change to either requires generating the newly selected configuration again before it can be downloaded.
 - Output-type-specific behavior may be defined by dedicated specifications.
-- This feature does not describe publishing an output.
-- This feature does not describe hosted comparison management.
-- This feature does not describe public URLs, QR codes or embed codes.
+- This feature does not describe publishing an output — see Feature F-006.
+- This feature does not describe hosted comparison management — see Feature F-006.
+- This feature does not describe public URLs or QR codes for a Hosted Comparison — see Feature F-007. Iframe embed codes remain future scope.
 - Implementation details are outside the scope of this feature.
+
+## F-006 Publish Hosted Comparison
+
+### Purpose
+
+Publish Hosted Comparison allows the user to create and maintain one online Hosted Publication for a SameView Comparison, and to manage that Publication from the client that published it.
+
+The first supported publishing client is SameView Android. SameView Web publishing is planned for a later phase and is not part of the initial, Android-first implementation of this feature. The Hosted Publication model remains suitable for another SameView client to publish through later, without redefining this feature's behavior.
+
+### Preconditions
+
+- A valid SameView Comparison is available to the publishing client, in a state suitable for Hosted publication — for example, an Android Comparison's current state, or, once supported, a SameView Web workspace's Current Working State.
+- The user has explicitly chosen to publish; publishing is never triggered automatically.
+- A Comparison that already has an active Hosted Publication may be published again to update that Publication (see "Update online" below) rather than to create a new one.
+
+A Comparison that does not yet have the internal identity required for Hosted publication receives it automatically as part of publishing. This is not a user-visible step, does not depend on when or how the Comparison was originally created, and does not affect Comparisons that already have it. The underlying identity mechanics are defined in the imported/session metadata specifications, not here.
+
+### Configurable Hosted Presentation
+
+Before publishing, the user is shown a Hosted preview reflecting exactly what will be published. The Hosted Presentation available for Version 1 is:
+
+| Hosted Presentation item | Configurable |
+| --- | --- |
+| Presentation style | Interactive Split/Slider only — no Side-by-Side Hosted variant |
+| Title | Shown or hidden according to the user's selection |
+| Description | Shown or hidden according to the user's selection |
+| Date | Shown or hidden according to the user's selection |
+| Location | Shown or hidden according to the user's selection |
+| Slider branding | According to the user's selection (Feature F-004) |
+| Background | Dark or Light |
+| Stage corners | Rounded or Sharp |
+| Quality | Not user-configurable — the Hosted service produces the delivered image |
+
+The user's preview/configuration at the time of publishing defines what is published.
+
+Hosted Android intentionally exposes a smaller Presentation surface than the SameView Web Presentation editor ([docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md)). Web-only Presentation controls — including custom canvas colors, frame, custom presentation fonts and arbitrary text colors — are not part of Hosted Version 1. Rounded/Sharp stage corners reuse the terminology and default already defined in [docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md) "Canvas" → "Corner Radius"; they are not a separate concept.
+
+### Initial slider position
+
+The default initial position of the published interactive slider is the exact midpoint (50/50), consistent with [docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md) "Initial Slider Position". Version 1 does not expose an option to publish the current preview slider position instead; the feature model does not preclude adding such an option later.
+
+### Publish behavior
+
+1. The user reviews the Hosted preview described above and explicitly initiates publishing.
+2. On success, exactly one active Hosted Publication is created for the Comparison, reachable through one stable public link (Feature F-007).
+3. A Comparison may have at most one active Hosted Publication at a time. Publishing an already-published Comparison updates that Publication (see "Update online" below) instead of creating another one.
+4. If a Publish attempt targets a Comparison that already has an active Hosted Publication managed by a different installation/capability, no second Publication is created, the existing Publication is not modified, and no ownership or management information about it is disclosed to the requester.
+5. On success, the publishing installation receives the local management capability for the new Publication (see "Accountless management" below) together with the public sharing result described in Feature F-007.
+
+### Update online
+
+- A user with valid management capability for an existing Hosted Publication may update it with the currently configured Hosted Presentation and content.
+- An update publishes the complete new Hosted state; it does not create another public link. The Publication's public link remains unchanged.
+- If an update cannot be completed successfully, the previously published, working Publication remains available; a failed update never leaves the public Publication in a partial or broken state.
+- Update requires valid management capability (see "Accountless management" below).
+
+### Delete online
+
+`Delete online`:
+
+- is available from the local Comparison's own action context while that Comparison still exists;
+- is also available from `Online comparisons` (below), including after the local Comparison no longer exists;
+- requires explicit confirmation;
+- deletes only the Hosted Publication;
+- never deletes the local Comparison;
+- on success, removes the local Hosted management relationship for that Publication, after which the Publication is no longer publicly available.
+
+### Local Comparison deletion
+
+Deleting a local Comparison and deleting its Hosted Publication remain distinct user decisions:
+
+1. The existing local Comparison deletion confirmation remains unchanged.
+2. If the Comparison has a locally managed Hosted Publication, the user is separately asked whether the online Publication should also be deleted.
+3. The default answer is No / keep online.
+4. Local deletion proceeds independently of Hosted/network availability and is never blocked by it.
+5. If the user chose to also delete the Publication: success removes the Hosted Publication and the local Hosted management relationship; failure leaves the Hosted Publication and the local management relationship intact, and the user is told that only the local Comparison was deleted.
+6. Deleting the Publication afterward remains possible through `Online comparisons`.
+
+### `Online comparisons`
+
+`Online comparisons` is a secondary local management surface listing the Hosted Publications for which the current app installation retains management capability. It is not a cloud account, a synchronized library, or a server-side list of everything belonging to a user; no server-side account synchronization is implied.
+
+For each listed Publication, the user has access to:
+
+- View online;
+- Copy public link;
+- Share;
+- QR code;
+- Private management link;
+- Delete online.
+
+If the corresponding local Comparison still exists, `Open comparison` and `Update online` are also available. If the local Comparison has been deleted, those two are not offered, while public sharing and Hosted management remain available.
+
+### Accountless management
+
+- Publishing, updating and deleting a Hosted Publication never requires a SameView account, a login, or an email address.
+- The Publication's public link never itself grants management authority.
+- Management authority is separate from, and more restricted than, public access; only the holder of the management capability may update or delete a Publication.
+- A normal SameView export of the local Comparison does not itself grant Hosted management authority over any Publication.
+
+### Recovery
+
+- The private management link is the intended Version 1 way to regain management access to a Hosted Publication, including from a different browser or device.
+- Management access to a Publication may outlive the local Comparison that produced it.
+- Deleting or losing the local Comparison does not delete its Hosted Publication.
+- Losing the local Hosted management relationship (for example through app data loss) does not grant anyone replacement management authority merely by holding the Comparison or its public link.
+- Regaining management access through the private management link restores management authority only; it does not restore the original local Android Comparison.
+- Hosted Sharing is not a cloud backup or restore mechanism for local Comparisons.
+
+### Publication lifetime
+
+A Hosted Publication has no default expiration and is not subject to an automatic lifetime such as 30 days. It remains available until it is explicitly deleted, or becomes unavailable for an operator/legal reason described outside this feature (see Feature F-007 "Report this content").
+
+### Privacy-facing Hosted behavior
+
+Images used for Hosted Publishing are processed so that embedded identifying and location metadata is not published as part of the Hosted image assets. The detailed processing pipeline is defined in [docs/DATA_AND_PRIVACY.md](DATA_AND_PRIVACY.md), not here.
+
+### Network behavior
+
+Publish, Update and Delete online require network connectivity. Ordinary SameView capture, editing and other local use remain fully usable without network connectivity; Hosted Sharing does not redefine SameView as an online-first product.
+
+### Result
+
+After a successful Publish:
+
+- exactly one active Hosted Publication exists for the Comparison, reachable through one stable public link (Feature F-007);
+- the publishing installation holds the local Hosted management relationship for that Publication;
+- the local Comparison itself is unchanged.
+
+After a successful Update, the Publication's content reflects the newly published Hosted Presentation while its public link remains unchanged.
+
+After a successful Delete online, the Hosted Publication is no longer available and the corresponding local Hosted management relationship is removed.
+
+### Rules and Limitations
+
+- A Comparison may have at most one active Hosted Publication.
+- Publishing an already-published Comparison updates the existing Publication; it never creates a second public link for the same Comparison.
+- Management authority, not possession of the public link, governs who may update or delete a Publication.
+- This feature does not require a SameView account.
+- This feature does not provide cloud backup or restore of local Comparisons.
+- This feature does not describe the public Hosted Viewer, public sharing or reporting — see Feature F-007.
+- This feature does not describe the identifier, storage or security implementation used to realize these guarantees — see [docs/ARCHITECTURE.md](ARCHITECTURE.md) and [docs/DATA_AND_PRIVACY.md](DATA_AND_PRIVACY.md).
+- Implementation details, exact UI layout and exact wording are outside the scope of this feature.
+
+### Failure Conditions
+
+Publishing, updating or deleting a Hosted Publication fails when the Hosted service or network connectivity is unavailable, when the submitted Hosted content is invalid or unsupported, when a Publish attempt would otherwise create a second active Publication for an already-published Comparison without valid management authority, or when an Update or Delete is attempted without valid management authority for the targeted Publication.
+
+A failed Publish does not create a Publication. A failed Update never replaces a working Publication with a partial or broken one. A failed Delete leaves the existing Publication and local management relationship unchanged. Failure messaging remains neutral and does not disclose ownership or management details about a Publication the requester does not control.
+
+## F-007 View Hosted Comparison
+
+### Purpose
+
+View Hosted Comparison allows anyone who has a Hosted Publication's public link to view the published SameView Comparison, and to access the sharing and reporting behavior associated with it.
+
+### Preconditions
+
+- A Hosted Publication exists and is currently available at its public link.
+
+### Presentation
+
+1. Visiting a Hosted Publication's public link presents the published Comparison as an interactive SameView Comparison. No editor is shown; the published Hosted snapshot is presented as-is.
+2. The complete Hosted Presentation consists of the Comparison Stage together with the selected information beneath it, per Feature F-006 "Configurable Hosted Presentation". Selected information remains below the Stage rather than permanently overlaid on the image.
+3. The complete Presentation uses the available viewport as fully as practical while remaining entirely visible: no cropping, no stretching, and no internal scrolling area for the Presentation itself. It responds correctly to viewport size and orientation changes. The Comparison Stage remains the visual priority.
+4. Rounded/Sharp stage corners and the overall Dark/Light background follow the published configuration (Feature F-006). Corner terminology and default reuse [docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md) "Canvas" → "Corner Radius"; the richer Web canvas/background system is not part of this feature.
+
+### Long text
+
+Long selected metadata may be visually truncated to preserve the Presentation's composition. Full truncated content remains accessible through an appropriate pointer/focus/touch interaction, consistent with [docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md)'s existing overflow behavior. No internal scrolling metadata panel is introduced, and text is not continuously shrunk merely to fit arbitrary content.
+
+### SameView service branding
+
+A restrained SameView service presence is shown outside the Comparison Presentation itself. It does not cover the Comparison, does not compete visually with the user's own selected slider branding, and remains visually secondary. It provides access to `Report this content` and to appropriate SameView/service information.
+
+### Report this content
+
+`Report this content` is available from every public Hosted Viewer. Reporting uses a SameView-hosted flow associated with the current Publication, requires no SameView account, and accepts no file attachments in Version 1. Submitting a report does not by itself remove or suspend the Publication. The exact legal form fields, categories and retention are defined outside this feature specification.
+
+### Public sharing
+
+The publishing client can offer View online, Copy public link, ordinary platform/system Share, and a QR code for the Publication (Feature F-006). The QR code represents only the Publication's canonical public link, never creates another Publication or identity, can be displayed, shared as an image/file, and saved, and its underlying link can be copied. Version 1 does not require an SVG form of the QR code.
+
+Hosted Sharing does not provide a SameView-operated `Email me this link` delivery service in Version 1; users may share the public link through their platform's own sharing/mail capabilities.
+
+### Result
+
+Viewing a Hosted Publication never modifies it. Sharing, viewing the QR code, and submitting a report do not require and never grant management authority over the Publication (Feature F-006).
+
+### Rules and Limitations
+
+- A Hosted Publication is accessible to anyone who possesses its public link. A difficult-to-guess public identifier is not an access-control mechanism, and this feature must not be described as private.
+- Version 1 does not intentionally expose Hosted Publications as searchable/indexed public content; the exact technical mechanism belongs to [docs/ARCHITECTURE.md](ARCHITECTURE.md).
+- Public access to a Publication never grants management authority over it — see Feature F-006.
+- This feature does not describe how a Publication is created, updated, deleted or locally managed — see Feature F-006.
+- This feature does not describe the exact legal report-form fields, categories or retention.
+- Implementation details, exact UI layout and exact wording are outside the scope of this feature.
+
+### Failure Conditions
+
+If the public link no longer resolves to an available Publication — because it never existed, was deleted, or is otherwise unavailable for an operator/legal reason — the Viewer shows a neutral not-available state without disclosing whether it previously existed or why it is unavailable.
+
+If the Hosted service, storage or network experiences a temporary technical failure, the Viewer shows a distinct temporary/technical-error state; a temporary failure must never make a live Publication appear permanently deleted or nonexistent.
+
+If either of the two required Comparison images is unavailable, the Viewer does not render a half-working Comparison; this is treated as a temporary/technical failure.
+
+If an optional asset such as custom branding is unavailable, the Viewer degrades gracefully and remains usable where the core Comparison itself is otherwise valid.
+
+If JavaScript is unavailable, a concise message states that JavaScript is required for the interactive Comparison; Version 1 does not otherwise provide a static fallback.
+
+If loading otherwise fails on the client, the Viewer avoids an indefinite loading state and provides a useful retry/error state where appropriate.

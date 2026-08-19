@@ -497,7 +497,7 @@ Version 1 provides three output cards:
 - Static Microsite (available)
 - Embed in website (approved, specified in [docs/EMBED_IN_WEBSITE.md](EMBED_IN_WEBSITE.md); availability follows that specification's own implementation state)
 
-Hosted Comparison is not presented in Version 1.
+Hosted Comparison is not one of these Output Cards and is not presented in the Web Output Inspector in Version 1. Hosted Comparison is a separate, Android-first online-publication capability, not a downloadable artifact — see "Android Hosted Layout", "Hosted Public Web Application" and "Hosted Browser Management" below for its own layout, and [docs/PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) "Hosted Comparison" for its product definition. A future SameView Web Hosted-publishing workflow remains later/future scope (see "Future SameView Web Publishing" below) and does not change the Output Cards defined here.
 
 Each card contains:
 
@@ -1120,3 +1120,171 @@ Dark uses the existing default Built-in Symbol color already used today. Brand u
 The Color option group is specific to Built-in Symbol: it is shown only while Symbol is selected, never for None or Custom, and it has no effect on a Custom Image or on an imported branding asset. The configured color belongs to the Built-in Symbol branding as a whole, not to an individual symbol — selecting a different symbol in the grid (for example Heart, then Star, then Fire) keeps the currently configured color unchanged.
 
 Changes update the preview immediately.
+
+---
+
+# Android Hosted Layout
+
+This section defines the high-level layout and placement of Hosted Comparison functionality within the SameView Android application. It complements [docs/USER_WORKFLOW.md](USER_WORKFLOW.md) "Hosted Comparison Workflow" and [docs/FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-006/F-007 without duplicating their detailed workflows, and does not specify Compose implementation.
+
+Hosted Comparison Version 1 is Android-first. Everything in this section describes SameView Android application layout, not the SameView Web workspace layout described elsewhere in this document. The existing SameView Web workspace layout is unchanged by Android-first Hosted V1 — see "Future SameView Web Publishing" below.
+
+## Host Online Entry
+
+`Host online` is an action associated with an existing Comparison, reachable from the Comparison's own action context — the screen that presents that Comparison — not from Edit Comparison.
+
+When the Comparison does not yet have a locally managed Hosted Publication, this action leads to the Hosted configuration/preview surface described below.
+
+When the Comparison already has a locally managed Hosted Publication, the same action context instead presents management of that existing Publication rather than encouraging another initial Publish. The relevant actions are:
+
+- Update online
+- View online
+- sharing actions (see "Hosted Result and Sharing" below)
+- Delete online
+
+Exact action grouping — for example a dedicated action versus an overflow menu item — remains implementation design.
+
+## Delete Online Placement
+
+`Delete online` belongs to the same Comparison action context as `Host online` above, not to Edit Comparison. It is additionally reachable through `Online comparisons` (see below) for Publications whose local Comparison may no longer exist. The local Edit Comparison screen is not changed solely to add Hosted deletion.
+
+## Hosted Configuration and Preview
+
+A dedicated Hosted configuration/preview surface is opened before an initial Publish, and is reused as appropriate for `Update online`. Its high-level composition follows the proven SameView output pattern already used elsewhere in the product:
+
+- the visual preview of the Comparison is primary;
+- configuration controls are clearly separated from the preview;
+- the primary Publish/Update action is explicit;
+- a destructive action is not mixed with normal presentation configuration.
+
+The screen exposes exactly the approved Hosted controls:
+
+- Title
+- Description
+- Date
+- Location
+- slider branding
+- Background: Dark / Light
+- Corners: Rounded / Sharp
+
+It does not add Side-by-Side, a Quality control, custom canvas colors, arbitrary fonts, arbitrary text colors, or other Web-only Presentation options described under "Presentation" in "Edit Inspector" above — Hosted Android intentionally exposes a smaller Presentation surface.
+
+The initial preview slider position is the exact midpoint (50/50). Version 1 layout does not add a control for publishing the current preview slider position instead.
+
+For Title, Description, Date and Location, the layout makes clear that these determine what appears in the public Hosted Presentation — following the existing SameView selection patterns already used for comparable metadata selection (for example Share Image, Create Video, Presentation) rather than an unrelated new selection model.
+
+## Hosted Result and Sharing
+
+After a successful Publish, a Hosted result surface prioritizes the public outcome and exposes:
+
+- View online
+- Copy public link
+- Share
+- QR code
+- Private management link
+
+The result surface also makes it understandable that the Publication can later be updated or deleted. It does not introduce a SameView account/dashboard concept, and does not add a SameView-operated email-delivery action — the user shares through the ordinary system share sheet.
+
+### QR Presentation
+
+Because Hosted publishing is expected to occur on a phone, the QR surface does not consist solely of displaying a scannable QR code. It also provides:
+
+- Share QR
+- Save QR
+- Copy link
+
+The QR always represents the public Hosted link, never the private management link.
+
+## `Online Comparisons` Navigation
+
+`Online comparisons` is a secondary Android management destination:
+
+- it is reachable independently of any individual local Comparison;
+- it is not part of the primary Android capture/compare workflow;
+- it lives in an existing secondary/global navigation area, consistent with the current Android navigation model's existing secondary destinations, rather than a new permanent primary navigation destination introduced solely for Hosted V1.
+
+## `Online Comparisons` List
+
+Each entry identifies its Hosted Publication sufficiently for the user to recognize it: where the local Comparison still exists, its local display information is used; where it no longer exists, the minimal locally retained Hosted display fallback is used instead. The list never requires a server-side cloud-library fetch merely to be displayed.
+
+Each entry exposes or leads to the applicable actions described in [docs/USER_WORKFLOW.md](USER_WORKFLOW.md) "`Online Comparisons`" — View online, Copy public link, Share, QR code, Private management link, Delete online, and, where the local Comparison still exists, Open comparison and Update online. Actions are grouped using an existing Android action/menu pattern rather than making every action permanently visible clutter.
+
+## Local Deletion Dialog Sequencing
+
+The existing local Comparison deletion confirmation remains first. If the Comparison has a locally managed Hosted Publication, a second, separate Hosted-deletion decision follows, defaulting to No / keep online. Hosted failure messaging makes clear that local deletion already succeeded even when the online deletion did not. The existing base local-deletion confirmation is not redesigned for this — see [docs/USER_WORKFLOW.md](USER_WORKFLOW.md) "Local Comparison Deletion When a Hosted Publication Exists" for the full decision sequence.
+
+---
+
+# Hosted Public Web Application
+
+This section defines the high-level layout of the public Hosted Comparison Viewer, reached at a Hosted Publication's public link. It is a separate web application from the SameView Web workspace described elsewhere in this document — see "Scope Separation" below.
+
+## Public Viewer Composition
+
+The public Viewer contains, in order:
+
+1. the Hosted Comparison Presentation as the primary content — the Comparison Stage, and the selected metadata/information beneath it;
+2. a restrained SameView service/footer area outside the user's Presentation (see "Service Footer" below).
+
+The Presentation occupies as much useful viewport as practical while remaining fully visible; the image/Stage remains the visual priority. No editor controls are shown, and no management controls are shown merely because the visitor has the public link.
+
+## Public Viewer Responsive Layout
+
+See [docs/COMPARISON_PRESENTATION.md](COMPARISON_PRESENTATION.md) for the shared Presentation geometry and overflow rules; this section states only the layout-level expectations, not CSS:
+
+- the Comparison Stage remains centered and primary;
+- selected metadata remains beneath it;
+- the Presentation responds to viewport and orientation changes;
+- no cropping, no stretching;
+- no internal Presentation scroll region merely to fit the composition;
+- long metadata may truncate, with full content remaining accessible through the same shared overflow behavior used elsewhere in the product.
+
+## Background and Corners
+
+The public Viewer reflects the published Hosted Presentation exactly: a Dark or Light overall Hosted background, and Rounded or Sharp Stage/image corners. It does not expose the richer Web Canvas configuration described under "Presentation" → "Colors"/"Shape" in "Edit Inspector" above.
+
+## Service Footer
+
+A restrained footer/service area sits below/outside the user's Comparison Presentation, containing only secondary service actions/information such as SameView identification/a link as appropriate, and `Report this content`. It must not overlay the Stage, must not compete visually with the Comparison, and must not be confused with the user's own selected slider branding. Exact legal footer links/copy remain subject to later legal/release work.
+
+## Report Flow Layout
+
+`Report this content` opens a SameView-hosted report form/surface, visually separate from the user's Comparison. No account/login is required, and Version 1 has no file-attachment control. Exact fields, categories and legal copy remain subject to legal review.
+
+## Public Failure Layouts
+
+Distinct layout states exist for:
+
+- **Comparison not available** — a neutral unavailable layout, without disclosing prior existence or reason;
+- **temporary technical problem** — a distinct layout from the above, since this is not a deletion;
+- **JavaScript required** — a concise message layout.
+
+A missing required core image resolves to the appropriate unavailable/technical-failure layout rather than a broken Stage. An optional branding failure does not replace the entire Viewer with an error — the Comparison remains viewable.
+
+---
+
+# Hosted Browser Management
+
+This section defines the high-level layout of the browser management surface reached through a Hosted Publication's private management link. It is structurally and visually distinct from the public Viewer above.
+
+The management surface makes clear which Hosted Publication is being managed. It exposes, at minimum, public-link/sharing access and `Delete online`; where already approved, it also exposes `Update online` and the same View online/QR affordances available from the Android result surface, without requiring the original Android Comparison. It never implies restoration or editing of the original Android Comparison, and it does not introduce an account/profile navigation concept.
+
+Session/token mechanics for reaching this surface are architecture, not layout — see [docs/ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+# Scope Separation
+
+Hosted Comparison spans three distinct UI contexts, which this document keeps clearly separate rather than merging into the existing SameView Web editor layout described elsewhere in this document:
+
+**Android local application** — `Host online`, the Hosted configuration/preview surface, the Hosted result surface, `Online comparisons`, and local Hosted management actions (see "Android Hosted Layout" above).
+
+**Hosted public web application** — the public interactive Viewer, its service footer, and the report flow (see "Hosted Public Web Application" above).
+
+**Hosted browser management** — the private management surface (see "Hosted Browser Management" above).
+
+---
+
+# Future SameView Web Publishing
+
+SameView Android is the first intended Hosted publishing client. A future SameView Web Hosted-publishing workflow may reuse the same Hosted service and product semantics described above; its layout is not designed here. The existing SameView Web workspace layout defined elsewhere in this document is unchanged by Android-first Hosted V1.

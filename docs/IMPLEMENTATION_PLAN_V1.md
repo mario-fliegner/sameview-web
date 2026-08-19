@@ -496,7 +496,7 @@ This list is intentionally separate from 1–17 and from the WordPress Embed Ite
 ## 8. Deferred Work
 
 - F-006 Publish Hosted Comparison
-- F-007 Manage Hosted Comparisons
+- F-007 View Hosted Comparison
 - Public comparison URLs
 - QR codes and iframe embed code
 - Private management links and publication update/deletion
@@ -507,6 +507,25 @@ This list is intentionally separate from 1–17 and from the WordPress Embed Ite
 - Automatic Android-to-web transfer
 - Webflow and Squarespace Embed platforms — approved product scope (`EMBED_IN_WEBSITE.md` "Supported Platforms") but not planned here; each requires its own feasibility research and platform-specific technical contract, analogous to `WORDPRESS_INTEGRATION.md`/`JOOMLA_INTEGRATION.md`, before implementation planning
 - Any further comparison output type beyond Standalone HTML, Static Microsite and Embed in website (WordPress)
+
+Hosted Comparison (F-006/F-007 above) is now an approved, specified
+capability — see
+[HOSTED_COMPARISON_APPROVED_PRODUCT_DECISIONS_2026-08-19.md](HOSTED_COMPARISON_APPROVED_PRODUCT_DECISIONS_2026-08-19.md),
+[FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-006/F-007,
+[ARCHITECTURE.md](ARCHITECTURE.md),
+[DATA_AND_PRIVACY.md](DATA_AND_PRIVACY.md),
+[PRODUCT_SCOPE.md](PRODUCT_SCOPE.md),
+[USER_WORKFLOW.md](USER_WORKFLOW.md),
+[APPLICATION_LAYOUT.md](APPLICATION_LAYOUT.md) and
+[IMPORTED_COMPARISON_V1.md](IMPORTED_COMPARISON_V1.md) — with SameView
+Android as the first publishing client and SameView Web publishing
+planned for later. Its implementation is not appended to the phase
+sequence above and does not reopen the completed V1/WordPress/Joomla
+scope. It is planned separately, in a dedicated
+`docs/HOSTED_COMPARISON_IMPLEMENTATION_PLAN_V1.md` (not yet created),
+coordinating work across both the `sameview-web` and `sameview`
+(Android) repositories against the current canonical specifications
+listed above as source of truth.
 
 ## 9. Open Decisions and Specification Conflicts
 
@@ -533,6 +552,21 @@ These decisions need narrow technical or product clarification in their named it
 - `IMPORTED_COMPARISON_V1.md` contains forward-looking publication rules despite its V1 name. Its workspace, snapshot and allowlist rules apply to V1; publication-specific persistence and server processing do not. This is an ambiguity, not a reason to implement publication, and should be clarified separately before F-006.
 - `USER_WORKFLOW.md` includes product-wide public-viewing and management entry points. Because it explicitly complements rather than redefines Product Scope, those entry points are treated as future workflow context and create no V1 routes. Clarification is desirable before F-006, not before the local V1 workflow.
 - The implemented DB schema, smoke check, Docker setup and deployment documentation predate the browser-only V1 boundary. They are real technical foundations, but no current V1 feature reads or writes publication data. The homepage's runtime smoke check is the only user-facing coupling and is addressed in Iteration 1; no schema or deployment change is planned.
+
+**Status update:** the clarifications named above for
+`IMPORTED_COMPARISON_V1.md` and `USER_WORKFLOW.md` (both "before
+F-006") have since been completed — see
+[HOSTED_COMPARISON_APPROVED_PRODUCT_DECISIONS_2026-08-19.md](HOSTED_COMPARISON_APPROVED_PRODUCT_DECISIONS_2026-08-19.md)
+and the current text of both documents. `FEATURE_SPECIFICATION.md`
+F-006 and F-007 now have complete normative text. The `CLAUDE.md`
+wording concern in the first bullet above also no longer applies: the
+current `CLAUDE.md` in this repository already frames MySQL, persistent
+image storage and hosted WebP images as prepared Version 2 Hosted
+Publication foundation rather than a Version 1 hard constraint;
+`AGENTS.md`'s current wording was not re-verified as part of this
+update. This status update does not reopen any completed phase of this
+plan; Hosted Comparison implementation itself remains tracked
+separately — see Section 8.
 
 ## 10. Completion Criteria
 

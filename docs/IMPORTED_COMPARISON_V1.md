@@ -16,7 +16,8 @@ This document defines:
 - which metadata may be edited in SameView Web,
 - which metadata remains immutable or is only preserved,
 - how slider labels are derived,
-- how session branding is represented, and
+- how session branding is represented,
+- how the Comparison's local session identity relates to its separate global product-level identity, and
 - which data may be included in generated and published outcomes.
 
 It does not define the import UI, editor UI, local persistence technology or outcome-generation implementation.
@@ -51,6 +52,8 @@ This outcome-level `session.id` is distinct from the similarly named field that 
 
 Changes to metadata, images, Presentation, branding, output options or other editable state never change a Comparison's `session.id`, as long as its underlying imported session identity remains the same. A different underlying session identity represents a different Comparison.
 
+`session.id` is not globally unique across independent Android devices and is not by itself sufficient as a global Hosted Comparison identity. A separate, additive global Comparison identity (`session.comparisonId`) may also exist — see "Global Comparison Identity" below. It does not change `session.id`'s role described above.
+
 ### Outcome Fingerprint
 
 An Outcome Fingerprint is a value included in the Outcome Snapshot that changes if and only if the outcome's own allowlisted content changes. It is generated deterministically by SameView Web at outcome-generation time.
@@ -76,6 +79,8 @@ Readers use the current field first and then the documented legacy fallback:
 `session.id` (nested, present from schema version 5 onward) and the legacy flat `sessionId` are informational only and are not used to resolve session identity. See "Session Identity" below.
 
 Newer optional blocks and fields may be absent in older versions. Their absence alone does not make an older comparison invalid.
+
+`session.comparisonId`, where present, is an additive optional field within these same supported versions (see "Global Comparison Identity" below); it does not introduce or require a new metadata version, and its absence does not affect version support.
 
 ## Import Validity
 
@@ -106,6 +111,44 @@ Metadata-level parsing therefore does not require or validate a session identity
 A SameView export archive may legitimately contain more than one session directory (Android's own multi-session backup export produces exactly this structure). Because Version 1 supports exactly one active workspace, SameView Web does not select, merge or otherwise automatically resolve multiple session directories in a single import archive. An archive containing more than one valid session directory is rejected as a distinct import failure, as defined in [ARCHITECTURE.md](ARCHITECTURE.md) and [FEATURE_SPECIFICATION.md](FEATURE_SPECIFICATION.md) F-001.
 
 This archive-directory-name identity, once resolved at import, is the sole basis for the outcome-level Comparison Identity carried into a generated outcome — see "Comparison Identity (`session.id`)" below. That outcome-level identity is a distinct concept from the imported metadata field discussed above: the metadata field remains informational only and is never itself the basis for identity resolution, at import or at outcome generation.
+
+## Global Comparison Identity
+
+This section distinguishes the existing local/session identity, the global product-level Comparison identity, and Hosted publication identifiers — three separate concerns that are never interchangeable.
+
+### `session.id`
+
+`session.id` (see "Session Identity" above) is the existing local/session identity: the archive-directory-derived identity SameView Web uses to resolve import and to match Embed placements. It continues to serve exactly this role, unchanged. It originates from a single Android device's local session-directory naming and is not globally unique across independent Android devices — it must not be treated as sufficient global identity for Hosted Comparison ownership.
+
+### `session.comparisonId`
+
+`session.comparisonId` is a separate, additive, optional global Comparison identity, conceptually:
+
+- a UUID v4;
+- a canonical lowercase hyphenated textual representation;
+- generated offline, without any external service or SameView server call;
+- not secret;
+- immutable once assigned to a Comparison.
+
+It is the identity used where a stable identity is required across independent clients — for example a Hosted Comparison Publication (see [ARCHITECTURE.md](ARCHITECTURE.md) "Hosted Comparison Architecture" → "Identifiers"). It does not replace, redefine or supersede `session.id`'s existing role, and the two identities are never treated as interchangeable.
+
+**Metadata compatibility.** `session.comparisonId` is an optional, additive field within the currently supported metadata versions (2 through 6 — see "Supported Metadata Versions" above); it does not require and does not introduce a new metadata version. A Comparison legitimately may not contain it — older Comparisons, and Comparisons created before an Android version capable of Hosted publishing, may be imported normally without it. Its absence never makes an otherwise valid import invalid.
+
+**Import and the Current Working State.** When `session.comparisonId` is present in imported metadata, SameView Web preserves it as part of Source Data and the Current Working State, treats it as immutable system identity (see "Immutable Fields" below), never exposes it as editable user metadata, never regenerates it merely because the Comparison is imported into SameView Web, and never changes it as a side effect of editing title, description, date, location or presentation. When it is absent, current import, editing and export behavior remains fully valid: SameView Web does not fabricate one, does not infer one from `session.id`, and does not assume or claim that the imported Comparison already has an existing Hosted Publication. Whether and when SameView Web itself assigns a global Comparison identity, once it becomes a Hosted publishing client, belongs to that future publishing specification and is not defined here.
+
+**Export.** Because `session.comparisonId` is not secret, it may be preserved in outputs that carry SameView session/source metadata where applicable, and an ordinary export of the Comparison may contain it. Presence of `session.comparisonId` alone never grants Update or Delete authority over a Hosted Publication — see "Hosted publication identifiers" below.
+
+**Future semantics.** Future duplicate, copy or restore semantics for `session.comparisonId` are intentionally not defined here; the approved Hosted Comparison baseline leaves this outside Version 1 scope. This is not a precondition for current import behavior.
+
+### Hosted publication identifiers
+
+A Hosted Publication's public identity and its management authority are separate concerns from Comparison identity, and neither is derived from `session.id` or `session.comparisonId`:
+
+- the public Hosted identity does not replace or redefine the Comparison identity described above;
+- management authority is never derived from `session.id` or `session.comparisonId`;
+- Hosted management credentials must never be introduced into ordinary Comparison export metadata — see [DATA_AND_PRIVACY.md](DATA_AND_PRIVACY.md).
+
+The exact identifiers and security model are defined in [ARCHITECTURE.md](ARCHITECTURE.md) "Hosted Comparison Architecture" and are not duplicated here.
 
 ## Metadata Preservation
 
@@ -165,6 +208,7 @@ Their absence is valid. SameView Web must not replace, normalize or remove them 
 SameView Web must not edit:
 
 - session identity,
+- the global Comparison identity (`session.comparisonId`), when present,
 - `capture.timestampMs`,
 - comparison image and original-file references,
 - source URIs and MediaStore references,
@@ -320,7 +364,8 @@ A published outcome uses an explicit allowlist. It may include, when required by
 - the branding asset,
 - required comparison images,
 - required outcome configuration,
-- the Comparison Identity (`session.id`), when the outcome type requires a stable identity, and
+- the Comparison Identity (`session.id`), when the outcome type requires a stable identity,
+- the global Comparison identity (`session.comparisonId`), when the outcome type requires a stable cross-client identity — for example a Hosted Publication, and
 - the Outcome Fingerprint, when the outcome type requires exact-duplicate detection.
 
 A publication must not include:
