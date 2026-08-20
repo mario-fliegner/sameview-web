@@ -108,7 +108,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 1 – Hosted Application Scaffold
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Establish the `hosted/` application as a second, independently buildable/runnable Node.js/Astro application in the same repository, with no product behavior yet.
