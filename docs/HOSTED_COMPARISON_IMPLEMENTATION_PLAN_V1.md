@@ -127,7 +127,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 2 – Hosted Deployment Foundation
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Prove, early and cheaply, that the approved two-application Netcup/Plesk architecture is operationally real — deploy the Phase 1 scaffold to a reachable `my.sameview.app` — before investing further engineering effort on top of an unverified deployment assumption.
