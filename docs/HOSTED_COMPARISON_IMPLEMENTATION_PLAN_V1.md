@@ -146,7 +146,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 3 – Hosted Persistence Schema Foundation
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Establish the Hosted `comparisons` table (and any small adjacent tables it genuinely requires) matching [ARCHITECTURE.md](ARCHITECTURE.md) "Hosted Comparison Architecture" → "Data Model", with no API behavior yet.

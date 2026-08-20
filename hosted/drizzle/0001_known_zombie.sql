@@ -1,0 +1,1 @@
+ALTER TABLE `comparisons` ADD `show_date` boolean DEFAULT true NOT NULL;

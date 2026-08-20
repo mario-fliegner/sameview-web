@@ -1,4 +1,5 @@
 import {
+	boolean,
 	char,
 	mysqlTable,
 	text,
@@ -24,6 +25,7 @@ export const comparisons = mysqlTable("comparisons", {
 	description: text("description"),
 	referenceLabel: varchar("reference_label", { length: 255 }).notNull(),
 	captureLabel: varchar("capture_label", { length: 255 }).notNull(),
+	showDate: boolean("show_date").notNull().default(true),
 
 	locationDisplayName: varchar("location_display_name", { length: 255 }),
 	locationCity: varchar("location_city", { length: 255 }),
