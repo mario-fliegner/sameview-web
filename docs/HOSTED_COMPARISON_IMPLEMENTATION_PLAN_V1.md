@@ -165,7 +165,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 4 – Hosted Asset Storage Foundation
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Establish the small, provider-neutral Asset Storage boundary and its initial Netcup-filesystem implementation, with the approved versioned layout, and no upload/API behavior yet.

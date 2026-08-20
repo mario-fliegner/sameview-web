@@ -2,6 +2,10 @@
 dist/
 release/
 
+# runtime data (e.g. hosted/data/ — Hosted Asset/Temp Storage filesystem
+# implementation, see hosted/src/lib/asset-storage.ts and temp-storage.ts)
+data/
+
 # pre-bundled Comparison Presentation runtime (scripts/build-presentation-runtime.mjs,
 # `pnpm build:runtime`) — generated before `astro dev`/`astro build`, never
 # committed, exactly like dist/.
