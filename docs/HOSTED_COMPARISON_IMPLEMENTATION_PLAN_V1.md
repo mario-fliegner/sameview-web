@@ -222,7 +222,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 7 – Hosted Update API
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Implement authorized Update: atomically replace a Publication's active state with newly processed content while preserving its public link.
