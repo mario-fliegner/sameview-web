@@ -203,7 +203,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 6 – Hosted Publish API
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Implement the initial Publish operation: given `comparisonId` and a Hosted Presentation payload plus required assets, create exactly one active Publication and return its public identity and management capability.
