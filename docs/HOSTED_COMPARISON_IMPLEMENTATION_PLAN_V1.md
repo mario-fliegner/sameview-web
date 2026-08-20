@@ -184,7 +184,7 @@ Phase 26 (Integration and Production Acceptance) is the sole final phase and dep
 
 ### Phase 5 – Hosted Upload Validation and Image Processing Pipeline
 
-**Status:** Planned
+**Status:** Completed
 **Primary Repository:** `sameview-web`
 
 - **Objective:** Implement server-side validation and processing of uploaded `capture.jpg`/`reference.jpg`/optional branding input into the canonical Hosted WebP assets, as a pure processing pipeline with no API route yet.
